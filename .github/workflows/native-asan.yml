@@ -21,8 +21,8 @@ jobs:
       PYTHONNOUSERSITE: '1'
       PYTHONPATH: ''
       PIP_DISABLE_PIP_VERSION_CHECK: '1'
-      CC: clang-18
-      CXX: clang++-18
+      CC: gcc-13
+      CXX: g++-13
       RAGGED_POOL_ASAN: '1'
       CAMPAIGN_SECONDS: ${{ github.event_name == 'pull_request' && '600' || '5' }}
     steps:
@@ -35,16 +35,14 @@ jobs:
         with:
           python-version: '3.11.8'
           architecture: x64
-      - name: Resolve the existing Clang 18 ASan runtime
+      - name: Resolve the existing GNU C++ 13 ASan runtime
         run: |
           set -euo pipefail
           "$CXX" --version
           python --version
-          runtime="$("$CXX" -print-file-name=libclang_rt.asan-x86_64.so)"
+          runtime="$("$CXX" -print-file-name=libasan.so)"
           test -f "$runtime"
           sha256sum "$runtime"
-          command -v llvm-symbolizer-18
-          echo "ASAN_SYMBOLIZER_PATH=$(command -v llvm-symbolizer-18)" >> "$GITHUB_ENV"
           echo "ASAN_RUNTIME=$runtime" >> "$GITHUB_ENV"
           echo "ASAN_OPTIONS=detect_leaks=0:halt_on_error=1" >> "$GITHUB_ENV"
           echo "RAGGED_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"

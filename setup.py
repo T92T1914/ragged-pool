@@ -9,7 +9,7 @@ flags = ["/O2", "/std:c++17", "/fp:precise"] if sys.platform == "win32" else ["-
 link_flags = ["/CGTHREADS:2"] if sys.platform == "win32" else []
 if os.environ.get("RAGGED_POOL_ASAN") == "1":
     if sys.platform != "linux":
-        raise RuntimeError("The declared AddressSanitizer build requires Linux and Clang 18")
+        raise RuntimeError("The declared AddressSanitizer build requires Linux")
     flags = ["-O1", "-g", "-std=c++17", "-fno-omit-frame-pointer", "-fsanitize=address"]
     link_flags = ["-fsanitize=address"]
 setup(
