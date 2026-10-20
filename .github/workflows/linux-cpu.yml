@@ -223,6 +223,42 @@ jobs:
           "$python" -I examples/train_padded.py --compiled --dtype float64 --output "$RAGGED_EVIDENCE/padded-compiled-float64.json" 2>&1 | tee "$RAGGED_EVIDENCE/padded-compiled-float64.log"
           "$python" -I examples/train_gradient_penalty.py --dtype float32 --output "$RAGGED_EVIDENCE/gradient-penalty-float32.json" 2>&1 | tee "$RAGGED_EVIDENCE/gradient-penalty-float32.log"
           "$python" -I examples/train_gradient_penalty.py --dtype float64 --output "$RAGGED_EVIDENCE/gradient-penalty-float64.json" 2>&1 | tee "$RAGGED_EVIDENCE/gradient-penalty-float64.log"
+          mkdir "$RAGGED_EVIDENCE/padded-export"
+          for dtype in float32 float64; do
+            bundle="$RAGGED_EVIDENCE/padded-export/$dtype"
+            producer="$RAGGED_EVIDENCE/padded-export/producer-$dtype.json"
+            consumer="$RAGGED_EVIDENCE/padded-export/consumer-$dtype.json"
+            "$python" -I examples/export_padded.py --dtype "$dtype" --directory "$bundle" --source-revision "$RAGGED_REVISION" --wheel "$RAGGED_WHEEL" --output "$producer" 2>&1 | tee "$RAGGED_EVIDENCE/padded-export/producer-$dtype.log"
+            manifest_sha256="$("$python" -I - "$producer" "$dtype" "$RAGGED_REVISION" <<'PY'
+          import json
+          from pathlib import Path
+          import re
+          import sys
+
+          producer = json.loads(Path(sys.argv[1]).read_text())
+          assert producer["status"] == "passed" and producer["dtype"] == sys.argv[2]
+          assert producer["source_revision"] == sys.argv[3]
+          assert producer["training"]["optimizer_steps"] == 2
+          assert re.fullmatch(r"[0-9a-f]{64}", producer["manifest_sha256"])
+          print(producer["manifest_sha256"])
+          PY
+            )"
+            "$python" -I examples/predict_padded.py --directory "$bundle" --manifest-sha256 "$manifest_sha256" --output "$consumer" 2>&1 | tee "$RAGGED_EVIDENCE/padded-export/consumer-$dtype.log"
+            "$python" -I - "$producer" "$consumer" "$bundle/manifest.json" "$dtype" "$RAGGED_REVISION" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          producer, consumer, manifest = (json.loads(Path(path).read_text()) for path in sys.argv[1:4])
+          assert consumer["status"] == "passed" and consumer["dtype"] == sys.argv[4]
+          assert producer["source_revision"] == consumer["source_revision"] == sys.argv[5]
+          assert consumer["expected_manifest_sha256"] == producer["manifest_sha256"]
+          assert len(manifest["cases"]) > 0 and len(consumer["cases"]) == len(manifest["cases"])
+          assert consumer["training_modules_loaded"] == []
+          print("Padded export", sys.argv[4], "passed two training updates and", len(consumer["cases"]), "fresh-process cases")
+          PY
+            cat "$producer" "$consumer"
+          done
           "$python" -I examples/learn_sets.py --smoke --source-revision "$RAGGED_REVISION" --wheel "$RAGGED_WHEEL" --output "$RAGGED_EVIDENCE/study-smoke.json" 2>&1 | tee "$RAGGED_EVIDENCE/study-smoke.log"
 
       - name: Train and export the selected model, then predict in a fresh process

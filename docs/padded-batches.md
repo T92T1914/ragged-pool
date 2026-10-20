@@ -53,4 +53,4 @@ Compiler tests count one captured forward graph across changing mask contents, c
 
 ## Limits
 
-This is a first-order CPU adapter with one declared fixed-shape `aot_eager` training path. Changed input shapes may compile new graphs. Dynamic shapes, padded export, Inductor optimization, vmap and second derivatives are outside this increment. The original packed compiler and trained export routes keep their declared scope. No GPU, speed advantage or cross-version compatibility is established by this addition.
+The adapter's training route is first-order CPU with one declared fixed-shape `aot_eager` path. Changed input shapes may compile new graphs. A separate [trained padded export example](padded-export.md) supports its own bounded variable B/T inference envelope. Inductor optimization, vmap and padded second derivatives remain outside the declared routes. The original packed compiler, second-order and trained export routes keep their own scope. No GPU, speed advantage or cross-version compatibility is established.
