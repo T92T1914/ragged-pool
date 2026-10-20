@@ -1,8 +1,19 @@
-# ragged-pool
+<a id="ragged-pool"></a>
 
-`ragged_pool(values, logits, offsets)` combines variable length groups of feature vectors using softmax weights. CPU forward, backward and the packed second backward run in C++. Python supplies a readable PyTorch reference, dispatcher metadata and autograd registration.
+# Ragged Pooling for PyTorch
 
-This is a small framework integration and learning project. Ordinary PyTorch composition already expresses the operation. No algorithmic novelty, production requirement or general performance advantage is claimed.
+Groups of feature vectors can contain different numbers of items. `ragged_pool(values, logits, offsets)` combines each group into one vector using softmax weights. C++ runs the CPU forward and backward operations. Python supplies a readable reference and connects the operation to PyTorch training.
+
+This is a small framework integration and learning project. Ordinary PyTorch composition already expresses the operation. It does not claim a new algorithm, a production requirement or a general performance advantage.
+
+<picture>
+  <source media="(prefers-color-scheme: dark) and (max-width: 680px)" srcset="docs/ragged-pool-obscur-narrow.png">
+  <source media="(max-width: 680px)" srcset="docs/ragged-pool-clair-narrow.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/ragged-pool-obscur.png">
+  <img src="docs/ragged-pool-clair.png" alt="Groups with two, three and no items produce one summary vector per group. Softmax weights determine the weighted sum. Empty groups produce zeros. Training sends gradients back to values and scores. Conceptual CPU example, not a benchmark." width="1600">
+</picture>
+
+Different group sizes produce one summary vector each. This is a conceptual illustration of the CPU layer, not a benchmark. [Diagram source](docs/render_pooling_example.py).
 
 ```python
 import torch
@@ -40,11 +51,11 @@ pooled.sum().backward()
 
 `examples/train_padded.py` supplies a seeded encoder/scorer/head consumer with two SGD updates in either dtype and comparison against the independent row reference. Add `--compiled` to compare the same model through `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)`, including changed masks at fixed input shapes. Opaque CPU forward/backward boundaries keep the selected count inside their implementations while reusing the packed C++ math. This establishes graph integration without an optimization or speed claim.
 
-Clear ignored raw padding before encoder/scorer arithmetic. Masking a NaN result only at the pool can leave invalid parameter gradients upstream. Original padded values, logits and mask must stay unchanged until backward, including ignored slots. This saved-input rule is stricter than the earlier eager adapter's packed-copy behavior. The [padded-batch note](docs/padded-batches.md) explains the boundary, debugging case, reference and installed commands. Padded export is outside this route.
+Clear ignored raw padding before encoder/scorer arithmetic. Masking a NaN result only at the pool can leave invalid parameter gradients upstream. Original padded values, logits and mask must stay unchanged until backward, including ignored slots. This rule for saved inputs is stricter than the earlier eager adapter's behavior of copying packed inputs. The [note on padded batches](docs/padded-batches.md) explains the boundary, debugging case, reference and installed commands. Padded export is outside this route.
 
 ## Build and run
 
-The initial Windows target is x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises cross-version ABI or compatibility with other platforms. Building on Windows requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases); later source and CI artifacts can be newer than the published release.
+The initial Windows target is x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises ABI compatibility across versions or compatibility with other platforms. Building on Windows requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases); later source and CI artifacts can be newer than the published release.
 
 From PowerShell at the checkout, create an isolated environment. Replace the example environment paths as needed. Install PyTorch from its official CPU wheel index before building. The explicit `--no-build-isolation` uses that pinned environment, and `--no-deps` prevents the package build from choosing another framework wheel.
 
@@ -75,11 +86,13 @@ The packed eager API supports second-order differentiation. `examples/train_grad
 
 The example includes a detached-penalty control. It has the same scalar penalty value, but its parameter gradients match MSE alone because the penalty's derivative connection has been removed. The proper penalty must change scorer and head gradients. The [second-order note](docs/second-order.md) explains the native derivative, a hand-calculated head gradient and installed commands. Third derivatives, padded second derivatives and compiled double backward are outside this route. Existing packed and padded compiled training remains first-order.
 
-## One set-learning and CPU cost study
+<a id="one-set-learning-and-cpu-cost-study"></a>
 
-`examples/learn_sets.py` trains a small synthetic bag-level classifier with native attention, reference attention, mean, max and sum pooling. It uses one fixed task, three paired initialization seeds, held-out in-range and longer-bag sets, and validation-only checkpoint selection. Attention adds 16 scorer parameters to the common 97-parameter encoder/head. In the recorded run, attention had the lowest mean BCE in both test sets. Longer-bag accuracy fell to 73.31%, below max pooling's 75.78%. These are descriptive synthetic results, with no real-world accuracy claim.
+## One synthetic training study and CPU cost comparison
 
-The accompanying `examples/cpu_cost.py` compares complete checked calls against the readable reference and an equivalent segmented PyTorch composition. Native had lower medians in the eight declared cases on the executed one-thread Windows environment, with substantial shared-machine variation. The native kernel was retained after the investigation. See the [fixed protocol, every model variant, timings, compiler outcome and reproduction commands](docs/cpu-study.md) and the [machine-readable results](docs/results/cpu-study.json).
+`examples/learn_sets.py` trains a small synthetic classifier for bags with native attention, reference attention, mean, max and sum pooling. It uses one fixed task, three paired initialization seeds, held out sets with lengths inside the training range and longer bags, and checkpoint selection using only validation. Attention adds 16 scorer parameters to the common encoder/head with 97 parameters. In the recorded run, attention had the lowest mean binary cross entropy (BCE) in both test sets. Accuracy on longer bags fell to 73.31%, below max pooling's 75.78%. These are descriptive synthetic results, with no real world accuracy claim.
+
+The accompanying `examples/cpu_cost.py` compares complete checked calls against the readable reference and an equivalent segmented PyTorch composition. Native had lower medians in the eight declared cases on the executed Windows environment with one thread, with substantial variation on the shared machine. The native kernel was retained after the investigation. See the [fixed protocol, every model variant, timings, compiler outcome and reproduction commands](docs/cpu-study.md) and the [results in machine readable form](docs/results/cpu-study.json).
 
 For installed execution, copy `learn_sets.py`, `pool_baselines.py` and `cpu_cost.py` together outside the checkout after installing the ordinary wheel into a fresh isolated environment. Use the revision and wheel you actually built, and a new receipt path for each run.
 
@@ -92,13 +105,13 @@ $revision = git -C C:\work\ragged-pool rev-parse HEAD
 & $python -I "$consumer\cpu_cost.py" --timing --output "$consumer\timing.json" --source-revision $revision --wheel $wheel --budget-seconds 300
 ```
 
-The study freezes data and training choices before held-out evaluation, records content digests and class/length histograms, checks native/reference gradients and an Adam update before training, and retains all selected seeds. Its optional `--smoke` mode performs 20 native/reference updates on training and validation only. It supplies a small CI check, distinct from both the full study and the original single-step consumer.
+The study freezes data and training choices before held out evaluation, records content digests and class/length histograms, checks native/reference gradients and an Adam update before training, and retains all selected seeds. Its optional `--smoke` mode performs 20 native/reference updates on training and validation only. It supplies a small CI check, distinct from both the full study and the original consumer with a single step.
 
 ## Export the trained consumer
 
-`examples/export_sets.py` trains the native classifier with the existing seed-11 training/validation protocol, saves its selected tensor state dictionary, checks restricted checkpoint reload and exports one inference graph. `examples/predict_sets.py` loads that trusted artifact in a fresh process using the installed package, without importing the training script or rebuilding its model class. The graph retains the native pooling operation.
+`examples/export_sets.py` trains the native classifier with the existing protocol for training and validation with seed 11, saves its selected tensor state dictionary, checks restricted checkpoint reload and exports one inference graph. `examples/predict_sets.py` loads that trusted artifact in a fresh process using the installed package, without importing the training script or rebuilding its model class. The graph retains the native pooling operation.
 
-This exported example has fixed four-feature float32 inputs and dynamic `0 <= N <= 4096`, `2 <= B <= 128`. A strict-export constraint excludes zero and one group from this route. Empty groups within the declared range are included. The eager pooling API retains its broader contract. See the [artifact contract and executed evidence](docs/exported-consumer.md) for the exact route, limitations and loading boundary.
+This exported example has fixed float32 inputs with four features and dynamic `0 <= N <= 4096`, `2 <= B <= 128`. A constraint from strict export excludes zero and one group from this route. Empty groups within the declared range are included. The eager pooling API retains its broader contract. See the [artifact contract and executed evidence](docs/exported-consumer.md) for the exact route, limitations and loading boundary.
 
 After copying the examples together outside the checkout, use new artifact and receipt paths. The producer's receipt supplies the expected manifest digest to the separate consumer process.
 
@@ -108,21 +121,21 @@ $exportReceipt = Get-Content -LiteralPath "$consumer\export-producer.json" -Raw 
 & $python -I "$consumer\predict_sets.py" --directory "$consumer\trained-model" --manifest-sha256 $exportReceipt.artifact.manifest_sha256 --output "$consumer\export-consumer.json"
 ```
 
-Load only trusted model artifacts. The consumer checks byte identities before graph loading, but a SHA256 digest does not authenticate a publisher and `torch.export.load` is not a sandbox. The separate `weights_only=True` checkpoint reload does not make arbitrary exported graphs safe to load. No cross-version artifact compatibility or standalone binary is promised.
+Load only trusted model artifacts. The consumer checks byte identities before graph loading, but a SHA256 digest does not authenticate a publisher and `torch.export.load` is not a sandbox. The separate `weights_only=True` checkpoint reload does not make arbitrary exported graphs safe to load. No artifact compatibility across versions or standalone binary is promised.
 
 ## What the checks mean
 
 `tests/test_math.py` compares the native result and both input gradients with independently differentiated PyTorch composition and checks float64 finite differences. Contract checks cover malformed inputs, empty and singleton groups, storage, version rules and upstream gradient views. Registration checks use `torch.library.opcheck` separately from the mathematical tests.
 
-The declared compiler acceptance path is `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)` for forward and backward, including the padded training consumer. It exercises graph capture and autograd integration. The separate CPU study also executed native Inductor forward/backward on one declared packed case in the pinned environment. Its equivalent built-in attempt failed during generated-code compilation, and no optimized speed advantage was established. Fake tensor implementations describe each forward and private backward output without reading tensor contents. Runtime execution still validates selected numerical contents and packed offsets.
+The declared compiler acceptance path is `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)` for forward and backward, including the padded training consumer. It exercises graph capture and autograd integration. The separate CPU study also executed native Inductor forward/backward on one declared packed case in the pinned environment. Its equivalent attempt using built in operations failed during compilation of generated code, and no optimized speed advantage was established. Fake tensor implementations describe each forward and private backward output without reading tensor contents. Runtime execution still validates selected numerical contents and packed offsets.
 
 Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. The packed eager second-order route has its own [contract and checks](docs/second-order.md). CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, third derivatives and vmap are outside this version.
 
-The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both one-step dtype consumers plus the validation-only study smoke. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
+The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both dtype consumers with one step plus the study smoke using only validation. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
 
-The [ordinary Linux workflow](.github/workflows/linux-cpu.yml) first checks the source distribution against the source and builds its optimized wheel from that archive outside the checkout. A separate environment runs installed checks, both optimizer-step examples, the study smoke and the full trained export round trip. It records compiler/runtime facts and archive, wheel and loaded-library identities. Its plain `linux_x86_64` wheel tag is limited to the tested environment; it is not a manylinux compatibility claim or a bitwise reproducible-build result.
+The [ordinary Linux workflow](.github/workflows/linux-cpu.yml) first checks the source distribution against the source and builds its optimized wheel from that archive outside the checkout. A separate environment runs installed checks, both examples with an optimizer step, the study smoke and the full trained export round trip. It records compiler/runtime facts and the identities of its archive, wheel and loaded libraries. Its plain `linux_x86_64` wheel tag is limited to the tested environment; it is not a manylinux compatibility claim or a bitwise reproducible build result.
 
-[Native boundary checks](docs/native-robustness.md) describe generated mathematical/admission cases, a combined negative-view layout bug, and a separate Linux AddressSanitizer workflow. That workflow instruments the production extension and checks its loaded identity. It supplies bounded memory-diagnostic evidence when executed successfully, with prebuilt framework and leak-detection limits stated explicitly. Ordinary Windows wheel acceptance remains separate.
+[Native boundary checks](docs/native-robustness.md) describe generated mathematical/admission cases, a layout bug involving a combined negative view, and a separate Linux AddressSanitizer workflow. That workflow instruments the production extension and checks its loaded identity. It supplies bounded evidence from memory diagnostics when executed successfully, with prebuilt framework and limits of leak detection stated explicitly. Ordinary Windows wheel acceptance remains separate.
 
 ## License and attribution
 
