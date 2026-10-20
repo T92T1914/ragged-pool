@@ -31,17 +31,17 @@ An empty group writes zero and evaluates no softmax. It contributes no input gra
 
 ## Framework integration
 
-The native library defines `ragged_pool::pool` and `ragged_pool::_backward` with `TORCH_LIBRARY` and CPU implementations. `torch.ops.load_library` loads their definitions before Python registers fake metadata and autograd. A small CPython entrypoint satisfies Windows extension linking but does not expose a second numerical API.
+The native library defines `ragged_pool::pool`, `ragged_pool::_backward` and `ragged_pool::_double_backward` with `TORCH_LIBRARY` and CPU implementations. `torch.ops.load_library` loads their definitions before Python registers fake metadata and autograd. A small CPython entrypoint satisfies Windows extension linking but does not expose a second numerical API.
 
 Forward saves values, logits and offsets through `ctx.save_for_backward`. PyTorch checks their versions before backward reads them. Mutating a saved tensor between these calls therefore raises the framework's version error. The operator returns fresh storage and never changes an input.
 
-Python's backward callback calls the private registered backward operator. Both operations have fake implementations, which only inspect metadata. Data-dependent offset and range validation stays in native execution. Shape/dtype admission in fake mode is not validation of imaginary tensor contents.
+Python's backward callback calls the private registered backward operator. Differentiating that operation calls the native second backward, returning derivatives with respect to its upstream gradient, values and logits. All three operations have fake implementations, which only inspect metadata. Data-dependent offset and range validation stays in native execution. Shape/dtype admission in fake mode is not validation of imaginary tensor contents.
 
 The native Negative-key handlers check original forward metadata before resolving logical negative views and entering CPU numerical code. This matters when a stepped, noncontiguous tensor also carries a negative bit. PyTorch's generic fallback can clone it into contiguous storage before a CPU admission check sees it. The original layout must be rejected rather than admitted through that materialization. Contiguous logical negative views retain their mathematical values without a device transfer or input mutation. A strided upstream gradient may still be normalized internally, including when it carries a negative bit. The compiled acceptance path uses ordinary contiguous tensors. Private `torch.ops` entrypoints remain implementation details, but their admission paths are tested directly.
 
-Only first order autograd is supported. The backward operator has an autograd registration that explicitly rejects differentiation through its outputs. This avoids silently presenting an incomplete second derivative. `vmap`, mixed precision, tensor subclasses and other device backends are outside the contract.
+Packed eager autograd supports second derivatives through the [declared native second-backward route](second-order.md). Its context saves the original upstream gradient, values, logits and offsets, with the same version-check requirement before the next derivative. The final native operation explicitly rejects third-order differentiation. The padded adapter remains first-order. `vmap`, mixed precision, tensor subclasses and other device backends are outside the contract.
 
-The declared compile path is `aot_eager` with `fullgraph=True`, exercised with concrete admitted shapes. This is graph capture plus AOTAutograd, not an Inductor performance result. Invalid runtime offset contents must still fail inside the captured native call. Dynamic-shape generality beyond the executed registration checks is not promised.
+The declared compile path is first-order `aot_eager` with `fullgraph=True`, exercised with concrete admitted shapes. Compiled double backward is excluded on the pinned framework. This is graph capture plus AOTAutograd, not an Inductor performance result. Invalid runtime offset contents must still fail inside the captured native call. Dynamic-shape generality beyond the executed registration checks is not promised.
 
 ## Toolchain and source decisions
 

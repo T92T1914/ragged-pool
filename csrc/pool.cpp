@@ -97,6 +97,26 @@ void check_grad_metadata(const at::Tensor& grad_output, const at::Tensor& values
               "grad_output must have shape [B,D]");
 }
 
+void check_double_grad_metadata(
+    const at::Tensor& grad_grad_values, const at::Tensor& grad_grad_logits,
+    const at::Tensor& grad_output, const at::Tensor& values,
+    const at::Tensor& offsets) {
+  check_grad_metadata(grad_output, values, offsets);
+  for (const auto* t : {&grad_grad_values, &grad_grad_logits}) {
+    TORCH_CHECK(t->device().is_cpu() && t->layout() == at::kStrided,
+                "second-order upstreams must be strided CPU");
+    TORCH_CHECK(t->scalar_type() == values.scalar_type(),
+                "second-order upstream dtypes must match values");
+  }
+  TORCH_CHECK(grad_grad_values.dim() == 2 &&
+              grad_grad_values.size(0) == values.size(0) &&
+              grad_grad_values.size(1) == values.size(1),
+              "grad_grad_values must have shape [N,D]");
+  TORCH_CHECK(grad_grad_logits.dim() == 1 &&
+              grad_grad_logits.size(0) == values.size(0),
+              "grad_grad_logits must have shape [N]");
+}
+
 std::tuple<at::Tensor, at::Tensor> backward_cpu(
     const at::Tensor& grad_output, const at::Tensor& values,
     const at::Tensor& logits, const at::Tensor& offsets) {
@@ -136,6 +156,80 @@ std::tuple<at::Tensor, at::Tensor> backward_cpu(
   return {grad_values, grad_logits};
 }
 
+std::tuple<at::Tensor, at::Tensor, at::Tensor> double_backward_cpu(
+    const at::Tensor& grad_grad_values, const at::Tensor& grad_grad_logits,
+    const at::Tensor& grad_output, const at::Tensor& values,
+    const at::Tensor& logits, const at::Tensor& offsets) {
+  check_inputs(values, logits, offsets);
+  check_double_grad_metadata(grad_grad_values, grad_grad_logits, grad_output,
+                             values, offsets);
+  const int64_t batches = offsets.numel() - 1, width = values.size(1);
+  // These VJP inputs can be expanded, stepped or logical negative views.
+  const auto value_upstream = grad_grad_values.resolve_neg().contiguous();
+  const auto logit_upstream = grad_grad_logits.resolve_neg().contiguous();
+  const auto grad = grad_output.resolve_neg().contiguous();
+  auto grad_grad_output = at::zeros({batches, width}, values.options());
+  auto grad_values = at::zeros_like(values);
+  auto grad_logits = at::zeros_like(logits);
+  const auto* o = offsets.const_data_ptr<int64_t>();
+  AT_DISPATCH_FLOATING_TYPES(values.scalar_type(), "pool_double_backward_cpu", [&] {
+    const auto* v = values.const_data_ptr<scalar_t>();
+    const auto* l = logits.const_data_ptr<scalar_t>();
+    const auto* a = value_upstream.const_data_ptr<scalar_t>();
+    const auto* b_upstream = logit_upstream.const_data_ptr<scalar_t>();
+    const auto* g = grad.const_data_ptr<scalar_t>();
+    auto* dg = grad_grad_output.mutable_data_ptr<scalar_t>();
+    auto* dv = grad_values.mutable_data_ptr<scalar_t>();
+    auto* dl = grad_logits.mutable_data_ptr<scalar_t>();
+    for (int64_t batch = 0; batch < batches; ++batch) {
+      const int64_t start = o[batch], end = o[batch + 1];
+      if (start == end) continue;
+      if (end - start == 1) {
+        // A singleton has dv=g and dl=0, so dS/dg=a and the other outputs stay zero.
+        for (int64_t d = 0; d < width; ++d) dg[batch * width + d] = a[start * width + d];
+        continue;
+      }
+      const auto weights = weights_for(l, start, end);
+      std::vector<double> pooled(static_cast<size_t>(width), 0.0);
+      std::vector<double> combined(static_cast<size_t>(width), 0.0);
+      double mean_b = 0.0;
+      for (int64_t i = start; i < end; ++i) {
+        const double weight = weights[i - start];
+        mean_b += weight * static_cast<double>(b_upstream[i]);
+        for (int64_t d = 0; d < width; ++d) {
+          pooled[d] += weight * static_cast<double>(v[i * width + d]);
+          combined[d] += weight * static_cast<double>(a[i * width + d]);
+        }
+      }
+      // For S=<a,dv>+<b,dl>, H=E[a]+E[(b-E[b])*(v-E[v])] is dS/dg.
+      // Center both factors before accumulating the covariance in float64.
+      for (int64_t i = start; i < end; ++i) {
+        const double centered_b = static_cast<double>(b_upstream[i]) - mean_b;
+        for (int64_t d = 0; d < width; ++d) {
+          combined[d] += weights[i - start] * centered_b *
+                         (static_cast<double>(v[i * width + d]) - pooled[d]);
+        }
+      }
+      for (int64_t d = 0; d < width; ++d) {
+        dg[batch * width + d] = static_cast<scalar_t>(combined[d]);
+      }
+      for (int64_t i = start; i < end; ++i) {
+        const double centered_b = static_cast<double>(b_upstream[i]) - mean_b;
+        double logit_dot = 0.0;
+        for (int64_t d = 0; d < width; ++d) {
+          const double upstream = static_cast<double>(g[batch * width + d]);
+          const double centered_v = static_cast<double>(v[i * width + d]) - pooled[d];
+          dv[i * width + d] = static_cast<scalar_t>(weights[i - start] * centered_b * upstream);
+          logit_dot += upstream * (static_cast<double>(a[i * width + d]) - combined[d] +
+                                  centered_b * centered_v);
+        }
+        dl[i] = static_cast<scalar_t>(weights[i - start] * logit_dot);
+      }
+    }
+  });
+  return {grad_grad_output, grad_values, grad_logits};
+}
+
 // The generic Negative fallback clones tensors before CPU redispatch. A clone
 // can densify a stepped view, concealing an unsupported original forward layout.
 // Admit original metadata before resolving logical bits or allocating copies.
@@ -153,19 +247,33 @@ std::tuple<at::Tensor, at::Tensor> backward_negative(
   return backward_cpu(grad_output, values.resolve_neg(), logits.resolve_neg(), offsets.resolve_neg());
 }
 
+std::tuple<at::Tensor, at::Tensor, at::Tensor> double_backward_negative(
+    const at::Tensor& grad_grad_values, const at::Tensor& grad_grad_logits,
+    const at::Tensor& grad_output, const at::Tensor& values,
+    const at::Tensor& logits, const at::Tensor& offsets) {
+  check_metadata(values, logits, offsets);
+  check_double_grad_metadata(grad_grad_values, grad_grad_logits, grad_output,
+                             values, offsets);
+  return double_backward_cpu(grad_grad_values, grad_grad_logits, grad_output,
+                             values.resolve_neg(), logits.resolve_neg(), offsets.resolve_neg());
+}
+
 }  // namespace
 
 TORCH_LIBRARY(ragged_pool, m) {
   m.def("pool(Tensor values, Tensor logits, Tensor offsets) -> Tensor");
   m.def("_backward(Tensor grad_output, Tensor values, Tensor logits, Tensor offsets) -> (Tensor, Tensor)");
+  m.def("_double_backward(Tensor grad_grad_values, Tensor grad_grad_logits, Tensor grad_output, Tensor values, Tensor logits, Tensor offsets) -> (Tensor, Tensor, Tensor)");
 }
 TORCH_LIBRARY_IMPL(ragged_pool, CPU, m) {
   m.impl("pool", &pool_cpu);
   m.impl("_backward", &backward_cpu);
+  m.impl("_double_backward", &double_backward_cpu);
 }
 TORCH_LIBRARY_IMPL(ragged_pool, Negative, m) {
   m.impl("pool", &pool_negative);
   m.impl("_backward", &backward_negative);
+  m.impl("_double_backward", &double_backward_negative);
 }
 
 // setuptools links a CPython extension entrypoint on Windows. Operator calls use

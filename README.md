@@ -1,6 +1,6 @@
 # ragged-pool
 
-`ragged_pool(values, logits, offsets)` combines variable length groups of feature vectors using softmax weights. The CPU forward and backward run in C++. Python supplies a readable PyTorch reference, dispatcher metadata and first order autograd registration.
+`ragged_pool(values, logits, offsets)` combines variable length groups of feature vectors using softmax weights. CPU forward, backward and the packed second backward run in C++. Python supplies a readable PyTorch reference, dispatcher metadata and autograd registration.
 
 This is a small framework integration and learning project. Ordinary PyTorch composition already expresses the operation. No algorithmic novelty, production requirement or general performance advantage is claimed.
 
@@ -69,6 +69,12 @@ Adjust the Visual Studio path if your existing installation lives elsewhere. `vc
 
 For an installed consumer check, create a second fresh virtual environment outside the checkout, install the same pinned dependencies and the wheel there, copy `examples/train_sets.py` to a separate directory and run it from that directory. Do not add the checkout to `PYTHONPATH`. The example reports its installed module path.
 
+## Train with an input-gradient penalty
+
+The packed eager API supports second-order differentiation. `examples/train_gradient_penalty.py` takes two SGD steps through `MSE + 0.5 * mean(input_gradient**2)`, where the input gradient is constructed with `create_graph=True`. Native and independent reference models compare predictions, first input gradients, total input/parameter gradients and updated parameters in float32 and float64. This demonstrates differentiation through a gradient-dependent objective, with no model-quality, robustness or speed result.
+
+The example includes a detached-penalty control. It has the same scalar penalty value, but its parameter gradients match MSE alone because the penalty's derivative connection has been removed. The proper penalty must change scorer and head gradients. The [second-order note](docs/second-order.md) explains the native derivative, a hand-calculated head gradient and installed commands. Third derivatives, padded second derivatives and compiled double backward are outside this route. Existing packed and padded compiled training remains first-order.
+
 ## One set-learning and CPU cost study
 
 `examples/learn_sets.py` trains a small synthetic bag-level classifier with native attention, reference attention, mean, max and sum pooling. It uses one fixed task, three paired initialization seeds, held-out in-range and longer-bag sets, and validation-only checkpoint selection. Attention adds 16 scorer parameters to the common 97-parameter encoder/head. In the recorded run, attention had the lowest mean BCE in both test sets. Longer-bag accuracy fell to 73.31%, below max pooling's 75.78%. These are descriptive synthetic results, with no real-world accuracy claim.
@@ -110,7 +116,7 @@ Load only trusted model artifacts. The consumer checks byte identities before gr
 
 The declared compiler acceptance path is `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)` for forward and backward, including the padded training consumer. It exercises graph capture and autograd integration. The separate CPU study also executed native Inductor forward/backward on one declared packed case in the pinned environment. Its equivalent built-in attempt failed during generated-code compilation, and no optimized speed advantage was established. Fake tensor implementations describe each forward and private backward output without reading tensor contents. Runtime execution still validates selected numerical contents and packed offsets.
 
-Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, second derivatives and vmap are outside this version.
+Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. The packed eager second-order route has its own [contract and checks](docs/second-order.md). CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, third derivatives and vmap are outside this version.
 
 The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both one-step dtype consumers plus the validation-only study smoke. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
 

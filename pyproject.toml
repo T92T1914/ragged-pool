@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ragged-pool"
 version = "0.1.0"
-description = "Bounded CPU softmax pooling with native first order PyTorch autograd"
+description = "Bounded CPU softmax pooling with native PyTorch autograd"
 requires-python = ">=3.11,<3.12"
 dependencies = ["torch==2.9.1+cpu"]
 license = "MIT"

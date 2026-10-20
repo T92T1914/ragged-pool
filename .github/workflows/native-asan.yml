@@ -105,6 +105,8 @@ jobs:
           "$python" -I -u -X faulthandler examples/train_padded.py --dtype float64 --output "$RUNNER_TEMP/asan-evidence/padded-float64.json"
           "$python" -I -u -X faulthandler examples/train_padded.py --compiled --dtype float32 --output "$RUNNER_TEMP/asan-evidence/padded-compiled-float32.json"
           "$python" -I -u -X faulthandler examples/train_padded.py --compiled --dtype float64 --output "$RUNNER_TEMP/asan-evidence/padded-compiled-float64.json"
+          "$python" -I -u -X faulthandler examples/train_gradient_penalty.py --dtype float32 --output "$RUNNER_TEMP/asan-evidence/gradient-penalty-float32.json"
+          "$python" -I -u -X faulthandler examples/train_gradient_penalty.py --dtype float64 --output "$RUNNER_TEMP/asan-evidence/gradient-penalty-float64.json"
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2

@@ -147,15 +147,17 @@ def test_saved_input_mutation_is_reported_by_autograd(input_index):
         pooled.sum().backward()
 
 
-def test_double_backward_is_explicitly_refused():
+def test_third_order_is_explicitly_refused_after_a_second_derivative():
     values, logits, offsets = valid_inputs()
     values.requires_grad_()
     logits.requires_grad_()
     grad_values, grad_logits = torch.autograd.grad(
         ragged_pool(values, logits, offsets).sum(), (values, logits), create_graph=True,
     )
-    with pytest.raises(RuntimeError, match="first order autograd only"):
-        torch.autograd.grad(grad_values.sum() + grad_logits.sum(), (values, logits))
+    second = torch.autograd.grad(grad_values.square().sum() + grad_logits.square().sum(),
+                                 (values, logits), create_graph=True)
+    with pytest.raises(RuntimeError, match="third order is not supported"):
+        torch.autograd.grad(sum(gradient.sum() for gradient in second), (values, logits))
 
 
 @pytest.mark.parametrize("case", ["wrong_shape", "wrong_dtype", "sparse", "meta"])

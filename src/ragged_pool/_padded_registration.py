@@ -69,7 +69,7 @@ def _backward(ctx, grad_output):
 
 
 def _reject_double_backward(ctx, *grads):
-    raise RuntimeError('ragged-pool supports first order autograd only')
+    raise RuntimeError('ragged-pool padded inputs support first order autograd only')
 
 
 _padded.register_autograd(_backward, setup_context=_setup_context)
