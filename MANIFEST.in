@@ -21,3 +21,5 @@ include scripts/check_sdist.py
 include docs/linux-cpu.md
 include examples/train_padded.py
 include docs/padded-batches.md
+include examples/train_gradient_penalty.py
+include docs/second-order.md
