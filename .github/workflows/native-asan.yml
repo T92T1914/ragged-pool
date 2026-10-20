@@ -61,6 +61,7 @@ jobs:
           "$python" -m pip check
           mkdir "$RUNNER_TEMP/ragged-asan-consumer"
           cp -r tests "$RUNNER_TEMP/ragged-asan-consumer/tests"
+          cp -r examples "$RUNNER_TEMP/ragged-asan-consumer/examples"
           cp scripts/native_campaign.py scripts/check_asan_control.py examples/train_sets.py "$RUNNER_TEMP/ragged-asan-consumer/"
           mkdir "$RUNNER_TEMP/asan-evidence"
       - name: Qualify the tool with an injected negative control
@@ -98,6 +99,12 @@ jobs:
           "$python" -I -u -X faulthandler native_campaign.py --cases tests/generated_cases.py --seconds 5 --seed 20261020 --output "$RUNNER_TEMP/asan-evidence/replay.json"
           "$python" -I -u -X faulthandler train_sets.py --dtype float32
           "$python" -I -u -X faulthandler train_sets.py --dtype float64
+          wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
+          if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
+            echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2
+            exit 1
+          fi
+          "$python" -I -u -X faulthandler examples/learn_sets.py --smoke --source-revision "$RAGGED_REVISION" --wheel "${wheels[0]}" --output "$RUNNER_TEMP/asan-evidence/study-smoke.json"
       - name: Retain campaign and negative-control evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
