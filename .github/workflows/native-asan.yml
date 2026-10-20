@@ -107,6 +107,23 @@ jobs:
           "$python" -I -u -X faulthandler examples/train_padded.py --compiled --dtype float64 --output "$RUNNER_TEMP/asan-evidence/padded-compiled-float64.json"
           "$python" -I -u -X faulthandler examples/train_gradient_penalty.py --dtype float32 --output "$RUNNER_TEMP/asan-evidence/gradient-penalty-float32.json"
           "$python" -I -u -X faulthandler examples/train_gradient_penalty.py --dtype float64 --output "$RUNNER_TEMP/asan-evidence/gradient-penalty-float64.json"
+          for dtype in float32 float64; do
+            receipt="$RUNNER_TEMP/asan-evidence/padded-gradient-penalty-$dtype.json"
+            "$python" -I -u -X faulthandler examples/train_padded_gradient_penalty.py --dtype "$dtype" --output "$receipt"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["optimizer_steps"] == receipt["reference_optimizer_steps"] == 2
+          assert receipt["normalization"] == "selected_raw_features"
+          assert receipt["invariance"]["status"] == receipt["controls"]["status"] == receipt["all_empty"]["status"] == "passed"
+          print("Padded gradient penalty", sys.argv[2], "passed two updates, invariance and controls")
+          PY
+            cat "$receipt"
+          done
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2

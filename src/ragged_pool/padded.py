@@ -39,8 +39,9 @@ def ragged_pool_padded(values, logits, mask):
     Empty rows return zeros and masked inputs receive zero gradients.
 
     Opaque CPU forward/backward operations copy selected entries into packed
-    storage and reuse the native math. Inputs are saved for first order autograd
-    and must not change before backward. The declared compiler path uses
+    storage and reuse the native math. Eager autograd supports second order.
+    Saved originals must not change before either backward. Third derivatives
+    are rejected. The declared first-order compiler path uses
     aot_eager, fullgraph=True and dynamic=False on the pinned toolchain.
     """
     _check_metadata(values, logits, mask)

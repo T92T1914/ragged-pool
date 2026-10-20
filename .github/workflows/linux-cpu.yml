@@ -223,6 +223,23 @@ jobs:
           "$python" -I examples/train_padded.py --compiled --dtype float64 --output "$RAGGED_EVIDENCE/padded-compiled-float64.json" 2>&1 | tee "$RAGGED_EVIDENCE/padded-compiled-float64.log"
           "$python" -I examples/train_gradient_penalty.py --dtype float32 --output "$RAGGED_EVIDENCE/gradient-penalty-float32.json" 2>&1 | tee "$RAGGED_EVIDENCE/gradient-penalty-float32.log"
           "$python" -I examples/train_gradient_penalty.py --dtype float64 --output "$RAGGED_EVIDENCE/gradient-penalty-float64.json" 2>&1 | tee "$RAGGED_EVIDENCE/gradient-penalty-float64.log"
+          for dtype in float32 float64; do
+            receipt="$RAGGED_EVIDENCE/padded-gradient-penalty-$dtype.json"
+            "$python" -I examples/train_padded_gradient_penalty.py --dtype "$dtype" --output "$receipt" 2>&1 | tee "$RAGGED_EVIDENCE/padded-gradient-penalty-$dtype.log"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["optimizer_steps"] == receipt["reference_optimizer_steps"] == 2
+          assert receipt["normalization"] == "selected_raw_features"
+          assert receipt["invariance"]["status"] == receipt["controls"]["status"] == receipt["all_empty"]["status"] == "passed"
+          print("Padded gradient penalty", sys.argv[2], "passed two updates, invariance and controls")
+          PY
+            cat "$receipt"
+          done
           mkdir "$RAGGED_EVIDENCE/padded-export"
           for dtype in float32 float64; do
             bundle="$RAGGED_EVIDENCE/padded-export/$dtype"
