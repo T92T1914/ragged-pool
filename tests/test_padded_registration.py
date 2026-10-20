@@ -29,8 +29,7 @@ def test_private_padded_backward_registration_has_two_separate_scopes():
         test_utils=('test_schema', 'test_faketensor', 'test_aot_dispatch_dynamic'),
     )
     assert all(result == 'SUCCESS' for result in results.values())
-    # This requires-grad check inspects the registration, without asking for
-    # the intentionally unsupported derivative of the backward operation.
+    # This requires-grad check is separate from numerical derivative checks.
     results = torch.library.opcheck(
         torch.ops.ragged_pool._padded_backward.default, (upstream, values, logits, mask),
         test_utils=('test_autograd_registration',),
@@ -126,12 +125,40 @@ def test_saved_originals_and_mask_cannot_change_before_backward(compiled, change
         output.sum().backward()
 
 
-def test_padded_second_derivative_is_explicitly_rejected():
+def test_private_padded_first_backward_full_differentiable_registration():
     values, logits, mask = inputs()
-    output = ragged_pool_padded(values, logits, mask)
-    first = torch.autograd.grad(output.sum(), (values, logits), create_graph=True)
-    with pytest.raises(RuntimeError, match='first order autograd only'):
-        torch.autograd.grad(first[0].sum() + first[1].sum(), (values, logits))
+    upstream = torch.ones(3, 2, dtype=values.dtype, requires_grad=True)
+    results = torch.library.opcheck(
+        torch.ops.ragged_pool._padded_backward.default, (upstream, values, logits, mask))
+    assert results and all(result == 'SUCCESS' for result in results.values())
+
+
+def test_final_padded_backward_registration_has_separate_scopes():
+    values, logits, mask = inputs()
+    arguments = (torch.ones_like(values), torch.ones_like(logits),
+                 torch.ones(3, 2, dtype=values.dtype), values.detach(), logits.detach(), mask)
+    op = torch.ops.ragged_pool._padded_double_backward.default
+    results = torch.library.opcheck(op, arguments,
+        test_utils=('test_schema', 'test_faketensor', 'test_aot_dispatch_dynamic'))
+    assert all(result == 'SUCCESS' for result in results.values())
+    differentiable = tuple(t.requires_grad_() if t.is_floating_point() else t for t in arguments)
+    results = torch.library.opcheck(op, differentiable, test_utils=('test_autograd_registration',))
+    assert results == {'test_autograd_registration': 'SUCCESS'}
+
+
+@pytest.mark.parametrize('shape', [(3, 4, 2), (0, 4, 2), (3, 0, 2)])
+def test_final_padded_backward_fixed_shape_fake_metadata(shape):
+    with FakeTensorMode():
+        values = torch.empty(shape, dtype=torch.float64)
+        logits = torch.empty(shape[:2], dtype=torch.float64)
+        mask = torch.empty(shape[:2], dtype=torch.bool)
+        output = torch.empty((shape[0], shape[2]), dtype=values.dtype)
+        results = torch.ops.ragged_pool._padded_double_backward.default(
+            values, logits, output, values, logits, mask)
+        for tensor, expected in zip(results, (output.shape, values.shape, logits.shape)):
+            assert isinstance(tensor, FakeTensor) and tensor.shape == expected
+            assert tensor.dtype == values.dtype and tensor.device.type == 'cpu'
+            assert tensor.is_contiguous()
 
 
 @pytest.mark.parametrize('layout', ['transposed', 'sliced', 'negative'])

@@ -26,3 +26,5 @@ include docs/second-order.md
 include examples/export_padded.py
 include examples/predict_padded.py
 include docs/padded-export.md
+include examples/train_padded_gradient_penalty.py
+include docs/padded-second-order.md
