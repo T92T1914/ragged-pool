@@ -108,6 +108,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Installed float32 consumer failed' }
           & $python -I train_sets.py --dtype float64
           if ($LASTEXITCODE -ne 0) { throw 'Installed float64 consumer failed' }
+          & $python -I examples\train_padded.py --dtype float32
+          if ($LASTEXITCODE -ne 0) { throw 'Installed padded float32 consumer failed' }
+          & $python -I examples\train_padded.py --dtype float64
+          if ($LASTEXITCODE -ne 0) { throw 'Installed padded float64 consumer failed' }
           $revision = git -C $env:GITHUB_WORKSPACE rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the smoke test source revision' }
           & $python -I examples\learn_sets.py --smoke --source-revision $revision --wheel $env:RAGGED_WHEEL --output study-smoke.json

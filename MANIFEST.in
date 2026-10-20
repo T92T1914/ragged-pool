@@ -19,3 +19,5 @@ recursive-include tests *.py
 include scripts/check_installed.py
 include scripts/check_sdist.py
 include docs/linux-cpu.md
+include examples/train_padded.py
+include docs/padded-batches.md

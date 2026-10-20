@@ -21,6 +21,7 @@ FIXED_FILES = (
     'docs/contract.md', 'docs/cpu-study.md', 'docs/results/cpu-study.json',
     'docs/exported-consumer.md', 'docs/results/export-roundtrip.json',
     'docs/linux-cpu.md',
+    'docs/padded-batches.md',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

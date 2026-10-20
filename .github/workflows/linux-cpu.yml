@@ -217,6 +217,8 @@ jobs:
           "$python" -I -m pytest -q --import-mode=importlib --junitxml "$RAGGED_EVIDENCE/pytest.xml" tests 2>&1 | tee "$RAGGED_EVIDENCE/pytest.log"
           "$python" -I examples/train_sets.py --dtype float32 2>&1 | tee "$RAGGED_EVIDENCE/training-float32.log"
           "$python" -I examples/train_sets.py --dtype float64 2>&1 | tee "$RAGGED_EVIDENCE/training-float64.log"
+          "$python" -I examples/train_padded.py --dtype float32 --output "$RAGGED_EVIDENCE/padded-float32.json" 2>&1 | tee "$RAGGED_EVIDENCE/padded-float32.log"
+          "$python" -I examples/train_padded.py --dtype float64 --output "$RAGGED_EVIDENCE/padded-float64.json" 2>&1 | tee "$RAGGED_EVIDENCE/padded-float64.log"
           "$python" -I examples/learn_sets.py --smoke --source-revision "$RAGGED_REVISION" --wheel "$RAGGED_WHEEL" --output "$RAGGED_EVIDENCE/study-smoke.json" 2>&1 | tee "$RAGGED_EVIDENCE/study-smoke.log"
 
       - name: Train and export the selected model, then predict in a fresh process
