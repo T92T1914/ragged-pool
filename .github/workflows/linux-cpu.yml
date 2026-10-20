@@ -43,12 +43,19 @@ jobs:
         run: |
           set -euo pipefail
           # Do not turn an instrumented environment into ordinary acceptance.
-          for variable in RAGGED_POOL_ASAN LD_PRELOAD LD_LIBRARY_PATH ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS LSAN_OPTIONS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS; do
+          for variable in RAGGED_POOL_ASAN LD_PRELOAD ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS LSAN_OPTIONS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS; do
             if [[ -n "${!variable:-}" ]]; then
               echo "Ordinary CPU acceptance requires an unset $variable" >&2
               exit 1
             fi
           done
+          # setup-python supplies the selected interpreter's shared runtime.
+          expected_python_lib="${pythonLocation:?setup-python must expose pythonLocation}/lib"
+          if [[ "${LD_LIBRARY_PATH:-}" != "$expected_python_lib" ]]; then
+            echo 'LD_LIBRARY_PATH must contain only the selected Python runtime directory' >&2
+            exit 1
+          fi
+          test -d "$expected_python_lib"
           test "$(uname -m)" = x86_64
           test "$(lsb_release -rs)" = 24.04
           test "$("$CC" -dumpversion)" = 13
@@ -141,7 +148,7 @@ jobs:
           torch_lib="$("$python" -I -c 'from pathlib import Path; import torch; print(Path(torch.__file__).resolve().parent / "lib")')"
           readelf -d "$native" > "$RAGGED_EVIDENCE/native-dynamic.txt"
           readelf -Ws "$native" > "$RAGGED_EVIDENCE/native-symbols.txt"
-          LD_LIBRARY_PATH="$torch_lib" ldd "$native" | tee "$RAGGED_EVIDENCE/native-ldd.txt"
+          LD_LIBRARY_PATH="$torch_lib:$LD_LIBRARY_PATH" ldd "$native" | tee "$RAGGED_EVIDENCE/native-ldd.txt"
           if grep -Ei 'lib(asan|ubsan|tsan|lsan)|not found' "$RAGGED_EVIDENCE/native-ldd.txt" "$RAGGED_EVIDENCE/native-dynamic.txt"; then
             echo 'The ordinary extension has an instrumented or unresolved dependency' >&2
             exit 1
@@ -191,7 +198,8 @@ jobs:
               "compiler_version": subprocess.check_output([os.environ["CXX"], "-dumpfullversion"], text=True).strip(),
               "cxx_standard": "C++17", "extension_compile_flags": ["-O2", "-std=c++17"],
               "build_command_log": "wheel-build.log", "instrumentation": "none detected",
-              "preload": None, "libc": list(platform.libc_ver()), "runtimes": runtimes,
+              "preload": None, "library_search_path": os.environ["LD_LIBRARY_PATH"],
+              "libc": list(platform.libc_ver()), "runtimes": runtimes,
               "wheel_name": wheel.name, "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
               "native_name": native.name, "native_sha256": hashlib.sha256(native.read_bytes()).hexdigest(),
               "torch_intraop_threads": torch.get_num_threads(), "torch_interop_threads": torch.get_num_interop_threads(),
