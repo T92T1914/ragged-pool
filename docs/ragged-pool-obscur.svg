@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+<title id="title">Ragged Pooling for PyTorch</title>
+<desc id="desc">A conceptual example with groups of two items, three items and no items. Softmax turns each nonempty group&#x27;s scores into weights. A weighted sum produces one vector per group. Empty groups produce a zero vector. Training sends gradients back to values and scores. CPU implementation. This illustration does not report a benchmark or model quality result.</desc>
+<!-- Family roles: https://github.com/T92T1914/clair-obscur-themes/blob/7a57fe750ff50205a17e1d342106a0d3f2777159/tokens.json. Conceptual source: 18c0d8f3f9750dd18e97940bde905bec08e6176e. -->
+<rect x="0" y="0" width="1600" height="1120" rx="0" fill="#090909" stroke="none" stroke-width="2"/>
+<text x="70" y="116" font-family="Inter, Arial, sans-serif" font-size="66" font-weight="600" fill="#f4f4f4" text-anchor="start">Ragged Pooling for PyTorch</text>
+<text x="70" y="184" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="400" fill="#bcbcbc" text-anchor="start">Different group sizes. One summary vector per group.</text>
+<rect x="56" y="238" width="1488" height="585" rx="22" fill="#151515" stroke="#494949" stroke-width="2"/>
+<text x="94" y="300" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="600" fill="#f4f4f4" text-anchor="start">Values and scores</text>
+<text x="700" y="300" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="600" fill="#f4f4f4" text-anchor="start">Softmax weights</text>
+<text x="1246" y="300" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="600" fill="#f4f4f4" text-anchor="start">Weighted sum</text>
+<text x="94" y="378" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="600" fill="#f4f4f4" text-anchor="start">Group A</text>
+<rect x="282" y="348" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 298 370 L 306 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 336 370 L 344 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 374 370 L 382 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="710" y="359" width="108" height="22" rx="8" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 722 370 L 806 370" stroke="#b3c8d8" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="413" y="348" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 429 370 L 437 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 467 370 L 475 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 505 370 L 513 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="847" y="359" width="108" height="22" rx="8" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 859 370 L 943 370" stroke="#b3c8d8" stroke-width="5" fill="none" stroke-linecap="round"/>
+<path d="M 1160 370 L 1225 370" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 1213 361 L 1225 370" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 1213 379 L 1225 370" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<rect x="1314" y="348" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 1330 370 L 1338 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 1368 370 L 1376 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 1406 370 L 1414 370" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 94 432 L 1505 432" stroke="#494949" stroke-width="2" fill="none" stroke-linecap="round"/>
+<text x="94" y="524" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="600" fill="#f4f4f4" text-anchor="start">Group B</text>
+<rect x="282" y="494" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 298 516 L 306 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 336 516 L 344 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 374 516 L 382 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="710" y="505" width="108" height="22" rx="8" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 722 516 L 806 516" stroke="#b3c8d8" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="413" y="494" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 429 516 L 437 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 467 516 L 475 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 505 516 L 513 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="847" y="505" width="108" height="22" rx="8" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 859 516 L 943 516" stroke="#b3c8d8" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="544" y="494" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 560 516 L 568 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 598 516 L 606 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 636 516 L 644 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="984" y="505" width="108" height="22" rx="8" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 996 516 L 1080 516" stroke="#b3c8d8" stroke-width="5" fill="none" stroke-linecap="round"/>
+<path d="M 1160 516 L 1225 516" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 1213 507 L 1225 516" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 1213 525 L 1225 516" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<rect x="1314" y="494" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<path d="M 1330 516 L 1338 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 1368 516 L 1376 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 1406 516 L 1414 516" stroke="#b3c8d8" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 94 578 L 1505 578" stroke="#494949" stroke-width="2" fill="none" stroke-linecap="round"/>
+<text x="94" y="670" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="600" fill="#f4f4f4" text-anchor="start">Empty group</text>
+<text x="340" y="670" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="400" fill="#bcbcbc" text-anchor="start">No items</text>
+<text x="710" y="670" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="400" fill="#bcbcbc" text-anchor="start">No weights</text>
+<path d="M 1160 662 L 1225 662" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 1213 653 L 1225 662" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 1213 671 L 1225 662" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<rect x="1314" y="640" width="116" height="44" rx="9" fill="#151515" stroke="#b3c8d8" stroke-width="2"/>
+<text x="1334" y="670" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="400" fill="#b3c8d8" text-anchor="middle">0</text>
+<text x="1372" y="670" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="400" fill="#b3c8d8" text-anchor="middle">0</text>
+<text x="1410" y="670" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="400" fill="#b3c8d8" text-anchor="middle">0</text>
+<text x="800" y="868" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600" fill="#b3c8d8" text-anchor="middle">Training sends gradients back to values and scores</text>
+<path d="M 1395 910 L 220 910" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 232 901 L 220 910" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 232 919 L 220 910" stroke="#b3c8d8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<text x="70" y="969" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600" fill="#f4f4f4" text-anchor="start">CPU computation in C++. Python integration with PyTorch.</text>
+<text x="70" y="1024" font-family="Inter, Arial, sans-serif" font-size="33" font-weight="400" fill="#f4f4f4" text-anchor="start">Packed and padded inputs. First order gradients.</text>
+<text x="70" y="1080" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="400" fill="#bcbcbc" text-anchor="start">Conceptual example. Not a benchmark.</text>
+</svg>

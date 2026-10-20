@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1590" viewBox="0 0 900 1590" role="img" aria-labelledby="title desc">
+<title id="title">Ragged Pooling for PyTorch</title>
+<desc id="desc">A conceptual example with groups of two items, three items and no items. Softmax turns each nonempty group&#x27;s scores into weights. A weighted sum produces one vector per group. Empty groups produce a zero vector. Training sends gradients back to values and scores. CPU implementation. This illustration does not report a benchmark or model quality result.</desc>
+<!-- Family roles: https://github.com/T92T1914/clair-obscur-themes/blob/7a57fe750ff50205a17e1d342106a0d3f2777159/tokens.json. Conceptual source: 18c0d8f3f9750dd18e97940bde905bec08e6176e. -->
+<rect x="0" y="0" width="900" height="1590" rx="0" fill="#f8f7f3" stroke="none" stroke-width="2"/>
+<text x="54" y="93" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="600" fill="#242424" text-anchor="start">Ragged Pooling</text>
+<text x="54" y="155" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="600" fill="#242424" text-anchor="start">for PyTorch</text>
+<text x="54" y="217" font-family="Inter, Arial, sans-serif" font-size="35" font-weight="400" fill="#595854" text-anchor="start">Different group sizes.</text>
+<text x="54" y="260" font-family="Inter, Arial, sans-serif" font-size="35" font-weight="400" fill="#595854" text-anchor="start">One summary vector per group.</text>
+<rect x="40" y="301" width="820" height="946" rx="22" fill="#fdfcf8" stroke="#b8b6ae" stroke-width="2"/>
+<text x="72" y="355" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600" fill="#242424" text-anchor="start">Values and scores</text>
+<text x="72" y="398" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="400" fill="#595854" text-anchor="start">Softmax weights feed a weighted sum.</text>
+<text x="72" y="448" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="600" fill="#242424" text-anchor="start">Group A</text>
+<rect x="72" y="471" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 88 493 L 96 493" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 126 493 L 134 493" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 164 493 L 172 493" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="81" y="528" width="98" height="22" rx="8" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 93 539 L 167 539" stroke="#365f78" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="215" y="471" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 231 493 L 239 493" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 269 493 L 277 493" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 307 493 L 315 493" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="224" y="528" width="98" height="22" rx="8" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 236 539 L 310 539" stroke="#365f78" stroke-width="5" fill="none" stroke-linecap="round"/>
+<text x="72" y="591" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="400" fill="#595854" text-anchor="start">Items and their weights</text>
+<path d="M 520 514 L 636 514" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 624 505 L 636 514" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 624 523 L 636 514" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<rect x="686" y="492" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 702 514 L 710 514" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 740 514 L 748 514" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 778 514 L 786 514" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<text x="744" y="591" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="400" fill="#595854" text-anchor="middle">One vector</text>
+<path d="M 72 635 L 828 635" stroke="#b8b6ae" stroke-width="2" fill="none" stroke-linecap="round"/>
+<text x="72" y="688" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="600" fill="#242424" text-anchor="start">Group B</text>
+<rect x="72" y="711" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 88 733 L 96 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 126 733 L 134 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 164 733 L 172 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="81" y="768" width="98" height="22" rx="8" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 93 779 L 167 779" stroke="#365f78" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="215" y="711" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 231 733 L 239 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 269 733 L 277 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 307 733 L 315 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="224" y="768" width="98" height="22" rx="8" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 236 779 L 310 779" stroke="#365f78" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="358" y="711" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 374 733 L 382 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 412 733 L 420 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 450 733 L 458 733" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="367" y="768" width="98" height="22" rx="8" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 379 779 L 453 779" stroke="#365f78" stroke-width="5" fill="none" stroke-linecap="round"/>
+<text x="72" y="831" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="400" fill="#595854" text-anchor="start">Items and their weights</text>
+<path d="M 520 754 L 636 754" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 624 745 L 636 754" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 624 763 L 636 754" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<rect x="686" y="732" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<path d="M 702 754 L 710 754" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 740 754 L 748 754" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M 778 754 L 786 754" stroke="#365f78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<text x="744" y="831" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="400" fill="#595854" text-anchor="middle">One vector</text>
+<path d="M 72 875 L 828 875" stroke="#b8b6ae" stroke-width="2" fill="none" stroke-linecap="round"/>
+<text x="72" y="928" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="600" fill="#242424" text-anchor="start">Empty group</text>
+<text x="72" y="1001" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="400" fill="#595854" text-anchor="start">No items</text>
+<path d="M 520 994 L 636 994" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 624 985 L 636 994" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 624 1003 L 636 994" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<rect x="686" y="972" width="116" height="44" rx="9" fill="#fdfcf8" stroke="#365f78" stroke-width="2"/>
+<text x="706" y="1002" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="400" fill="#365f78" text-anchor="middle">0</text>
+<text x="744" y="1002" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="400" fill="#365f78" text-anchor="middle">0</text>
+<text x="782" y="1002" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="400" fill="#365f78" text-anchor="middle">0</text>
+<text x="744" y="1071" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="400" fill="#595854" text-anchor="middle">Zero vector</text>
+<path d="M 790 1201 L 110 1201" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 122 1192 L 110 1201" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M 122 1210 L 110 1201" stroke="#365f78" stroke-width="4" fill="none" stroke-linecap="round"/>
+<text x="450" y="1167" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="600" fill="#365f78" text-anchor="middle">Gradients reach values and scores</text>
+<text x="54" y="1324" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600" fill="#242424" text-anchor="start">CPU computation in C++.</text>
+<text x="54" y="1375" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="400" fill="#242424" text-anchor="start">Python integration with PyTorch.</text>
+<text x="54" y="1424" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="400" fill="#242424" text-anchor="start">Packed and padded inputs.</text>
+<text x="54" y="1473" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="400" fill="#242424" text-anchor="start">First order gradients.</text>
+<text x="54" y="1542" font-family="Inter, Arial, sans-serif" font-size="29" font-weight="400" fill="#595854" text-anchor="start">Conceptual example. Not a benchmark.</text>
+</svg>
