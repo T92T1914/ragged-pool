@@ -122,6 +122,32 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Installed gradient penalty float64 consumer failed' }
           $revision = git -C $env:GITHUB_WORKSPACE rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the smoke test source revision' }
+          $paddedExportRoot = Join-Path $env:RUNNER_TEMP 'ragged-padded-export'
+          New-Item -ItemType Directory -Path $paddedExportRoot | Out-Null
+          foreach ($dtype in @('float32', 'float64')) {
+            $bundle = Join-Path $paddedExportRoot $dtype
+            $producerPath = Join-Path $paddedExportRoot "producer-$dtype.json"
+            $consumerPath = Join-Path $paddedExportRoot "consumer-$dtype.json"
+            & $python -I examples\export_padded.py --dtype $dtype --directory $bundle --source-revision $revision --wheel $env:RAGGED_WHEEL --output $producerPath
+            if ($LASTEXITCODE -ne 0) { throw "Installed padded export $dtype producer failed" }
+            $producer = Get-Content -LiteralPath $producerPath -Raw | ConvertFrom-Json
+            if ($producer.status -ne 'passed' -or $producer.dtype -ne $dtype -or $producer.source_revision -ne $revision -or $producer.training.optimizer_steps -ne 2) {
+              throw "Unexpected padded export $dtype producer receipt"
+            }
+            if ($producer.manifest_sha256 -notmatch '^[0-9a-f]{64}$') { throw 'Padded manifest digest is missing or invalid' }
+            & $python -I examples\predict_padded.py --directory $bundle --manifest-sha256 $producer.manifest_sha256 --output $consumerPath
+            if ($LASTEXITCODE -ne 0) { throw "Fresh installed padded export $dtype predictor failed" }
+            $consumer = Get-Content -LiteralPath $consumerPath -Raw | ConvertFrom-Json
+            $manifest = Get-Content -LiteralPath (Join-Path $bundle 'manifest.json') -Raw | ConvertFrom-Json
+            if ($consumer.status -ne 'passed' -or $consumer.dtype -ne $dtype -or $consumer.source_revision -ne $revision -or $consumer.expected_manifest_sha256 -ne $producer.manifest_sha256) {
+              throw "Unexpected padded export $dtype predictor receipt"
+            }
+            if ($manifest.cases.Count -lt 1 -or $consumer.cases.Count -ne $manifest.cases.Count -or $consumer.training_modules_loaded.Count -ne 0) {
+              throw "Incomplete padded export $dtype fresh-process cases"
+            }
+            Write-Output "Padded export $dtype passed two training updates and $($consumer.cases.Count) fresh-process cases"
+            Get-Content -LiteralPath $producerPath,$consumerPath
+          }
           & $python -I examples\learn_sets.py --smoke --source-revision $revision --wheel $env:RAGGED_WHEEL --output study-smoke.json
           if ($LASTEXITCODE -ne 0) { throw 'Installed study smoke test failed' }
           $artifact = Join-Path $env:RUNNER_TEMP 'ragged-export'
@@ -164,6 +190,15 @@ jobs:
           name: gradient-penalty-${{ github.sha }}
           path: ${{ runner.temp }}/ragged-consumer/gradient-penalty-*.json
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Retain padded export bundles and fresh predictor receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: padded-export-${{ github.sha }}
+          path: ${{ runner.temp }}/ragged-padded-export
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Retain the installed study smoke receipt

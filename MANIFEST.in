@@ -23,3 +23,6 @@ include examples/train_padded.py
 include docs/padded-batches.md
 include examples/train_gradient_penalty.py
 include docs/second-order.md
+include examples/export_padded.py
+include examples/predict_padded.py
+include docs/padded-export.md

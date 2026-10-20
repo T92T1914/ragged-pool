@@ -123,6 +123,12 @@ $exportReceipt = Get-Content -LiteralPath "$consumer\export-producer.json" -Raw 
 
 Load only trusted model artifacts. The consumer checks byte identities before graph loading, but a SHA256 digest does not authenticate a publisher and `torch.export.load` is not a sandbox. The separate `weights_only=True` checkpoint reload does not make arbitrary exported graphs safe to load. No artifact compatibility across versions or standalone binary is promised.
 
+## Export a trained padded model
+
+`examples/export_padded.py` trains the padded encoder/scorer/head for two SGD steps in float32 or float64 and strictly exports the updated model. `examples/predict_padded.py` consumes the saved graph in a separate process without importing the producer or original model class. It compares predictions and pooled vectors with independent per-row PyTorch math using the admitted saved weights. Both programs use the installed native package.
+
+This example accepts raw `[B,T,3]` features and a bool mask, with `B=2..32` and `T=2..128`. Selected raw features are finite and within `[-6,6]`; ignored NaN/Inf padding is cleared before encoder arithmetic. Shape corners, changed masks, empty rows and the same items under extra padding or moved holes check that serialized behavior remains correct. Explicit consumer admission is separate from the exported graph's guards. See the [padded artifact contract and commands](docs/padded-export.md) for the owned-file trust boundary, size-one guard debugging case and exact limits. Two updates demonstrate integration, with no model-quality, robustness or speed claim.
+
 ## What the checks mean
 
 `tests/test_math.py` compares the native result and both input gradients with independently differentiated PyTorch composition and checks float64 finite differences. Contract checks cover malformed inputs, empty and singleton groups, storage, version rules and upstream gradient views. Registration checks use `torch.library.opcheck` separately from the mathematical tests.

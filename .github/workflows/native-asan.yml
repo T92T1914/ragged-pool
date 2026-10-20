@@ -112,6 +112,42 @@ jobs:
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2
             exit 1
           fi
+          mkdir "$RUNNER_TEMP/asan-evidence/padded-export"
+          for dtype in float32 float64; do
+            bundle="$RUNNER_TEMP/asan-evidence/padded-export/$dtype"
+            producer="$RUNNER_TEMP/asan-evidence/padded-export/producer-$dtype.json"
+            consumer="$RUNNER_TEMP/asan-evidence/padded-export/consumer-$dtype.json"
+            "$python" -I -u -X faulthandler examples/export_padded.py --dtype "$dtype" --directory "$bundle" --source-revision "$RAGGED_REVISION" --wheel "${wheels[0]}" --output "$producer"
+            manifest_sha256="$("$python" -I - "$producer" "$dtype" "$RAGGED_REVISION" <<'PY'
+          import json
+          from pathlib import Path
+          import re
+          import sys
+
+          producer = json.loads(Path(sys.argv[1]).read_text())
+          assert producer["status"] == "passed" and producer["dtype"] == sys.argv[2]
+          assert producer["source_revision"] == sys.argv[3]
+          assert producer["training"]["optimizer_steps"] == 2
+          assert re.fullmatch(r"[0-9a-f]{64}", producer["manifest_sha256"])
+          print(producer["manifest_sha256"])
+          PY
+            )"
+            "$python" -I -u -X faulthandler examples/predict_padded.py --directory "$bundle" --manifest-sha256 "$manifest_sha256" --output "$consumer"
+            "$python" -I - "$producer" "$consumer" "$bundle/manifest.json" "$dtype" "$RAGGED_REVISION" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          producer, consumer, manifest = (json.loads(Path(path).read_text()) for path in sys.argv[1:4])
+          assert consumer["status"] == "passed" and consumer["dtype"] == sys.argv[4]
+          assert producer["source_revision"] == consumer["source_revision"] == sys.argv[5]
+          assert consumer["expected_manifest_sha256"] == producer["manifest_sha256"]
+          assert len(manifest["cases"]) > 0 and len(consumer["cases"]) == len(manifest["cases"])
+          assert consumer["training_modules_loaded"] == []
+          print("Padded export", sys.argv[4], "passed two training updates and", len(consumer["cases"]), "fresh-process cases")
+          PY
+            cat "$producer" "$consumer"
+          done
           "$python" -I -u -X faulthandler examples/learn_sets.py --smoke --source-revision "$RAGGED_REVISION" --wheel "${wheels[0]}" --output "$RUNNER_TEMP/asan-evidence/study-smoke.json"
       - name: Retain campaign and negative-control evidence
         if: always()

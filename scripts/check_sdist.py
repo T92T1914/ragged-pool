@@ -23,6 +23,7 @@ FIXED_FILES = (
     'docs/linux-cpu.md',
     'docs/padded-batches.md',
     'docs/second-order.md',
+    'docs/padded-export.md',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',
