@@ -25,6 +25,7 @@ jobs:
       CXX: g++-13
       RAGGED_POOL_ASAN: '1'
       CAMPAIGN_SECONDS: ${{ github.event_name == 'pull_request' && '600' || '5' }}
+      SECOND_ORDER_SECONDS: ${{ github.event_name == 'pull_request' && '30' || '5' }}
     steps:
       - name: Check out the tested revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -166,6 +167,49 @@ jobs:
             cat "$producer" "$consumer"
           done
           "$python" -I -u -X faulthandler examples/learn_sets.py --smoke --source-revision "$RAGGED_REVISION" --wheel "${wheels[0]}" --output "$RUNNER_TEMP/asan-evidence/study-smoke.json"
+      - name: Qualify generated second derivatives with a separate bounded campaign
+        working-directory: ${{ runner.temp }}/ragged-asan-consumer
+        run: |
+          set -euo pipefail
+          export LD_PRELOAD="$ASAN_RUNTIME:$CXX_STDLIB"
+          python="$RUNNER_TEMP/ragged-asan/bin/python"
+          "$python" -I -u -X faulthandler native_campaign.py --cases tests/generated_second_order_cases.py --seconds "$SECOND_ORDER_SECONDS" --seed 20261020 --output "$RUNNER_TEMP/asan-evidence/second-order-campaign.json"
+          "$python" -I -u -X faulthandler native_campaign.py --cases tests/generated_second_order_cases.py --seconds 5 --seed 20261020 --output "$RUNNER_TEMP/asan-evidence/second-order-replay.json"
+          "$python" -I - <<'PY'
+          from hashlib import sha256
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path(os.environ["RUNNER_TEMP"]) / "asan-evidence"
+          baseline = json.loads((evidence / "campaign.json").read_text())
+          assert baseline["status"] == "passed"
+          cases = Path("tests/generated_second_order_cases.py")
+          expected_cases_sha256 = sha256(cases.read_bytes()).hexdigest()
+          checkout_cases = Path(os.environ["GITHUB_WORKSPACE"]) / cases
+          assert expected_cases_sha256 == sha256(checkout_cases.read_bytes()).hexdigest()
+          expected_native_sha256 = sha256(Path(baseline["native_library"]).read_bytes()).hexdigest()
+          assert expected_native_sha256 == baseline["native_sha256"]
+          core = ("packed_second_vjp", "padded_second_vjp", "second_order_oracle",
+                  "second_public_packed", "second_private_packed",
+                  "second_public_padded", "second_private_padded")
+          for name, seconds in (("second-order-campaign", int(os.environ["SECOND_ORDER_SECONDS"])),
+                                ("second-order-replay", 5)):
+              receipt = json.loads((evidence / f"{name}.json").read_text())
+              assert receipt["status"] == "passed" and receipt["iterations"] > 0
+              assert receipt["seed"] == 20261020 and receipt["requested_seconds"] == seconds
+              assert receipt["source_revision"] == baseline["source_revision"] == os.environ["RAGGED_REVISION"]
+              assert receipt["cases_sha256"] == expected_cases_sha256
+              assert receipt["native_library"] == baseline["native_library"]
+              assert receipt["native_sha256"] == expected_native_sha256
+              assert receipt["package"] == baseline["package"]
+              assert all(receipt["counters"].get(key, 0) >= receipt["iterations"] for key in core)
+              print(name, "passed", receipt["iterations"], "iterations", {key: receipt["counters"][key] for key in core})
+          print("Second-order cases SHA256:", expected_cases_sha256)
+          print("Instrumented native SHA256:", expected_native_sha256)
+          print("Tested source:", os.environ["RAGGED_REVISION"])
+          PY
+
       - name: Retain campaign and negative-control evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
