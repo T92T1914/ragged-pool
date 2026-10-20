@@ -15,3 +15,7 @@ include docs/results/cpu-study.json
 include LICENSE
 include NOTICE
 include third_party/PYTORCH-LICENSE
+recursive-include tests *.py
+include scripts/check_installed.py
+include scripts/check_sdist.py
+include docs/linux-cpu.md

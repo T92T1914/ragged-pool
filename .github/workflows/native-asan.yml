@@ -63,6 +63,8 @@ jobs:
           cp -r tests "$RUNNER_TEMP/ragged-asan-consumer/tests"
           cp -r examples "$RUNNER_TEMP/ragged-asan-consumer/examples"
           cp scripts/native_campaign.py scripts/check_asan_control.py examples/train_sets.py "$RUNNER_TEMP/ragged-asan-consumer/"
+          mkdir "$RUNNER_TEMP/ragged-asan-consumer/scripts"
+          cp scripts/check_installed.py scripts/check_sdist.py "$RUNNER_TEMP/ragged-asan-consumer/scripts/"
           mkdir "$RUNNER_TEMP/asan-evidence"
       - name: Qualify the tool with an injected negative control
         working-directory: ${{ runner.temp }}/ragged-asan-consumer

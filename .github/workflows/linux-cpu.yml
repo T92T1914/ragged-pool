@@ -1,0 +1,268 @@
+name: Linux CPU source distribution
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installed-sdist-wheel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      MAX_JOBS: '2'
+      PYTHONNOUSERSITE: '1'
+      PYTHONPATH: ''
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      CC: gcc-13
+      CXX: g++-13
+
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select CPython 3.11.8 x64
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11.8'
+          architecture: x64
+
+      - name: Resolve the ordinary Ubuntu and GCC target
+        run: |
+          set -euo pipefail
+          # Do not turn an instrumented environment into ordinary acceptance.
+          for variable in RAGGED_POOL_ASAN LD_PRELOAD ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS LSAN_OPTIONS CFLAGS CPPFLAGS CXXFLAGS LDFLAGS; do
+            if [[ -n "${!variable:-}" ]]; then
+              echo "Ordinary CPU acceptance requires an unset $variable" >&2
+              exit 1
+            fi
+          done
+          # setup-python supplies the selected interpreter's shared runtime.
+          expected_python_lib="${pythonLocation:?setup-python must expose pythonLocation}/lib"
+          if [[ "${LD_LIBRARY_PATH:-}" != "$expected_python_lib" ]]; then
+            echo 'LD_LIBRARY_PATH must contain only the selected Python runtime directory' >&2
+            exit 1
+          fi
+          test -d "$expected_python_lib"
+          test "$(uname -m)" = x86_64
+          test "$(lsb_release -rs)" = 24.04
+          test "$("$CC" -dumpversion)" = 13
+          test "$("$CXX" -dumpversion)" = 13
+          python -I -c 'import sys; assert sys.version_info[:3] == (3, 11, 8)'
+          mkdir "$RUNNER_TEMP/ragged-linux-evidence" "$RUNNER_TEMP/ragged-linux-dist" "$RUNNER_TEMP/ragged-linux-build"
+          {
+            cat /etc/os-release
+            uname -a
+            "$CC" --version
+            "$CXX" --version
+            "$CXX" -dumpfullversion
+            "$CXX" -dumpmachine
+            ldd --version
+            readelf --version
+            python --version
+          } | tee "$RUNNER_TEMP/ragged-linux-evidence/toolchain.txt"
+          echo "RAGGED_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "RAGGED_DIST=$RUNNER_TEMP/ragged-linux-dist" >> "$GITHUB_ENV"
+          echo "RAGGED_EVIDENCE=$RUNNER_TEMP/ragged-linux-evidence" >> "$GITHUB_ENV"
+
+      - name: Create the isolated build environment
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/ragged-linux-build-env"
+          python="$RUNNER_TEMP/ragged-linux-build-env/bin/python"
+          "$python" -m pip --isolated install 'torch==2.9.1+cpu' --index-url https://download.pytorch.org/whl/cpu
+          "$python" -m pip --isolated install -r requirements-lock.txt
+          "$python" -m pip check
+          "$python" -m pip freeze --all > "$RAGGED_EVIDENCE/build-environment.txt"
+
+      - name: Build and validate the complete source distribution
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-build-env/bin/python"
+          # Run the pinned PEP 517 backend hook in its own process.
+          "$python" -I -c 'from setuptools.build_meta import build_sdist; import os; build_sdist(os.environ["RAGGED_DIST"])' 2>&1 | tee "$RAGGED_EVIDENCE/sdist-build.log"
+          sdists=("$RAGGED_DIST"/*.tar.gz)
+          if (( ${#sdists[@]} != 1 )) || ! test -f "${sdists[0]}" || [[ "$(basename "${sdists[0]}")" != ragged_pool-0.1.0.tar.gz ]]; then
+            echo 'Expected exactly the declared source distribution' >&2
+            exit 1
+          fi
+          "$python" -I scripts/check_sdist.py --checkout "$GITHUB_WORKSPACE" --sdist "${sdists[0]}" --output "$RAGGED_EVIDENCE/sdist.json" --extract "$RUNNER_TEMP/ragged-sdist-source"
+          cat "$RAGGED_EVIDENCE/sdist.json"
+          echo "RAGGED_SDIST=${sdists[0]}" >> "$GITHUB_ENV"
+
+      - name: Build the optimized wheel from the validated source archive
+        working-directory: ${{ runner.temp }}/ragged-linux-build
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-build-env/bin/python"
+          "$python" -m pip --isolated wheel "$RAGGED_SDIST" --no-cache-dir --no-build-isolation --no-deps --wheel-dir "$RAGGED_DIST" --verbose 2>&1 | tee "$RAGGED_EVIDENCE/wheel-build.log"
+          grep -F -- '-O2 -std=c++17' "$RAGGED_EVIDENCE/wheel-build.log"
+          if grep -F -- '-fsanitize' "$RAGGED_EVIDENCE/wheel-build.log"; then
+            echo 'An ordinary build must not use sanitizer instrumentation' >&2
+            exit 1
+          fi
+          wheels=("$RAGGED_DIST"/*.whl)
+          if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}" || [[ "$(basename "${wheels[0]}")" != ragged_pool-0.1.0-cp311-cp311-linux_x86_64.whl ]]; then
+            echo 'Expected exactly one CPython 3.11 Linux x86_64 wheel' >&2
+            exit 1
+          fi
+          sha256sum "$RAGGED_SDIST" "${wheels[0]}" | tee "$RAGGED_EVIDENCE/distribution-sha256.txt"
+          echo "RAGGED_WHEEL=${wheels[0]}" >> "$GITHUB_ENV"
+
+      - name: Prepare a fresh installed consumer from the source distribution
+        working-directory: ${{ runner.temp }}/ragged-linux-build
+        run: |
+          set -euo pipefail
+          source="$RUNNER_TEMP/ragged-sdist-source"
+          consumer="$RUNNER_TEMP/ragged-linux-consumer"
+          python -m venv "$RUNNER_TEMP/ragged-linux-accept-env"
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          "$python" -m pip --isolated install 'torch==2.9.1+cpu' --index-url https://download.pytorch.org/whl/cpu
+          "$python" -m pip --isolated install -r "$source/requirements-lock.txt"
+          "$python" -m pip --isolated install --no-deps "$RAGGED_WHEEL"
+          "$python" -m pip check | tee "$RAGGED_EVIDENCE/pip-check.txt"
+          "$python" -m pip freeze --all > "$RAGGED_EVIDENCE/acceptance-environment.txt"
+          mkdir "$consumer" "$consumer/scripts"
+          cp -r "$source/tests" "$source/examples" "$consumer/"
+          cp "$source/scripts/check_installed.py" "$source/scripts/check_sdist.py" "$consumer/scripts/"
+
+      - name: Verify installed bytes, licenses and ordinary native dependencies
+        working-directory: ${{ runner.temp }}/ragged-linux-consumer
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          "$python" -I scripts/check_installed.py --checkout "$RUNNER_TEMP/ragged-sdist-source" --wheel "$RAGGED_WHEEL" | tee "$RAGGED_EVIDENCE/installed.json"
+          native="$("$python" -I -c 'from importlib.metadata import distribution; import json, os; from pathlib import Path; record = json.loads((Path(os.environ["RAGGED_EVIDENCE"]) / "installed.json").read_text()); print(Path(distribution("ragged-pool").locate_file(record["native_library"])).resolve(strict=True))')"
+          torch_lib="$("$python" -I -c 'from pathlib import Path; import torch; print(Path(torch.__file__).resolve().parent / "lib")')"
+          readelf -d "$native" > "$RAGGED_EVIDENCE/native-dynamic.txt"
+          readelf -Ws "$native" > "$RAGGED_EVIDENCE/native-symbols.txt"
+          LD_LIBRARY_PATH="$torch_lib:$LD_LIBRARY_PATH" ldd "$native" | tee "$RAGGED_EVIDENCE/native-ldd.txt"
+          if grep -Ei 'lib(asan|ubsan|tsan|lsan)|not found' "$RAGGED_EVIDENCE/native-ldd.txt" "$RAGGED_EVIDENCE/native-dynamic.txt"; then
+            echo 'The ordinary extension has an instrumented or unresolved dependency' >&2
+            exit 1
+          fi
+          if grep -E '__asan_|__ubsan_|__tsan_|__lsan_' "$RAGGED_EVIDENCE/native-symbols.txt"; then
+            echo 'The ordinary extension contains sanitizer symbols' >&2
+            exit 1
+          fi
+          "$python" -I - <<'PY' | tee "$RAGGED_EVIDENCE/runtime.json"
+          import hashlib
+          from importlib.metadata import distribution
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import subprocess
+          import sys
+          import sysconfig
+          import torch
+
+          torch.set_num_threads(1)
+          torch.set_num_interop_threads(1)
+          evidence = Path(os.environ["RAGGED_EVIDENCE"])
+          dependencies = {}
+          for line in (evidence / "native-ldd.txt").read_text().splitlines():
+              fields = line.split()
+              if len(fields) >= 3 and fields[1] == "=>":
+                  dependencies[fields[0]] = str(Path(fields[2]).resolve(strict=True))
+          runtimes = {}
+          for name in ("libc.so.6", "libstdc++.so.6", "libgcc_s.so.1"):
+              path = Path(dependencies[name])
+              runtimes[name] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+          compiler_stdlib = Path(subprocess.check_output(
+              [os.environ["CXX"], "-print-file-name=libstdc++.so.6"], text=True).strip()).resolve(strict=True)
+          assert str(compiler_stdlib) == runtimes["libstdc++.so.6"]["path"]
+          wheel = Path(os.environ["RAGGED_WHEEL"])
+          installed = json.loads((evidence / "installed.json").read_text())
+          native = Path(distribution("ragged-pool").locate_file(installed["native_library"])).resolve(strict=True)
+          assert torch.version.cuda is None
+          record = {
+              "source_revision": os.environ["RAGGED_REVISION"],
+              "platform": platform.platform(), "architecture": platform.machine(),
+              "python_version": platform.python_version(), "torch_version": torch.__version__,
+              "extension_suffix": sysconfig.get_config_var("EXT_SUFFIX"),
+              "torch_cxx11_abi": torch.compiled_with_cxx11_abi(),
+              "compiler": os.environ["CXX"],
+              "compiler_version": subprocess.check_output([os.environ["CXX"], "-dumpfullversion"], text=True).strip(),
+              "cxx_standard": "C++17", "extension_compile_flags": ["-O2", "-std=c++17"],
+              "build_command_log": "wheel-build.log", "instrumentation": "none detected",
+              "preload": None, "library_search_path": os.environ["LD_LIBRARY_PATH"],
+              "libc": list(platform.libc_ver()), "runtimes": runtimes,
+              "wheel_name": wheel.name, "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
+              "native_name": native.name, "native_sha256": hashlib.sha256(native.read_bytes()).hexdigest(),
+              "torch_intraop_threads": torch.get_num_threads(), "torch_interop_threads": torch.get_num_interop_threads(),
+              "max_build_jobs": int(os.environ["MAX_JOBS"]),
+              "compatibility_scope": "This Ubuntu 24.04 x86_64 job and pinned Python/PyTorch toolchain only. No manylinux or cross-platform ABI claim."
+          }
+          print(json.dumps(record, indent=2))
+          PY
+
+      - name: Check installed contracts, gradients, registration and training
+        working-directory: ${{ runner.temp }}/ragged-linux-consumer
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          "$python" -I -m pytest -q --import-mode=importlib --junitxml "$RAGGED_EVIDENCE/pytest.xml" tests 2>&1 | tee "$RAGGED_EVIDENCE/pytest.log"
+          "$python" -I examples/train_sets.py --dtype float32 2>&1 | tee "$RAGGED_EVIDENCE/training-float32.log"
+          "$python" -I examples/train_sets.py --dtype float64 2>&1 | tee "$RAGGED_EVIDENCE/training-float64.log"
+          "$python" -I examples/learn_sets.py --smoke --source-revision "$RAGGED_REVISION" --wheel "$RAGGED_WHEEL" --output "$RAGGED_EVIDENCE/study-smoke.json" 2>&1 | tee "$RAGGED_EVIDENCE/study-smoke.log"
+
+      - name: Train and export the selected model, then predict in a fresh process
+        working-directory: ${{ runner.temp }}/ragged-linux-consumer
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          artifact="$RUNNER_TEMP/ragged-linux-export"
+          "$python" -I examples/export_sets.py --directory "$artifact" --source-revision "$RAGGED_REVISION" --wheel "$RAGGED_WHEEL" --output "$RAGGED_EVIDENCE/export-producer.json" 2>&1 | tee "$RAGGED_EVIDENCE/export-producer.log"
+          manifest_sha256="$("$python" -I -c 'import json, os; from pathlib import Path; print(json.loads((Path(os.environ["RAGGED_EVIDENCE"]) / "export-producer.json").read_text())["artifact"]["manifest_sha256"])')"
+          "$python" -I examples/predict_sets.py --directory "$artifact" --manifest-sha256 "$manifest_sha256" --output "$RAGGED_EVIDENCE/export-consumer.json" 2>&1 | tee "$RAGGED_EVIDENCE/export-consumer.log"
+          "$python" -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path(os.environ["RAGGED_EVIDENCE"])
+          producer = json.loads((evidence / "export-producer.json").read_text())
+          consumer = json.loads((evidence / "export-consumer.json").read_text())
+          manifest = json.loads((Path(os.environ["RUNNER_TEMP"]) / "ragged-linux-export/manifest.json").read_text())
+          assert producer["status"] == "passed" and producer["mode"] == "full"
+          assert manifest["training"]["updates"] == 200
+          assert consumer["status"] == "passed" and len(consumer["cases"]) == 8
+          assert consumer["training_modules_loaded"] == []
+          assert producer["source_revision"] == consumer["source_revision"] == os.environ["RAGGED_REVISION"]
+          assert consumer["expected_manifest_sha256"] == producer["artifact"]["manifest_sha256"]
+          print("Full 200-update producer and eight fresh-process prediction cases passed")
+          print("Tested source:", os.environ["RAGGED_REVISION"])
+          PY
+
+      - name: Retain the accepted Linux distributions and trained artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-cpu-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/ragged-linux-dist/*.tar.gz
+            ${{ runner.temp }}/ragged-linux-dist/*.whl
+            ${{ runner.temp }}/ragged-linux-export
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Retain Linux acceptance receipts and build logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-cpu-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/ragged-linux-evidence
+          if-no-files-found: warn
+          retention-days: 14
