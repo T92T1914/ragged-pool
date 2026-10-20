@@ -24,7 +24,7 @@ The native code uses maximum subtraction for stable softmax and float64 accumula
 
 `ragged_pool_padded(values, logits, mask)` accepts values `[B,T,D]`, matching logits `[B,T]` and a boolean mask `[B,T]`. True selects a real item. It packs selected entries in row order, constructs offsets and calls the same native operation. Holes and empty rows are supported. Ignored padding has exactly zero input gradients and may contain nonfinite sentinels because it is selected out before arithmetic.
 
-This eager adapter requires contiguous CPU float32/float64 inputs, B <= 128, T <= 4096, 1 <= D <= 128 and **B*T <= 4096**. That last bound limits padded storage, even if few entries are selected. Selected values/logits retain the original finite `[-1000,1000]` contract. Packing allocates new tensors without changing input dtype, device or contents. The packed API remains available for larger padded envelopes.
+This adapter requires contiguous CPU float32/float64 inputs, B <= 128, T <= 4096, 1 <= D <= 128 and **B*T <= 4096**. That last bound limits padded storage, even if few entries are selected. Selected values/logits retain the original finite `[-1000,1000]` contract. Packing allocates new tensors without changing input dtype, device or contents. The packed API remains available for larger padded envelopes.
 
 ```python
 from ragged_pool import ragged_pool_padded
@@ -38,7 +38,9 @@ pooled = ragged_pool_padded(values, logits, mask)
 pooled.sum().backward()
 ```
 
-`examples/train_padded.py` supplies a seeded encoder/scorer/head consumer with two SGD updates in either dtype and comparison against the independent row reference. Clear ignored raw padding before encoder/scorer arithmetic. Masking a NaN result only at the pool can leave invalid parameter gradients upstream. The [padded-batch note](docs/padded-batches.md) explains that debugging case, the reference and installed commands. The existing packed compile/export paths retain their separate scope; no compile or export path is declared for this adapter.
+`examples/train_padded.py` supplies a seeded encoder/scorer/head consumer with two SGD updates in either dtype and comparison against the independent row reference. Add `--compiled` to compare the same model through `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)`, including changed masks at fixed input shapes. Opaque CPU forward/backward boundaries keep the selected count inside their implementations while reusing the packed C++ math. This establishes graph integration without an optimization or speed claim.
+
+Clear ignored raw padding before encoder/scorer arithmetic. Masking a NaN result only at the pool can leave invalid parameter gradients upstream. Original padded values, logits and mask must stay unchanged until backward, including ignored slots. This saved-input rule is stricter than the earlier eager adapter's packed-copy behavior. The [padded-batch note](docs/padded-batches.md) explains the boundary, debugging case, reference and installed commands. Padded export is outside this route.
 
 ## Build and run
 
@@ -106,7 +108,7 @@ Load only trusted model artifacts. The consumer checks byte identities before gr
 
 `tests/test_math.py` compares the native result and both input gradients with independently differentiated PyTorch composition and checks float64 finite differences. Contract checks cover malformed inputs, empty and singleton groups, storage, version rules and upstream gradient views. Registration checks use `torch.library.opcheck` separately from the mathematical tests.
 
-The declared compiler acceptance path is `torch.compile(..., backend="aot_eager", fullgraph=True)` for forward and backward. It exercises graph capture and autograd integration. The separate CPU study also executed native Inductor forward/backward on one declared case in the pinned environment. Its equivalent built-in attempt failed during generated-code compilation, and no optimized speed advantage was established. Fake tensor implementations describe both forward and private native backward outputs without reading tensor contents. Native execution still validates offset contents and the numerical range.
+The declared compiler acceptance path is `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)` for forward and backward, including the padded training consumer. It exercises graph capture and autograd integration. The separate CPU study also executed native Inductor forward/backward on one declared packed case in the pinned environment. Its equivalent built-in attempt failed during generated-code compilation, and no optimized speed advantage was established. Fake tensor implementations describe each forward and private backward output without reading tensor contents. Runtime execution still validates selected numerical contents and packed offsets.
 
 Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, second derivatives and vmap are outside this version.
 

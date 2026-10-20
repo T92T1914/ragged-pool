@@ -112,6 +112,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Installed padded float32 consumer failed' }
           & $python -I examples\train_padded.py --dtype float64
           if ($LASTEXITCODE -ne 0) { throw 'Installed padded float64 consumer failed' }
+          & $python -I examples\train_padded.py --compiled --dtype float32 --output padded-compiled-float32.json
+          if ($LASTEXITCODE -ne 0) { throw 'Installed compiled padded float32 consumer failed' }
+          & $python -I examples\train_padded.py --compiled --dtype float64 --output padded-compiled-float64.json
+          if ($LASTEXITCODE -ne 0) { throw 'Installed compiled padded float64 consumer failed' }
           $revision = git -C $env:GITHUB_WORKSPACE rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the smoke test source revision' }
           & $python -I examples\learn_sets.py --smoke --source-revision $revision --wheel $env:RAGGED_WHEEL --output study-smoke.json
@@ -139,6 +143,14 @@ jobs:
           path: |
             dist/*.whl
             dist/ragged_pool-source-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Retain compiled padded consumer receipts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compiled-padded-${{ github.sha }}
+          path: ${{ runner.temp }}/ragged-consumer/padded-compiled-*.json
           if-no-files-found: error
           retention-days: 14
 
