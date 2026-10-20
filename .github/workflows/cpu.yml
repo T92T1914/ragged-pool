@@ -174,7 +174,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
           gh release upload $tag @($files.FullName) --repo $env:GH_REPO
           if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed. The release remains a draft.' }
-          $draftJson = gh api "repos/$($env:GH_REPO)/releases/tags/$tag"
+          # Tag lookup exposes published releases, so inspect this draft by its ID.
+          $releaseIds = @(gh api --paginate "repos/$($env:GH_REPO)/releases" --jq ".[] | select(.tag_name == `"$tag`") | .id")
+          if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the uploaded draft release ID' }
+          if ($releaseIds.Count -ne 1 -or $releaseIds[0] -notmatch '^[0-9]+$') { throw 'Expected one numeric release ID for the exact tag' }
+          $releaseId = $releaseIds[0]
+          $draftJson = gh api "repos/$($env:GH_REPO)/releases/$releaseId"
           if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the uploaded draft' }
           $draft = $draftJson | ConvertFrom-Json
           if (-not $draft.draft -or $draft.tag_name -ne $tag) { throw 'Unexpected release state before publication' }
