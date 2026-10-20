@@ -9,8 +9,8 @@
 
 namespace {
 
-void check_inputs(const at::Tensor& values, const at::Tensor& logits,
-                  const at::Tensor& offsets) {
+void check_metadata(const at::Tensor& values, const at::Tensor& logits,
+                    const at::Tensor& offsets) {
   for (const auto* t : {&values, &logits, &offsets}) {
     TORCH_CHECK(t->device().is_cpu(), "inputs must be on CPU");
     TORCH_CHECK(t->layout() == at::kStrided, "inputs must have strided layout");
@@ -27,6 +27,11 @@ void check_inputs(const at::Tensor& values, const at::Tensor& logits,
   TORCH_CHECK(values.size(0) <= 4096, "N must be <=4096");
   TORCH_CHECK(values.size(1) >= 1 && values.size(1) <= 128, "D must be in [1,128]");
   TORCH_CHECK(offsets.numel() >= 1 && offsets.numel() <= 129, "B must be in [0,128]");
+}
+
+void check_inputs(const at::Tensor& values, const at::Tensor& logits,
+                  const at::Tensor& offsets) {
+  check_metadata(values, logits, offsets);
   const auto* o = offsets.const_data_ptr<int64_t>();
   TORCH_CHECK(o[0] == 0 && o[offsets.numel() - 1] == values.size(0),
               "offsets must start at zero and end at N");
@@ -82,16 +87,22 @@ at::Tensor pool_cpu(const at::Tensor& values, const at::Tensor& logits,
   return result;
 }
 
-std::tuple<at::Tensor, at::Tensor> backward_cpu(
-    const at::Tensor& grad_output, const at::Tensor& values,
-    const at::Tensor& logits, const at::Tensor& offsets) {
-  check_inputs(values, logits, offsets);
+void check_grad_metadata(const at::Tensor& grad_output, const at::Tensor& values,
+                         const at::Tensor& offsets) {
   const int64_t batches = offsets.numel() - 1, width = values.size(1);
   TORCH_CHECK(grad_output.device().is_cpu() && grad_output.layout() == at::kStrided,
               "grad_output must be strided CPU");
   TORCH_CHECK(grad_output.scalar_type() == values.scalar_type(), "grad_output dtype must match values");
   TORCH_CHECK(grad_output.dim() == 2 && grad_output.size(0) == batches && grad_output.size(1) == width,
               "grad_output must have shape [B,D]");
+}
+
+std::tuple<at::Tensor, at::Tensor> backward_cpu(
+    const at::Tensor& grad_output, const at::Tensor& values,
+    const at::Tensor& logits, const at::Tensor& offsets) {
+  check_inputs(values, logits, offsets);
+  check_grad_metadata(grad_output, values, offsets);
+  const int64_t batches = offsets.numel() - 1, width = values.size(1);
   // Autograd commonly supplies expanded zero strides for sum() and views for VJPs.
   const auto grad = grad_output.resolve_neg().contiguous();
   auto grad_values = at::zeros_like(values);
@@ -125,6 +136,23 @@ std::tuple<at::Tensor, at::Tensor> backward_cpu(
   return {grad_values, grad_logits};
 }
 
+// The generic Negative fallback clones tensors before CPU redispatch. A clone
+// can densify a stepped view, concealing an unsupported original forward layout.
+// Admit original metadata before resolving logical bits or allocating copies.
+at::Tensor pool_negative(const at::Tensor& values, const at::Tensor& logits,
+                         const at::Tensor& offsets) {
+  check_metadata(values, logits, offsets);
+  return pool_cpu(values.resolve_neg(), logits.resolve_neg(), offsets.resolve_neg());
+}
+
+std::tuple<at::Tensor, at::Tensor> backward_negative(
+    const at::Tensor& grad_output, const at::Tensor& values,
+    const at::Tensor& logits, const at::Tensor& offsets) {
+  check_metadata(values, logits, offsets);
+  check_grad_metadata(grad_output, values, offsets);
+  return backward_cpu(grad_output, values.resolve_neg(), logits.resolve_neg(), offsets.resolve_neg());
+}
+
 }  // namespace
 
 TORCH_LIBRARY(ragged_pool, m) {
@@ -134,6 +162,10 @@ TORCH_LIBRARY(ragged_pool, m) {
 TORCH_LIBRARY_IMPL(ragged_pool, CPU, m) {
   m.impl("pool", &pool_cpu);
   m.impl("_backward", &backward_cpu);
+}
+TORCH_LIBRARY_IMPL(ragged_pool, Negative, m) {
+  m.impl("pool", &pool_negative);
+  m.impl("_backward", &backward_negative);
 }
 
 // setuptools links a CPython extension entrypoint on Windows. Operator calls use
