@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools==80.9.0", "wheel==0.45.1", "torch==2.9.1+cpu"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragged-pool"
+version = "0.1.0"
+description = "Bounded CPU softmax pooling with native first order PyTorch autograd"
+requires-python = ">=3.11,<3.12"
+dependencies = ["torch==2.9.1+cpu"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
