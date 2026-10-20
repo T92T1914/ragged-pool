@@ -1,0 +1,108 @@
+name: Native CPU AddressSanitizer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  instrumented-boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      MAX_JOBS: '2'
+      PYTHONNOUSERSITE: '1'
+      PYTHONPATH: ''
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      CC: gcc-13
+      CXX: g++-13
+      RAGGED_POOL_ASAN: '1'
+      CAMPAIGN_SECONDS: ${{ github.event_name == 'pull_request' && '600' || '5' }}
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select CPython 3.11.8 x64
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11.8'
+          architecture: x64
+      - name: Resolve the existing GNU C++ 13 ASan and C++ runtimes
+        run: |
+          set -euo pipefail
+          "$CXX" --version
+          python --version
+          runtime="$("$CXX" -print-file-name=libasan.so)"
+          stdlib="$("$CXX" -print-file-name=libstdc++.so.6)"
+          test -f "$runtime"
+          test -f "$stdlib"
+          sha256sum "$runtime" "$stdlib"
+          echo "ASAN_RUNTIME=$runtime" >> "$GITHUB_ENV"
+          echo "CXX_STDLIB=$stdlib" >> "$GITHUB_ENV"
+          echo "ASAN_OPTIONS=detect_leaks=0:halt_on_error=1" >> "$GITHUB_ENV"
+          echo "RAGGED_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Prepare one isolated instrumented environment and build
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/ragged-asan"
+          python="$RUNNER_TEMP/ragged-asan/bin/python"
+          "$python" -m pip --isolated install 'torch==2.9.1+cpu' --index-url https://download.pytorch.org/whl/cpu
+          "$python" -m pip --isolated install -r requirements-lock.txt
+          "$python" -m pip --isolated wheel . --no-build-isolation --no-deps --wheel-dir "$RUNNER_TEMP/asan-wheel"
+          "$python" -m pip --isolated install --no-deps "$RUNNER_TEMP"/asan-wheel/*.whl
+          "$python" -m pip check
+          mkdir "$RUNNER_TEMP/ragged-asan-consumer"
+          cp -r tests "$RUNNER_TEMP/ragged-asan-consumer/tests"
+          cp scripts/native_campaign.py scripts/check_asan_control.py examples/train_sets.py "$RUNNER_TEMP/ragged-asan-consumer/"
+          mkdir "$RUNNER_TEMP/asan-evidence"
+      - name: Qualify the tool with an injected negative control
+        working-directory: ${{ runner.temp }}/ragged-asan-consumer
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/ragged-asan/bin/python" -I check_asan_control.py --directory "$RUNNER_TEMP/asan-evidence/control"
+      - name: Probe the installed production extension under ASan
+        working-directory: ${{ runner.temp }}/ragged-asan-consumer
+        run: |
+          set -uo pipefail
+          python="$RUNNER_TEMP/ragged-asan/bin/python"
+          if LD_PRELOAD="$ASAN_RUNTIME:$CXX_STDLIB" "$python" -I -u -X faulthandler -c 'import torch; print("torch import passed", torch.__version__); import ragged_pool; print("ragged_pool import passed"); import pytest; print("pytest import passed")' > "$RUNNER_TEMP/asan-evidence/import.stdout" 2> "$RUNNER_TEMP/asan-evidence/import.stderr"; then
+            cat "$RUNNER_TEMP/asan-evidence/import.stdout"
+            cat "$RUNNER_TEMP/asan-evidence/import.stderr"
+          else
+            status=$?
+            cat "$RUNNER_TEMP/asan-evidence/import.stdout"
+            cat "$RUNNER_TEMP/asan-evidence/import.stderr"
+            ASAN_OPTIONS="$ASAN_OPTIONS:verbosity=1:log_path=$RUNNER_TEMP/asan-evidence/import-verbose" LD_PRELOAD="$ASAN_RUNTIME:$CXX_STDLIB" "$python" -I -u -X faulthandler -c 'import torch; print("torch import passed", torch.__version__); import ragged_pool; print("ragged_pool import passed"); import pytest; print("pytest import passed")' > "$RUNNER_TEMP/asan-evidence/import-verbose.stdout" 2> "$RUNNER_TEMP/asan-evidence/import-verbose.stderr" || true
+            tail -n 80 "$RUNNER_TEMP/asan-evidence/import-verbose.stderr"
+            for report in "$RUNNER_TEMP"/asan-evidence/import-verbose.[0-9]*; do
+              if test -f "$report"; then tail -n 80 "$report"; fi
+            done
+            exit "$status"
+          fi
+      - name: Instrumented production tests and bounded generated campaign
+        working-directory: ${{ runner.temp }}/ragged-asan-consumer
+        run: |
+          set -euo pipefail
+          export LD_PRELOAD="$ASAN_RUNTIME:$CXX_STDLIB"
+          python="$RUNNER_TEMP/ragged-asan/bin/python"
+          "$python" -I -u -X faulthandler -m pytest -vv -s --maxfail=1 --import-mode=importlib tests
+          "$python" -I -u -X faulthandler native_campaign.py --cases tests/generated_cases.py --seconds "$CAMPAIGN_SECONDS" --seed 20261020 --output "$RUNNER_TEMP/asan-evidence/campaign.json"
+          "$python" -I -u -X faulthandler native_campaign.py --cases tests/generated_cases.py --seconds 5 --seed 20261020 --output "$RUNNER_TEMP/asan-evidence/replay.json"
+          "$python" -I -u -X faulthandler train_sets.py --dtype float32
+          "$python" -I -u -X faulthandler train_sets.py --dtype float64
+      - name: Retain campaign and negative-control evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-asan-${{ github.sha }}
+          path: ${{ runner.temp }}/asan-evidence
+          if-no-files-found: warn
+          retention-days: 14

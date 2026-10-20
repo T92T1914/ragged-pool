@@ -57,6 +57,8 @@ Build and acceptance results are recorded in [the local acceptance note](docs/ac
 
 The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both training consumers. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
 
+[Native boundary checks](docs/native-robustness.md) describe generated mathematical/admission cases, a combined negative-view layout bug, and a separate Linux AddressSanitizer workflow. That workflow instruments the production extension and checks its loaded identity. It supplies bounded memory-diagnostic evidence when executed successfully, with prebuilt framework and leak-detection limits stated explicitly. Ordinary Windows wheel acceptance remains separate.
+
 ## License and attribution
 
 Project source is licensed under [MIT](LICENSE). [NOTICE](NOTICE) records implementation assistance, upstream guidance and the separate PyTorch dependency license. The full PyTorch v2.9.1 main notice is retained with the wheel and source distribution. No PyTorch dependency binaries are bundled.
