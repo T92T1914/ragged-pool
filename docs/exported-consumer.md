@@ -24,4 +24,22 @@ This is one pinned CPU route, without cross-version artifact or ABI compatibilit
 
 ## Execution record
 
-The integrated producer, fresh consumer and final installed checks are pending. The earlier random-weight shape probes establish API feasibility only. Their failed and narrowed outcomes are retained in the local engineering record. This section will record actual trained-artifact acceptance when it has executed.
+The full producer and fresh consumer passed on October 20, 2026 using the examples at source [ae53f69](https://github.com/T92T1914/ragged-pool/tree/ae53f69dc4ec5bf51eb97c0936a1abb32c465d63). An ordinary Windows x64 wheel was installed into a fresh environment outside the checkout. It used CPython 3.11.8, PyTorch 2.9.1+cpu and the existing MSVC 19.44.35228/C++17 extension route. One execution worker and one intra-op/interop thread were used. The native implementation was unchanged.
+
+The producer completed 200 Adam updates with seed 11, selected update 200 through validation BCE, and generated only training/validation data. Its restricted weight reload preserved every parameter exactly. The reloaded native model and saved/reloaded export matched the original selected model exactly on all eight declared cases. The independent PyTorch reference differed by at most `3.58e-7`. This is an artifact-consistency check, not another model-quality evaluation. Existing held-out results remain in the N2 study.
+
+The separate consumer process loaded the exported graph from the installed package, imported no training module, passed all eight prediction cases and left every input unchanged. Its predictions matched the manifest's selected-model outputs exactly. Cases include the same values with changed offsets, zero items/two groups, one item/two groups, mixed empty groups, 128 groups and 4096 items. These observations qualify the narrower exported contract without upgrading it to arbitrary dynamic-shape support.
+
+| Identity | Executed value |
+| --- | --- |
+| Manifest SHA256 | `43195303bb081a2b3dabb47448d43f57fa60068f6821c51bddb7861845a8edbd` |
+| Exported graph | 17,952 bytes, SHA256 `21aa7f763ed7fee8f32341e5be907bebc75571b8b4e98559e0b90a864c09823f` |
+| Tensor checkpoint | 2,905 bytes, SHA256 `4d2fa6ebb4ef767dd7bc191275c656c85f8eed24d2ed37a701f458ed36d551e6` |
+| Installed wheel SHA256 | `3bb4367b0e95f528f468e6987beee43e6774dc0ca877b9d2ae38f9cb4aadf94c` |
+| Loaded native library SHA256 | `528fd536ef5b64583b5e9d6b62bd347ac067dea270a5a57cf4118e9f46a2fb14` |
+
+The [machine-readable producer and consumer record](results/export-roundtrip.json) preserves the executed values and source hashes with local paths replaced. The trained local `.pt2` is not committed as a generally portable artifact. CI creates and retains its own separately identified 20-update smoke artifact using that job's installed wheel. Its result is not the full 200-update run, and a new build need not produce identical archive bytes.
+
+The installed test suite passed 214 cases, including restricted checkpoint failures, digest/schema/version rejection before graph deserialization, actual dynamic execution and direct loaded-graph rejection of malformed offsets. The first test attempt expected a `RuntimeError` for the saved small-group guard; PyTorch 2.9.1 correctly raised `AssertionError`. The corrected test asserts that exact guard message, without changing the implementation's rejection. Both the full-range export failure and the original test failure remain in the private execution record.
+
+PyTorch emitted its existing prototype nested-tensor warning and a PT2 loader warning about a non-writable buffer. They were retained rather than suppressed. This route performs inference without writing those weights. It makes no writable-weight or arbitrary-artifact safety claim. The original random-weight probes establish API feasibility only; trained acceptance is supplied by the later producer and fresh consumer records above.
