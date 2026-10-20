@@ -20,6 +20,26 @@ The bounded interface accepts contiguous CPU float32 or float64 values `[N,D]`, 
 
 The native code uses maximum subtraction for stable softmax and float64 accumulation for either input dtype. It casts results back to that dtype. The reference uses ordinary PyTorch softmax and reductions, so floating point rounding can differ. See [the contract](docs/contract.md) for derivatives, numerical checks and excluded behavior.
 
+## Pool a padded batch
+
+`ragged_pool_padded(values, logits, mask)` accepts values `[B,T,D]`, matching logits `[B,T]` and a boolean mask `[B,T]`. True selects a real item. It packs selected entries in row order, constructs offsets and calls the same native operation. Holes and empty rows are supported. Ignored padding has exactly zero input gradients and may contain nonfinite sentinels because it is selected out before arithmetic.
+
+This eager adapter requires contiguous CPU float32/float64 inputs, B <= 128, T <= 4096, 1 <= D <= 128 and **B*T <= 4096**. That last bound limits padded storage, even if few entries are selected. Selected values/logits retain the original finite `[-1000,1000]` contract. Packing allocates new tensors without changing input dtype, device or contents. The packed API remains available for larger padded envelopes.
+
+```python
+from ragged_pool import ragged_pool_padded
+
+values = torch.tensor([[[2., 0.], [0., 4.], [99., 99.]],
+                       [[99., 99.], [99., 99.], [99., 99.]]], requires_grad=True)
+logits = torch.tensor([[0., 1.0986123, 99.], [99., 99., 99.]], requires_grad=True)
+mask = torch.tensor([[True, True, False], [False, False, False]])
+pooled = ragged_pool_padded(values, logits, mask)
+# Approximately [[0.5, 3.0], [0.0, 0.0]]. Padding receives zero gradients.
+pooled.sum().backward()
+```
+
+`examples/train_padded.py` supplies a seeded encoder/scorer/head consumer with two SGD updates in either dtype and comparison against the independent row reference. Clear ignored raw padding before encoder/scorer arithmetic. Masking a NaN result only at the pool can leave invalid parameter gradients upstream. The [padded-batch note](docs/padded-batches.md) explains that debugging case, the reference and installed commands. The existing packed compile/export paths retain their separate scope; no compile or export path is declared for this adapter.
+
 ## Build and run
 
 The initial Windows target is x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises cross-version ABI or compatibility with other platforms. Building on Windows requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases); later source and CI artifacts can be newer than the published release.

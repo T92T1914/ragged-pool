@@ -101,6 +101,8 @@ jobs:
           "$python" -I -u -X faulthandler native_campaign.py --cases tests/generated_cases.py --seconds 5 --seed 20261020 --output "$RUNNER_TEMP/asan-evidence/replay.json"
           "$python" -I -u -X faulthandler train_sets.py --dtype float32
           "$python" -I -u -X faulthandler train_sets.py --dtype float64
+          "$python" -I -u -X faulthandler examples/train_padded.py --dtype float32 --output "$RUNNER_TEMP/asan-evidence/padded-float32.json"
+          "$python" -I -u -X faulthandler examples/train_padded.py --dtype float64 --output "$RUNNER_TEMP/asan-evidence/padded-float64.json"
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2
