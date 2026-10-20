@@ -1,0 +1,77 @@
+name: Finish the accepted v0.1.0 draft
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/finish-v0.1.0.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-v0.1.0
+  cancel-in-progress: false
+
+jobs:
+  finish-draft:
+    if: github.repository == 'T92T1914/ragged-pool' && github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download the already accepted tag artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-cpu-759bbdc3f15d2e259bc0f950131c189c47503ea4
+          run-id: 39374267990
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/accepted-v0.1.0
+
+      - name: Verify the existing draft and publish the accepted bytes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Read-Api([string]$path) {
+            $json = gh api $path
+            if ($LASTEXITCODE -ne 0) { throw "GitHub read failed: $path" }
+            return ($json | ConvertFrom-Json)
+          }
+          $repo = $env:GH_REPO
+          $revision = '759bbdc3f15d2e259bc0f950131c189c47503ea4'
+          $run = Read-Api "repos/$repo/actions/runs/39374267990"
+          if ($run.head_sha -ne $revision -or $run.head_branch -ne 'v0.1.0' -or $run.event -ne 'push' -or $run.status -ne 'completed') {
+            throw 'The source artifact run is not the accepted tag run'
+          }
+          $jobs = (Read-Api "repos/$repo/actions/runs/39374267990/jobs").jobs
+          $accepted = @($jobs | Where-Object { $_.name -eq 'installed-wheel' })
+          if ($accepted.Count -ne 1 -or $accepted[0].conclusion -ne 'success') { throw 'Tag installed-wheel acceptance is missing' }
+          $ref = Read-Api "repos/$repo/git/ref/tags/v0.1.0"
+          if ($ref.object.type -ne 'tag') { throw 'Expected the original annotated tag' }
+          $tag = Read-Api "repos/$repo/git/tags/$($ref.object.sha)"
+          if ($tag.object.type -ne 'commit' -or $tag.object.sha -ne $revision) { throw 'The accepted tag moved' }
+          # Drafts are read by numeric release ID. The by-tag REST route is for published releases.
+          $draft = Read-Api "repos/$repo/releases/418032655"
+          if ($draft.tag_name -ne 'v0.1.0' -or $draft.prerelease) { throw 'Unexpected release identity' }
+          $expected = @('ragged_pool-0.1.0-cp311-cp311-win_amd64.whl', "ragged_pool-source-$revision.zip")
+          $files = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'accepted-v0.1.0') -File)
+          if (Compare-Object $expected @($files.Name)) { throw 'Accepted artifact names differ' }
+          if (Compare-Object $expected @($draft.assets.name)) { throw 'Existing draft assets differ' }
+          foreach ($file in $files) {
+            $asset = @($draft.assets | Where-Object { $_.name -eq $file.Name })
+            $digest = 'sha256:' + (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $file.Length -or $asset[0].digest -ne $digest) {
+              throw "Existing asset differs from accepted bytes: $($file.Name)"
+            }
+            Write-Output "$($file.Name) $digest"
+          }
+          if ($draft.draft) {
+            gh api --method PATCH "repos/$repo/releases/418032655" -F draft=false > $null
+            if ($LASTEXITCODE -ne 0) { throw 'Publishing the verified draft failed' }
+          }
+          $published = Read-Api "repos/$repo/releases/418032655"
+          if ($published.draft -or $published.tag_name -ne 'v0.1.0') { throw 'Publication was not verified' }
+          Write-Output $published.html_url
