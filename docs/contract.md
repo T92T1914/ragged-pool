@@ -10,6 +10,10 @@ Values and logits are finite and in the inclusive range `[-1000,1000]`. NaN, eit
 
 The native kernels are serial and do not start worker threads. Each call allocates output and bounded temporary weight storage. Backward normalizes a strided CPU upstream gradient with `resolve_neg().contiguous()`, accepting transposes, slices and expanded zero strides. This internal backward copy does not broaden forward input support. No upstream magnitude guarantee is made for gradients that overflow the output dtype.
 
+## Numerical rationale review
+
+A publication review on October 20, 2026 used Consensus to locate Blanchard, Higham and Higham's [softmax error analysis](https://arxiv.org/html/1909.03469v1). The original introduction and shifting analysis support retaining maximum subtraction with explicit normalization. This later literature review did not design or measure the earlier implementation. It supplies context, not an error bound for this pooling layer. Tests and the finite numerical contract remain the implementation evidence.
+
 ## Mathematics
 
 For a nonempty group, let `m = max(logits)`, `a_i = exp(logit_i - m)`, `w_i = a_i / sum(a)` and `y = sum_i w_i value_i`. Maximum subtraction prevents positive exponent overflow. With finite logits, at least one exponent is one, so the denominator is positive. Very small weights can underflow to zero at large logit differences.

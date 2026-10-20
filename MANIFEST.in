@@ -3,3 +3,6 @@ include docs/contract.md
 include requirements-dev.txt
 include requirements-lock.txt
 include examples/train_sets.py
+include LICENSE
+include NOTICE
+include third_party/PYTORCH-LICENSE

@@ -1,0 +1,28 @@
+ragged-pool
+
+The project-specific source in this repository is offered under the MIT
+license in LICENSE. T92T1914 selected the project scope and acceptance
+requirements. Codex assisted with implementation, test authoring, command
+execution, review and publication preparation. Commit history and acceptance
+records distinguish those activities from T's unaided work.
+
+PyTorch is a separately installed dependency and retains its own license.
+The native extension is compiled against PyTorch headers and dynamically
+links its installed libraries. This repository and its wheel do not bundle
+the PyTorch dependency wheel, libraries or header tree. The complete main
+PyTorch v2.9.1 license is retained in third_party/PYTORCH-LICENSE for attribution
+and conservative binary-distribution notice coverage. PyTorch's own installed
+distribution contains additional third-party notices for its components.
+The MIT license does not relicense PyTorch or its dependencies. No endorsement
+by PyTorch's authors or contributors is implied.
+
+Framework registration and build guidance:
+https://docs.pytorch.org/tutorials/advanced/cpp_custom_ops.html
+https://github.com/pytorch/extension-cpp
+https://github.com/pytorch/pytorch/tree/v2.9.1
+
+The pooling implementation and tests were written for this package. The
+registration idioms and mathematical softmax operation are established
+techniques. No algorithmic novelty or copied research implementation is
+claimed. The cited research supplies numerical context, not measurements
+of this package.

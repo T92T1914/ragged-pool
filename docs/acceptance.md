@@ -1,4 +1,4 @@
-# Local CPU acceptance
+# Historical local CPU acceptance, October 19, 2026
 
 Goal A is accepted locally for the bounded CPU contract. The tested implementation revision is `87202e4239df4e9525788034805842ea774c63ce`. This note was added after execution without changing implementation, tests, build metadata or consumer code.
 
@@ -21,7 +21,7 @@ The seeded float32 consumer's maximum pooled difference from the reference was `
 
 ## Retained adverse results
 
-The delivery includes the actual build logs, development failures and final runner reports. The first build succeeded after an early compiler-probe warning. An explicit compiler-environment attempt then stopped because `DISTUTILS_USE_SDK` was unset. Setting it within the child build process produced the successful native rebuild.
+The retained private local delivery includes the actual build logs, development failures and final runner reports. Those raw logs are not included in this public source repository. The results below describe that local execution, while public CI provides separately inspectable evidence for its own revision. The first build succeeded after an early compiler-probe warning. An explicit compiler-environment attempt then stopped because `DISTUTILS_USE_SDK` was unset. Setting it within the child build process produced the successful native rebuild.
 
 Initial tests exposed an unnecessary negative-view rejection rule. PyTorch resolved these views before CPU admission, so three rejection tests failed. Two attempted Python guards then broke the declared fullgraph path, first through a lambda check message and then through a boolean `is_neg()` query. The final implementation uses standard CPU dispatcher resolution and tests the logical values and gradients. The corrected full suite passed all 128 cases.
 
@@ -33,4 +33,4 @@ An early preparation environment also installed an obsolete candidate through a 
 
 The Code Review capability exposed for this task reads PR CI diagnostics. There was no semantic review action for this local repository, so independent agent source review was used and labeled accordingly. No remote CI ran.
 
-No benchmark, CUDA execution, GPU profiling, other device backend, Inductor optimization, broad platform matrix or cross-version ABI trial was performed. Those are outside this CPU capability, not unfinished requirements for it. No foreground application check was needed. SHARED_PC remained active throughout file and command execution. No remote repository, publication or public profile edit is included.
+No benchmark, CUDA execution, GPU profiling, other device backend, Inductor optimization, broad platform matrix or cross-version ABI trial was performed. Those are outside this CPU capability, not unfinished requirements for it. No foreground application check was needed. SHARED_PC remained active throughout that local assignment. The October 19 assignment included no remote repository, publication or public profile edit. A later publication task adds licensing, distribution notices and CI without replacing this historical record.

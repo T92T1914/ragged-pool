@@ -8,6 +8,12 @@ version = "0.1.0"
 description = "Bounded CPU softmax pooling with native first order PyTorch autograd"
 requires-python = ">=3.11,<3.12"
 dependencies = ["torch==2.9.1+cpu"]
+license = "MIT"
+license-files = ["LICENSE", "NOTICE", "third_party/PYTORCH-LICENSE"]
+
+[project.urls]
+Repository = "https://github.com/T92T1914/ragged-pool"
+Issues = "https://github.com/T92T1914/ragged-pool/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
