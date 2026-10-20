@@ -1,4 +1,4 @@
-"""Eager padded-batch adapters for the bounded packed pooling operation."""
+"""Padded-batch adapters for the bounded packed pooling operation."""
 import torch
 
 
@@ -38,16 +38,13 @@ def ragged_pool_padded(values, logits, mask):
     [-1000,1000]. Ignored padding is selected out before numerical operations.
     Empty rows return zeros and masked inputs receive zero gradients.
 
-    This eager adapter copies selected entries into packed storage and invokes
-    the existing native operation once. It does not change or transfer inputs.
-    It inherits the native operation's first order autograd limit.
+    Opaque CPU forward/backward operations copy selected entries into packed
+    storage and reuse the native math. Inputs are saved for first order autograd
+    and must not change before backward. The declared compiler path uses
+    aot_eager, fullgraph=True and dynamic=False on the pinned toolchain.
     """
     _check_metadata(values, logits, mask)
-    packed_values = values[mask].contiguous()
-    packed_logits = logits[mask].contiguous()
-    counts = mask.sum(dim=1, dtype=torch.int64)
-    offsets = torch.cat((counts.new_zeros((1,)), counts.cumsum(dim=0)))
-    return torch.ops.ragged_pool.pool.default(packed_values, packed_logits, offsets)
+    return torch.ops.ragged_pool.padded.default(values, logits, mask)
 
 
 def ragged_pool_padded_reference(values, logits, mask):

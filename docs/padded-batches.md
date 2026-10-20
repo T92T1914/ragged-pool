@@ -10,7 +10,17 @@ Mask holes are allowed. Selected entries retain their within-row order. The impl
 
 Advanced indexing allocates packed storage. It does not mutate the padded tensors or move/cast them. This is an explicit adapter cost, not a zero-copy or performance claim. [PyTorch indexing semantics](https://docs.pytorch.org/docs/2.9/tensor_view.html) describe that copy behavior; the [2.9.1 indexing source](https://github.com/pytorch/pytorch/blob/v2.9.1/aten/src/ATen/native/IndexingUtils.h) and [nonzero ordering](https://docs.pytorch.org/docs/2.9/generated/torch.nonzero.html) support the row-order construction. Gradients scatter back only into selected positions. Ignored entries receive exactly zero gradients.
 
-The packed copies are the native operation's saved inputs. Do not assume that mutating the original padded values after forward produces the same saved-tensor version error as mutating the packed API's original values. Ordinary PyTorch indexing rules still apply, including to its saved mask. The no-input-mutation promise describes the operation's behavior.
+The original padded values, logits and mask are saved for backward. Do not mutate them between forward and backward, including ignored slots. Backward repacks those originals and uses PyTorch's saved-tensor version checks. This tightens the earlier eager adapter's lifecycle: that version saved packed copies and did not necessarily reject a later change to original padded values or logits. The no-input-mutation promise describes the operation's behavior, rather than permitting callers to change saved tensors.
+
+## Compiled training boundary
+
+The public wrapper checks original metadata before calling an opaque Python CPU custom operation, `ragged_pool::padded`. That operation performs compaction and calls the existing C++ packed forward. Its registered first-order autograd formula calls a second opaque operation, `ragged_pool::_padded_backward`, which repacks unchanged inputs, calls the existing C++ backward and scatters the derivatives into fresh padded zeros. No second numerical derivative implementation is added.
+
+Both operations have fake tensor implementations. Their visible outputs are `[B,D]` and `[B,T,D]`/`[B,T]`, determined entirely by input metadata. The selected item count remains inside each CPU implementation. Fake execution never reads the mask. This follows the supported [custom operation and autograd registration APIs](https://docs.pytorch.org/docs/2.9/library.html#torch.library.register_autograd), checked against the [2.9.1 implementation](https://github.com/pytorch/pytorch/blob/v2.9.1/torch/_library/custom_ops.py). The raw dispatcher operations are internal integration points; callers should use the public wrapper for admission checks on original views before dispatcher materialization.
+
+The declared path is `torch.compile(model, backend="aot_eager", fullgraph=True, dynamic=False)` on the pinned CPU environment. It captures model forward and its autograd backward with fixed input shapes. The same compiled callable can accept different mask contents and selected counts at those shapes. This does not require enabling data-dependent output-shape capture. The surrounding model must still clear ignored raw padding before its encoder. The optimizer itself remains ordinary eager SGD.
+
+This route demonstrates graph capture and autograd integration. The CPU implementations still execute Python packing and the existing native math at runtime. `aot_eager` does not establish optimized generated kernels, fusion through the opaque boundary or a speed improvement. The new registration adds dispatch and repacking costs that are not measured here.
 
 ## A worked group
 
@@ -31,12 +41,16 @@ Build and install the wheel using the [Windows](../README.md#build-and-run) or [
 ```powershell
 & 'C:\work\ragged-accept\Scripts\python.exe' -I 'C:\work\ragged-consumer\train_padded.py' --dtype float32
 & 'C:\work\ragged-accept\Scripts\python.exe' -I 'C:\work\ragged-consumer\train_padded.py' --dtype float64
+& 'C:\work\ragged-accept\Scripts\python.exe' -I 'C:\work\ragged-consumer\train_padded.py' --dtype float32 --compiled
+& 'C:\work\ragged-accept\Scripts\python.exe' -I 'C:\work\ragged-consumer\train_padded.py' --dtype float64 --compiled
 ```
 
-The model uses seeded synthetic features and targets, an encoder, learned scores, the pooling layer and a prediction head. From identical initial states, native/reference routes compare predictions, raw-input and parameter gradients, and two SGD parameter updates. Padding gradients must be zero, parameter gradients finite and inputs unchanged. Loss is an integration check, with no accuracy or model-quality result.
+The model uses seeded synthetic features and targets, an encoder, learned scores, the pooling layer and a prediction head. From identical initial states, native/reference routes compare predictions, raw-input and parameter gradients, and two SGD parameter updates. `--compiled` adds the compiled native model to those comparisons and exercises the same callable with changed mask contents, including all-false and all-true masks. Padding gradients must be zero, parameter gradients finite and inputs unchanged. Loss is an integration check, with no accuracy or model-quality result.
 
-The adapter tests compare both input gradients with the independent reference, check finite differences on finite fixtures, and exercise holes, empty dimensions, numerical endpoints, ignored versus selected invalid data, unsupported metadata, ownership and upstream gradient views. Existing operator registration checks remain separate. All three CPU workflows run the installed padded consumer. Use their exact source revision and completed result as execution evidence.
+The adapter tests compare both input gradients with the independent reference, check finite differences on finite fixtures, and exercise holes, empty dimensions, numerical endpoints, ignored versus selected invalid data, unsupported metadata, ownership and upstream gradient views. Separate registration tests check both new operations' fake metadata and supported autograd registration. Private-backward AOT checks use detached inputs; a separate requires-grad check inspects its autograd registration, and an explicit derivative test confirms the first-order limit. These are not substitutes for the reference and finite differences.
+
+Compiler tests count one captured forward graph across changing mask contents, confirm it contains the padded operation without exposed selection, execute backward with ordinary upstream views, and check runtime rejection of selected invalid contents. All three CPU workflows run the installed eager and compiled padded consumer in both dtypes. Use their exact source revision and completed result as execution evidence.
 
 ## Limits
 
-This is an eager-only, first-order CPU adapter. Boolean selection produces a data-dependent packed length. It adds no custom operator, fake registration, compiler override or decomposition. The original packed `aot_eager` compile and trained export routes keep their declared scope. No padded compile/export, vmap, second derivative, GPU, speed advantage or cross-version compatibility is established by this addition.
+This is a first-order CPU adapter with one declared fixed-shape `aot_eager` training path. Changed input shapes may compile new graphs. Dynamic shapes, padded export, Inductor optimization, vmap and second derivatives are outside this increment. The original packed compiler and trained export routes keep their declared scope. No GPU, speed advantage or cross-version compatibility is established by this addition.

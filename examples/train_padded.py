@@ -2,6 +2,7 @@
 
 Padding is cleaned before the encoder. Removing bad padding only at pooling can
 leave a finite prediction while earlier layers acquire nonfinite gradients.
+The optional compiled route uses aot_eager and does not measure performance.
 """
 import argparse
 import copy
@@ -62,7 +63,71 @@ def debug_counterexample(model, raw, mask, targets):
     }
 
 
-def run(dtype_name):
+def compare_compiled_gradients(model, reference, values, reference_values, mask, tolerance):
+    """Compare first derivatives, including ignored padding and every parameter."""
+    for raw in (values, reference_values):
+        if raw.grad is None or not bool(torch.isfinite(raw.grad).all()):
+            raise AssertionError("The compiled comparison needs finite raw input gradients")
+        if bool(torch.count_nonzero(raw.grad[~mask])):
+            raise AssertionError("Ignored raw padding must receive exactly zero gradients")
+    torch.testing.assert_close(values.grad, reference_values.grad, **tolerance)
+    reference_parameters = dict(reference.named_parameters())
+    errors = {}
+    for name, parameter in model.named_parameters():
+        other = reference_parameters[name]
+        if any(value.grad is None or not bool(torch.isfinite(value.grad).all()) for value in (parameter, other)):
+            raise AssertionError(f"Missing or nonfinite compiled comparison gradient for {name}")
+        torch.testing.assert_close(parameter.grad, other.grad, **tolerance)
+        errors[name] = maximum_difference(parameter.grad, other.grad)
+    return {"input_gradient_max_abs_difference": maximum_difference(values.grad, reference_values.grad),
+            "parameter_gradient_max_abs_differences": errors}
+
+
+def check_compiled_masks(compiled_call, model, reference, dtype, tolerance):
+    """Reuse one compiled model while changing mask contents at fixed shapes."""
+    positions = torch.arange(30, device="cpu").reshape(5, 6)
+    masks = (
+        ("all_false", torch.zeros(5, 6, dtype=torch.bool, device="cpu")),
+        ("alternating_holes", (positions % 2 == 0).contiguous()),
+        ("singletons", (torch.arange(6, device="cpu")[None, :] == torch.arange(5, device="cpu")[:, None]).contiguous()),
+        ("all_true", torch.ones(5, 6, dtype=torch.bool, device="cpu")),
+    )
+    finite_raw = torch.linspace(-0.9, 0.9, 90, dtype=dtype, device="cpu").reshape(5, 6, 3)
+    targets = torch.tensor([-0.3, 0.8, -0.5, 0.25, -0.1], dtype=dtype, device="cpu")
+    cases = []
+    for name, mask in masks:
+        model.zero_grad(set_to_none=True)
+        reference.zero_grad(set_to_none=True)
+        padded_raw = torch.where(mask[..., None], finite_raw, float("nan"))
+        values = padded_raw.clone().requires_grad_()
+        reference_values = padded_raw.clone().requires_grad_()
+        inputs = (values, reference_values, mask)
+        snapshots = [(value.detach().clone(), value._version) for value in inputs]
+        predictions, pooled = compiled_call(values, mask, ragged_pool_padded)
+        reference_predictions, reference_pooled = reference(reference_values, mask, ragged_pool_padded_reference)
+        for value in (predictions, pooled, reference_predictions, reference_pooled):
+            if not bool(torch.isfinite(value).all()):
+                raise AssertionError(f"The {name} mask comparison returned a nonfinite result")
+        torch.testing.assert_close(pooled, reference_pooled, **tolerance)
+        torch.testing.assert_close(predictions, reference_predictions, **tolerance)
+        empty = ~mask.any(dim=1)
+        torch.testing.assert_close(pooled[empty], torch.zeros_like(pooled[empty]), rtol=0, atol=0)
+        nn.functional.mse_loss(predictions, targets).backward()
+        nn.functional.mse_loss(reference_predictions, targets).backward()
+        gradients = compare_compiled_gradients(model, reference, values, reference_values, mask, tolerance)
+        for value, (snapshot, version) in zip(inputs, snapshots):
+            torch.testing.assert_close(value, snapshot, rtol=0, atol=0, equal_nan=True)
+            if value._version != version:
+                raise AssertionError(f"The {name} comparison mutated an input")
+        cases.append({"name": name, "selected_items_per_row": mask.sum(dim=1).tolist(),
+                      "selected_items": int(mask.sum()), "optimizer_steps": 0,
+                      "pooled_max_abs_difference": maximum_difference(pooled, reference_pooled),
+                      "prediction_max_abs_difference": maximum_difference(predictions, reference_predictions),
+                      **gradients, "padding_raw_gradients_zero": True, "inputs_unchanged": True})
+    return cases
+
+
+def run(dtype_name, compiled=False):
     torch.set_num_threads(1)
     if torch.get_num_interop_threads() != 1:
         torch.set_num_interop_threads(1)
@@ -92,9 +157,16 @@ def run(dtype_name):
     native_values = raw.clone().requires_grad_()
     reference_values = raw.clone().requires_grad_()
     inputs = {"native_raw": native_values, "reference_raw": reference_values, "mask": mask}
+    if compiled:
+        compiled_values = raw.clone().requires_grad_()
+        inputs["compiled_raw"] = compiled_values
     snapshots = {name: (value.detach().clone(), value._version) for name, value in inputs.items()}
     native_model = PaddedRegressor().to(device="cpu", dtype=dtype)
     reference_model = copy.deepcopy(native_model)
+    if compiled:
+        compiled_model = copy.deepcopy(native_model)
+        compiled_call = torch.compile(compiled_model, backend="aot_eager", fullgraph=True, dynamic=False)
+        compiled_optimizer = torch.optim.SGD(compiled_model.parameters(), lr=0.05)
     negative_control = debug_counterexample(native_model, raw, mask, targets)
     native_optimizer = torch.optim.SGD(native_model.parameters(), lr=0.05)
     reference_optimizer = torch.optim.SGD(reference_model.parameters(), lr=0.05)
@@ -105,9 +177,20 @@ def run(dtype_name):
         native_optimizer.zero_grad(set_to_none=True)
         reference_optimizer.zero_grad(set_to_none=True)
         native_values.grad = reference_values.grad = None
+        if compiled:
+            compiled_optimizer.zero_grad(set_to_none=True)
+            compiled_values.grad = None
+            compiled_before = {name: parameter.detach().clone() for name, parameter in compiled_model.named_parameters()}
         before = {name: parameter.detach().clone() for name, parameter in native_model.named_parameters()}
         predictions, pooled = native_model(native_values, mask, ragged_pool_padded)
         reference_predictions, reference_pooled = reference_model(reference_values, mask, ragged_pool_padded_reference)
+        if compiled:
+            compiled_predictions, compiled_pooled = compiled_call(compiled_values, mask, ragged_pool_padded)
+            for value in (compiled_predictions, compiled_pooled):
+                if not bool(torch.isfinite(value).all()):
+                    raise AssertionError("The compiled clean forward path must remain finite")
+            torch.testing.assert_close(compiled_pooled, reference_pooled, **tolerance)
+            torch.testing.assert_close(compiled_predictions, reference_predictions, **tolerance)
         for value in (predictions, pooled, reference_predictions, reference_pooled):
             if not bool(torch.isfinite(value).all()):
                 raise AssertionError("Cleaning padding must keep the ordinary forward path finite")
@@ -117,6 +200,10 @@ def run(dtype_name):
         torch.testing.assert_close(pooled[empty], torch.zeros_like(pooled[empty]), rtol=0, atol=0)
         nn.functional.mse_loss(predictions, targets).backward()
         nn.functional.mse_loss(reference_predictions, targets).backward()
+        if compiled:
+            nn.functional.mse_loss(compiled_predictions, targets).backward()
+            compiled_gradients = compare_compiled_gradients(
+                compiled_model, reference_model, compiled_values, reference_values, mask, tolerance)
         for values in (native_values, reference_values):
             if values.grad is None or not bool(torch.isfinite(values.grad).all()):
                 raise AssertionError("The cleaned raw input gradients must all be finite")
@@ -132,6 +219,8 @@ def run(dtype_name):
             gradient_errors[name] = maximum_difference(parameter.grad, other.grad)
         native_optimizer.step()
         reference_optimizer.step()
+        if compiled:
+            compiled_optimizer.step()
         updates, update_errors = {}, {}
         for name, parameter in native_model.named_parameters():
             torch.testing.assert_close(parameter, reference_parameters[name], **tolerance)
@@ -148,6 +237,20 @@ def run(dtype_name):
             "native_parameter_update_max_abs": updates,
             "updated_parameter_max_abs_differences": update_errors,
         })
+        if compiled:
+            compiled_updates, compiled_update_errors = {}, {}
+            for name, parameter in compiled_model.named_parameters():
+                torch.testing.assert_close(parameter, reference_parameters[name], **tolerance)
+                compiled_updates[name] = maximum_difference(parameter, compiled_before[name])
+                compiled_update_errors[name] = maximum_difference(parameter, reference_parameters[name])
+                if compiled_updates[name] == 0:
+                    raise AssertionError(f"Compiled SGD step {step} must update trainable parameter {name}")
+            steps[-1]["compiled"] = {
+                "pooled_max_abs_difference": maximum_difference(compiled_pooled, reference_pooled),
+                "prediction_max_abs_difference": maximum_difference(compiled_predictions, reference_predictions),
+                **compiled_gradients, "parameter_update_max_abs": compiled_updates,
+                "updated_parameter_max_abs_differences": compiled_update_errors,
+            }
 
     versions = {}
     for name, value in inputs.items():
@@ -156,7 +259,7 @@ def run(dtype_name):
         if value._version != version:
             raise AssertionError(f"The consumer mutated {name}")
         versions[name] = {"before": version, "after": value._version}
-    return {
+    receipt = {
         "purpose": "Synthetic padded-input training integration, not a model quality or performance study",
         "seed": SEED, "dtype": dtype_name, "device": "cpu",
         "python_version": sys.version.split()[0], "torch_version": torch.__version__,
@@ -176,16 +279,30 @@ def run(dtype_name):
         "inputs_unchanged": True, "input_versions": versions,
         "steps": steps, "negative_control": negative_control,
     }
+    if compiled:
+        receipt["compiled"] = {
+            "backend": "aot_eager", "fullgraph": True, "dynamic": False,
+            "optimizer_steps": 2, "same_callable_for_training_and_mask_checks": True,
+            "comparisons": "Compiled native model against the independent eager reference",
+            "pooled_max_abs_difference": max(step["compiled"]["pooled_max_abs_difference"] for step in steps),
+            "prediction_max_abs_difference": max(step["compiled"]["prediction_max_abs_difference"] for step in steps),
+            "input_gradient_max_abs_difference": max(step["compiled"]["input_gradient_max_abs_difference"] for step in steps),
+            "parameter_gradient_max_abs_difference": max(max(step["compiled"]["parameter_gradient_max_abs_differences"].values()) for step in steps),
+            "updated_parameter_max_abs_difference": max(max(step["compiled"]["updated_parameter_max_abs_differences"].values()) for step in steps),
+            "mask_checks": check_compiled_masks(compiled_call, compiled_model, reference_model, dtype, tolerance),
+        }
+    return receipt
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dtype", choices=("float32", "float64"), default="float32")
+    parser.add_argument("--compiled", action="store_true", help="Also check a fullgraph aot_eager training path")
     parser.add_argument("--output", type=Path, help="Optional new JSON receipt file")
     arguments = parser.parse_args()
     if arguments.output is not None and (arguments.output.exists() or arguments.output.is_symlink()):
         parser.error("The output receipt must be new")
-    text = json.dumps(run(arguments.dtype), indent=2, allow_nan=False) + "\n"
+    text = json.dumps(run(arguments.dtype, compiled=arguments.compiled), indent=2, allow_nan=False) + "\n"
     if arguments.output is not None:
         arguments.output.parent.mkdir(parents=True, exist_ok=True)
         with arguments.output.open("x", encoding="utf-8") as stream:
