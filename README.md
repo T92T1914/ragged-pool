@@ -22,7 +22,7 @@ The native code uses maximum subtraction for stable softmax and float64 accumula
 
 ## Build and run
 
-The initial target is Windows x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. This is one pinned environment, with no cross-version ABI or other-platform compatibility promise. Building requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed.
+The initial target is Windows x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. This is one pinned environment, with no cross-version ABI or other-platform compatibility promise. Building requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Source and versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases).
 
 From PowerShell at the checkout, create an isolated environment. Replace the example environment paths as needed. Install PyTorch from its official CPU wheel index before building. The explicit `--no-build-isolation` uses that pinned environment, and `--no-deps` prevents the package build from choosing another framework wheel.
 
@@ -54,5 +54,11 @@ For an installed consumer check, create a second fresh virtual environment outsi
 The declared compiler path is `torch.compile(..., backend="aot_eager", fullgraph=True)` for forward and backward. It exercises graph capture and autograd integration. It does not establish Inductor support or an optimized execution speed. Fake tensor implementations describe both forward and private native backward outputs without reading tensor contents. Native execution still validates offset contents and the numerical range.
 
 Build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). No benchmark has been run. CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, second derivatives and vmap are outside this version.
+
+The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both training consumers. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
+
+## License and attribution
+
+Project source is licensed under [MIT](LICENSE). [NOTICE](NOTICE) records implementation assistance, upstream guidance and the separate PyTorch dependency license. The full PyTorch v2.9.1 main notice is retained with the wheel and source distribution. No PyTorch dependency binaries are bundled.
 
 T set the project scope and acceptance requirements. The implementation, test authoring, source review and local command execution in this initial version used Codex assistance. The execution record establishes component behavior, not unaided expertise.

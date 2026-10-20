@@ -1,0 +1,194 @@
+name: Windows CPU package
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installed-wheel:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      MAX_JOBS: '2'
+      PYTHONNOUSERSITE: '1'
+      PYTHONPATH: ''
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select CPython 3.11.8 x64
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11.8'
+          architecture: x64
+
+      - name: Prepare separate build and acceptance environments
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('ragged-build', 'ragged-accept')) {
+            $venv = Join-Path $env:RUNNER_TEMP $name
+            python -m venv $venv
+            if ($LASTEXITCODE -ne 0) { throw "Could not create $name" }
+            $python = Join-Path $venv 'Scripts\python.exe'
+            & $python -m pip --isolated install 'torch==2.9.1+cpu' --index-url https://download.pytorch.org/whl/cpu
+            if ($LASTEXITCODE -ne 0) { throw "PyTorch installation failed in $name" }
+            & $python -m pip --isolated install -r requirements-lock.txt
+            if ($LASTEXITCODE -ne 0) { throw "Pinned dependencies failed in $name" }
+          }
+
+      - name: Build with the existing MSVC 14.44 x64 toolchain
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = & $vswhere -latest -products '*' -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $vs) { throw 'Visual Studio 2022 C++ tools are required' }
+          $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
+          if (-not (Test-Path -LiteralPath $vcvars)) { throw 'vcvars64.bat is missing' }
+          $python = Join-Path $env:RUNNER_TEMP 'ragged-build\Scripts\python.exe'
+          $buildCommand = Join-Path $env:RUNNER_TEMP 'build-ragged.cmd'
+          @"
+          @echo off
+          call "$vcvars" -vcvars_ver=14.44
+          if errorlevel 1 exit /b %errorlevel%
+          set DISTUTILS_USE_SDK=1
+          set CL=/Bv
+          set VCToolsVersion
+          "$python" -m pip --isolated wheel . --no-build-isolation --no-deps --wheel-dir dist
+          exit /b %errorlevel%
+          "@ | Set-Content -LiteralPath $buildCommand -Encoding ascii
+          & cmd.exe /d /c $buildCommand
+          if ($LASTEXITCODE -ne 0) { throw 'Native wheel build failed' }
+
+      - name: Install the wheel into the fresh acceptance environment
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wheels = @(Get-ChildItem -LiteralPath dist -Filter '*.whl')
+          if ($wheels.Count -ne 1) { throw 'Expected exactly the wheel built by this job' }
+          $python = Join-Path $env:RUNNER_TEMP 'ragged-accept\Scripts\python.exe'
+          & $python -m pip --isolated install --no-deps $wheels[0].FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Wheel installation failed' }
+          & $python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'Installed dependency consistency failed' }
+          $work = Join-Path $env:RUNNER_TEMP 'ragged-consumer'
+          New-Item -ItemType Directory -Path $work | Out-Null
+          Copy-Item -LiteralPath tests -Destination $work -Recurse
+          Copy-Item -LiteralPath examples\train_sets.py -Destination $work
+          Copy-Item -LiteralPath scripts\check_installed.py -Destination $work
+          "RAGGED_WHEEL=$($wheels[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Check installed identity, mathematics, registration and training
+        working-directory: ${{ runner.temp }}/ragged-consumer
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:RUNNER_TEMP 'ragged-accept\Scripts\python.exe'
+          & $python -I check_installed.py --checkout $env:GITHUB_WORKSPACE --wheel $env:RAGGED_WHEEL
+          if ($LASTEXITCODE -ne 0) { throw 'Installed wheel identity or license check failed' }
+          & $python -I -m pytest -q --import-mode=importlib tests
+          if ($LASTEXITCODE -ne 0) { throw 'Installed package tests failed' }
+          & $python -I train_sets.py --dtype float32
+          if ($LASTEXITCODE -ne 0) { throw 'Installed float32 consumer failed' }
+          & $python -I train_sets.py --dtype float64
+          if ($LASTEXITCODE -ne 0) { throw 'Installed float64 consumer failed' }
+
+      - name: Archive the exact tested source
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $revision = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not resolve tested revision' }
+          git -c core.autocrlf=false archive --format=zip --output "dist/ragged_pool-source-$revision.zip" HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
+          Write-Output "Tested source: $revision"
+
+      - name: Retain the accepted wheel and source
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-cpu-${{ github.sha }}
+          path: |
+            dist/*.whl
+            dist/ragged_pool-source-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: installed-wheel
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2022
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Check out the tested release notes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the accepted wheel and source
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-cpu-${{ github.sha }}
+          path: ${{ runner.temp }}/ragged-release-assets
+
+      - name: Create a draft, upload both assets and publish
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:RELEASE_TAG
+          if ($tag -ne 'v0.1.0') { throw 'This publication route is scoped to v0.1.0' }
+          $notes = Join-Path $env:GITHUB_WORKSPACE 'docs\releases\v0.1.0.md'
+          if (-not (Test-Path -LiteralPath $notes -PathType Leaf)) { throw 'Release notes are missing' }
+          $assetDirectory = Join-Path $env:RUNNER_TEMP 'ragged-release-assets'
+          $expectedNames = @('ragged_pool-0.1.0-cp311-cp311-win_amd64.whl', "ragged_pool-source-$($env:RELEASE_SHA).zip")
+          $files = @(Get-ChildItem -LiteralPath $assetDirectory -File)
+          if (Compare-Object $expectedNames @($files.Name)) { throw 'Release artifacts differ from the expected wheel and source archive' }
+          $existingTags = @(gh api --paginate "repos/$($env:GH_REPO)/releases" --jq '.[].tag_name')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect existing releases' }
+          if ($existingTags -contains $tag) { throw "A release or draft for $tag already exists. Inspect it before retrying. No assets were changed." }
+          gh release create $tag --repo $env:GH_REPO --draft --verify-tag --title "ragged-pool $tag" --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
+          gh release upload $tag @($files.FullName) --repo $env:GH_REPO
+          if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed. The release remains a draft.' }
+          $draftJson = gh api "repos/$($env:GH_REPO)/releases/tags/$tag"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the uploaded draft' }
+          $draft = $draftJson | ConvertFrom-Json
+          if (-not $draft.draft -or $draft.tag_name -ne $tag) { throw 'Unexpected release state before publication' }
+          if (Compare-Object $expectedNames @($draft.assets.name)) { throw 'Draft assets differ from the expected wheel and source archive' }
+          foreach ($file in $files) {
+            $asset = @($draft.assets | Where-Object { $_.name -eq $file.Name })
+            if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $file.Length) {
+              throw "Uploaded asset is incomplete: $($file.Name). The release remains a draft."
+            }
+          }
+          gh release edit $tag --repo $env:GH_REPO --verify-tag --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Draft publication failed' }
+          $publishedJson = gh release view $tag --repo $env:GH_REPO --json url,isDraft,tagName
+          if ($LASTEXITCODE -ne 0) { throw 'Could not verify published release state' }
+          $published = $publishedJson | ConvertFrom-Json
+          if ($published.isDraft -or $published.tagName -ne $tag) { throw 'Release publication was not verified' }
+          Write-Output $published.url
