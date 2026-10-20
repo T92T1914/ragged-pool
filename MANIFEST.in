@@ -6,6 +6,10 @@ include examples/train_sets.py
 include examples/learn_sets.py
 include examples/pool_baselines.py
 include examples/cpu_cost.py
+include examples/export_sets.py
+include examples/predict_sets.py
+include docs/exported-consumer.md
+include docs/results/export-roundtrip.json
 include docs/cpu-study.md
 include docs/results/cpu-study.json
 include LICENSE

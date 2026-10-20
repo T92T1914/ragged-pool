@@ -66,6 +66,22 @@ $revision = git -C C:\work\ragged-pool rev-parse HEAD
 
 The study freezes data and training choices before held-out evaluation, records content digests and class/length histograms, checks native/reference gradients and an Adam update before training, and retains all selected seeds. Its optional `--smoke` mode performs 20 native/reference updates on training and validation only. It supplies a small CI check, distinct from both the full study and the original single-step consumer.
 
+## Export the trained consumer
+
+`examples/export_sets.py` trains the native classifier with the existing seed-11 training/validation protocol, saves its selected tensor state dictionary, checks restricted checkpoint reload and exports one inference graph. `examples/predict_sets.py` loads that trusted artifact in a fresh process using the installed package, without importing the training script or rebuilding its model class. The graph retains the native pooling operation.
+
+This exported example has fixed four-feature float32 inputs and dynamic `0 <= N <= 4096`, `2 <= B <= 128`. A strict-export constraint excludes zero and one group from this route. Empty groups within the declared range are included. The eager pooling API retains its broader contract. See the [artifact contract and executed evidence](docs/exported-consumer.md) for the exact route, limitations and loading boundary.
+
+After copying the examples together outside the checkout, use new artifact and receipt paths. The producer's receipt supplies the expected manifest digest to the separate consumer process.
+
+```powershell
+& $python -I "$consumer\export_sets.py" --directory "$consumer\trained-model" --output "$consumer\export-producer.json" --source-revision $revision --wheel $wheel
+$exportReceipt = Get-Content -LiteralPath "$consumer\export-producer.json" -Raw | ConvertFrom-Json
+& $python -I "$consumer\predict_sets.py" --directory "$consumer\trained-model" --manifest-sha256 $exportReceipt.artifact.manifest_sha256 --output "$consumer\export-consumer.json"
+```
+
+Load only trusted model artifacts. The consumer checks byte identities before graph loading, but a SHA256 digest does not authenticate a publisher and `torch.export.load` is not a sandbox. The separate `weights_only=True` checkpoint reload does not make arbitrary exported graphs safe to load. No cross-version artifact compatibility or standalone binary is promised.
+
 ## What the checks mean
 
 `tests/test_math.py` compares the native result and both input gradients with independently differentiated PyTorch composition and checks float64 finite differences. Contract checks cover malformed inputs, empty and singleton groups, storage, version rules and upstream gradient views. Registration checks use `torch.library.opcheck` separately from the mathematical tests.
