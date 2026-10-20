@@ -2,6 +2,7 @@
 import argparse
 from email.parser import BytesParser
 from hashlib import sha256
+from importlib.machinery import EXTENSION_SUFFIXES
 from importlib.metadata import distribution
 import json
 from pathlib import Path
@@ -12,6 +13,16 @@ from zipfile import ZipFile
 def require(condition, message):
     if not condition:
         raise AssertionError(message)
+
+
+def native_entry(names, suffixes=EXTENSION_SUFFIXES):
+    """Select the one native module this interpreter can load."""
+    candidates = [name for name in names
+                  if name.startswith('ragged_pool/_C') and name.endswith(('.so', '.pyd'))]
+    supported = {'ragged_pool/_C' + suffix for suffix in suffixes}
+    require(len(candidates) == 1 and candidates[0] in supported,
+            'The wheel must contain exactly one native library for this interpreter')
+    return candidates[0]
 
 
 def check(checkout, wheel):
@@ -28,6 +39,7 @@ def check(checkout, wheel):
     hashes = {}
     with ZipFile(wheel) as archive:
         names = archive.namelist()
+        require(len(names) == len(set(names)), 'The wheel must not contain duplicate members')
         metadata_names = [name for name in names if name.endswith('.dist-info/METADATA')]
         require(len(metadata_names) == 1, 'The wheel must contain one distribution metadata record')
         metadata_name = metadata_names[0]
@@ -37,9 +49,8 @@ def check(checkout, wheel):
         require(metadata['License-Expression'] == 'MIT', 'The wheel must declare the MIT license')
         wheel_python = {name for name in names if name.startswith('ragged_pool/') and name.endswith('.py')}
         require(wheel_python == source.keys(), 'Wheel and checkout Python source sets differ')
-        native = [name for name in names if name.startswith('ragged_pool/_C') and name.endswith('.pyd')]
-        require(len(native) == 1, 'The Windows wheel must contain one native library')
-        for name in sorted(wheel_python | set(native)):
+        native = native_entry(names)
+        for name in sorted(wheel_python | {native}):
             wheel_bytes = archive.read(name)
             installed_path = Path(installed.locate_file(name)).resolve(strict=True)
             require(not installed_path.is_relative_to(checkout), f'Package source leaked into acceptance: {name}')
@@ -64,10 +75,14 @@ def check(checkout, wheel):
 
     require(Path(ragged_pool.__file__).resolve() == Path(installed.locate_file('ragged_pool/__init__.py')).resolve(),
             'The imported package differs from the verified installation')
+    native_path = Path(installed.locate_file(native)).resolve(strict=True)
+    loaded = {Path(path).resolve() for path in torch.ops.loaded_libraries}
+    require(native_path in loaded, 'The verified native library was not loaded by PyTorch')
     require(torch.__version__ == '2.9.1+cpu', 'Acceptance requires PyTorch 2.9.1+cpu')
     require(sys.version_info[:3] == (3, 11, 8), 'Acceptance requires CPython 3.11.8')
     return {'package_version': installed.version, 'torch_version': torch.__version__,
             'python_version': sys.version.split()[0], 'license_expression': metadata['License-Expression'],
+            'native_library': native, 'native_library_loaded': True,
             'package_file_sha256': hashes}
 
 

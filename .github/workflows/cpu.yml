@@ -91,6 +91,8 @@ jobs:
           Copy-Item -LiteralPath examples -Destination $work -Recurse
           Copy-Item -LiteralPath examples\train_sets.py -Destination $work
           Copy-Item -LiteralPath scripts\check_installed.py -Destination $work
+          New-Item -ItemType Directory -Path (Join-Path $work 'scripts') | Out-Null
+          Copy-Item -LiteralPath scripts\check_installed.py,scripts\check_sdist.py -Destination (Join-Path $work 'scripts')
           "RAGGED_WHEEL=$($wheels[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Check installed identity, mathematics, registration and training

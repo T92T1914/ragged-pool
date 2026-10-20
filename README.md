@@ -22,7 +22,7 @@ The native code uses maximum subtraction for stable softmax and float64 accumula
 
 ## Build and run
 
-The initial target is Windows x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. This is one pinned environment, with no cross-version ABI or other-platform compatibility promise. Building requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Source and versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases).
+The initial Windows target is x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises cross-version ABI or compatibility with other platforms. Building on Windows requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases); later source and CI artifacts can be newer than the published release.
 
 From PowerShell at the checkout, create an isolated environment. Replace the example environment paths as needed. Install PyTorch from its official CPU wheel index before building. The explicit `--no-build-isolation` uses that pinned environment, and `--no-deps` prevents the package build from choosing another framework wheel.
 
@@ -91,6 +91,8 @@ The declared compiler acceptance path is `torch.compile(..., backend="aot_eager"
 Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, second derivatives and vmap are outside this version.
 
 The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both one-step dtype consumers plus the validation-only study smoke. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
+
+The [ordinary Linux workflow](.github/workflows/linux-cpu.yml) first checks the source distribution against the source and builds its optimized wheel from that archive outside the checkout. A separate environment runs installed checks, both optimizer-step examples, the study smoke and the full trained export round trip. It records compiler/runtime facts and archive, wheel and loaded-library identities. Its plain `linux_x86_64` wheel tag is limited to the tested environment; it is not a manylinux compatibility claim or a bitwise reproducible-build result.
 
 [Native boundary checks](docs/native-robustness.md) describe generated mathematical/admission cases, a combined negative-view layout bug, and a separate Linux AddressSanitizer workflow. That workflow instruments the production extension and checks its loaded identity. It supplies bounded memory-diagnostic evidence when executed successfully, with prebuilt framework and leak-detection limits stated explicitly. Ordinary Windows wheel acceptance remains separate.
 
