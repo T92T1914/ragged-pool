@@ -28,6 +28,8 @@ FIXED_FILES = (
     'docs/per-example-gradients.md',
     'docs/forward-ad.md',
     'docs/functional-models.md',
+    'docs/hessian-vector-products.md',
+    'examples/train_curvature.py',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

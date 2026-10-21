@@ -345,12 +345,20 @@ def test_nested_map_is_rejected_before_any_native_call(monkeypatch, outer_mapped
         torch.vmap(inner, in_dims=dimensions)(*arguments.values())
 
 
-def test_forward_derivative_of_reverse_transform_is_explicitly_rejected():
+def test_forward_derivative_of_reverse_transform_matches_primitive_math():
     values, logits, offsets = (tensor[0] for tensor in data())
     gradient = torch.func.grad(lambda v, l: ragged_pool_forward_ad(v, l, offsets).square().sum(),
                                argnums=(0, 1))
-    with pytest.raises(RuntimeError, match="forward AD of reverse derivatives is not supported"):
-        torch.func.jvp(gradient, (values, logits), (torch.ones_like(values), torch.ones_like(logits)))
+    actual = torch.func.jvp(gradient, (values, logits),
+                            (torch.ones_like(values), torch.ones_like(logits)))
+    ref = reference(tuple(offsets.tolist()))
+    expected = torch.func.jvp(
+        torch.func.grad(lambda v, l: ref(v, l).square().sum(), argnums=(0, 1)),
+        (values, logits), (torch.ones_like(values), torch.ones_like(logits)),
+    )
+    for observed, target in zip(actual, expected):
+        for a, b in zip(observed, target):
+            torch.testing.assert_close(a, b, **tolerance(values.dtype))
 
 
 def test_mapped_jvp_is_rejected_instead_of_discarding_a_direction():

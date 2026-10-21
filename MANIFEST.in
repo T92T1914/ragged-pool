@@ -34,3 +34,5 @@ include docs/forward-ad.md
 include examples/train_forward_ad.py
 include docs/functional-models.md
 include examples/train_functional_models.py
+include docs/hessian-vector-products.md
+include examples/train_curvature.py

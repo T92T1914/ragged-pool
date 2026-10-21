@@ -22,7 +22,7 @@ Mapping over a nonleading dimension is admitted when the actual selected lanes r
 
 Shared inputs receive the sum of their lane contributions when differentiating a summed mapped objective. A mean objective divides those contributions by the number of lanes. This reduction is part of the caller's objective, not an automatic averaging rule in the pooling layer.
 
-Single-call first-order JVP and ordinary second reverse derivatives remain available through their declared routes. General nested reverse transforms, nested maps, JVP/map compositions, full Jacobian/Hessian helpers, compiled/exported transforms and padded transforms are outside this route. Forward differentiation through the new backward boundary and the single-map guard is rejected explicitly. The earlier tangent and nested-forward guards remain.
+Single-call first-order JVP and ordinary second reverse derivatives remain available through their declared routes. The backward Function also supports one eager [loss HVP](hessian-vector-products.md) through `jvp(grad(scalar_loss))`, with fixed offsets and no map. Its tangent reuses native first and second derivatives and includes the output-cotangent direction. General nested reverse transforms, nested maps, JVP/map compositions, full Jacobian/Hessian helpers, compiled/exported transforms and padded transforms remain outside the declared routes. The single-map guard still rejects forward differentiation. Further HVP differentiation and the earlier excluded tangent/nested-forward compositions are rejected through their own guards.
 
 ## Train three small models
 
