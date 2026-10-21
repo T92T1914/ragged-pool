@@ -42,7 +42,7 @@ Two small vectors show why clipping happens before the mean. With gradients `[2,
 
 ## Chunk the backward selectors
 
-Training uses `chunked_clipped_gradients` with default chunk size `K=2`. The helper runs one full forward evaluation, then constructs each selector directly with shape `[r,B]`, where `r <= min(K,B)`. Row `j` selects the global example `start+j`, including the final uneven chunk. It does not construct `eye(B)` and slice it. For five examples and K=2, selector shapes are `[2,5]`, `[2,5]` and `[1,5]`.
+The default `--aggregation backward-chunks` uses `chunked_clipped_gradients` with chunk size `K=2`. The helper runs one full forward evaluation, then constructs each selector directly with shape `[r,B]`, where `r <= min(K,B)`. Row `j` selects the global example `start+j`, including the final uneven chunk. It does not construct `eye(B)` and slice it. For five examples and K=2, selector shapes are `[2,5]`, `[2,5]` and `[1,5]`.
 
 Each batched VJP returns `[r,*parameter.shape]` blocks. The helper clips each example's joint vector, adds its float64 clipped sums to the accumulators and releases those gradient blocks before the next VJP call. It retains the forward graph before the last call and frees saved backward state on the last, with `create_graph=False`. Parameters remain fixed across the chunks. The caller assigns the final means and takes one optimizer step only after the whole batch has been processed.
 
@@ -51,6 +51,22 @@ Divide the complete sums by global B once, then cast once to the parameter dtype
 K must be a positive Python integer. Bool, zero, negative and nonintegral values are rejected. K greater than B is normalized to B, so `--chunk-size 5` or `--chunk-size 9` gives one full-size call for this fixture. K=1 exercises one example at a time. Every training step constructs a fresh graph. The helper preserves input bytes/version counters, parameters and existing `.grad` tensors or None.
 
 The named intermediate bounds are `min(K,B)*B` selector entries and at most `min(K,B)*P` returned parameter-gradient entries across all blocks, with P=25 here. The full forward graph, saved activations, input snapshots, float64 temporaries and legacy batching fallback allocations remain. Norms/scales retain B entries. The validation command also runs full-gradient oracles. These dimensions establish a bounded helper interface, not a hard memory cap, measured peak RSS, throughput improvement or input microbatching.
+
+## Run one forward graph per microbatch
+
+Select `--aggregation forward-microbatches` to use `microbatched_clipped_gradients`. It slices raw values, mask and targets before each model call. Each microbatch has `r <= min(K,B)` examples, local losses `[r]`, a local identity selector `[r,r]` and returned gradients `[r,*parameter.shape]`. With B=5,K=2, actual forward rows are `[2,2,1]` and selector shapes are `[2,2],[2,2],[1,1]`.
+
+Each fresh forward is followed by one batched VJP with `retain_graph=False`, `create_graph=False` and `allow_unused=False`. The helper detaches and jointly clips each example's complete parameter gradient, adds float64 sums, then discards its selectors, returned gradient blocks, local outputs and loss before starting the next forward. Parameters stay fixed. After all microbatches, divide by global B once and cast each mean once. One outer optimizer step follows. The final short microbatch, empty bags and zero-norm examples retain the same weight as every other example.
+
+For the current encoder/tanh/scorer/pool/head model, a bag's prediction and pointwise squared loss do not depend on another bag. Splitting the forward therefore preserves the mathematical per-example derivatives. Batch-shape changes can still introduce floating point rounding differences, which are checked with the existing dtype tolerances. Both actual optimizer updates compare the new route with the unchanged retained-graph helper, full batched gradients, serial native gradients and an independent per-row PyTorch reference.
+
+Sample independence is a required property of this fixed caller, not something the helper can prove for an arbitrary module. Batch normalization, dropout or another stochastic forward, mutable buffers, cross-example attention/objectives and parameter updates between microbatches can change the function. A small counterexample uses prediction `weight * mean(x)` for every example, weight one, x=[1,3], zero targets and C=100. A full forward predicts two for both examples, so each loss derivative is `2*2*2=8`. Singleton forwards give derivatives two and eighteen, whose mean is ten. The test requires this disagreement. It does not force a batch-coupled model to satisfy an invalid equivalence.
+
+The distinction is also present in the original [microbatching discussion by Sohoni et al.](https://arxiv.org/pdf/1904.10631), introduction, and the [Opacus explanation of batch normalization](https://opacus.ai/tutorials/guide_to_module_validator). These sources inform the boundary. Their performance, memory and privacy results are not measurements or guarantees for this example. This route does not use activation checkpointing or recompute previously processed examples.
+
+Tests observe actual forward/backward interleaving, local row contents, selectors, returned-gradient shapes and graph-retention options. Weak references check that previous Python outputs, losses, gradients and seeds are released before the next forward. A saved-tensor hook test packs detached tensors into weakly tracked holders and checks that those saved backward-state holders are released too. This is scoped lifetime evidence under the tested hook, separate from allocator or process-memory measurement.
+
+Within this helper, a local forward graph contains at most min(K,B) examples, the selector has at most min(K,B) squared entries and returned parameter-gradient blocks at most min(K,B)*P entries across all blocks. P=25 here. Full input storage and byte snapshots, B-entry norm/scale diagnostics, float64 clipping temporaries and framework/native fallback allocations remain. The complete validation command still executes full-gradient oracles. No input streaming, hard memory cap, lower peak RSS, faster training or arbitrary-model support is claimed.
 
 ## Checks around the update
 
@@ -67,13 +83,15 @@ Build and install a wheel using the [Windows route](../README.md#build-and-run) 
 ```powershell
 $python = 'C:\work\ragged-accept\Scripts\python.exe'
 $example = 'C:\work\ragged-consumer\train_clipped.py'
-& $python -I $example --dtype float32 --chunk-size 2 --output 'C:\work\ragged-consumer\clipped-float32.json'
+& $python -I $example --dtype float32 --aggregation forward-microbatches --chunk-size 2 --output 'C:\work\ragged-consumer\clipped-float32.json'
 if ($LASTEXITCODE -ne 0) { throw 'Installed float32 clipped-gradient consumer failed' }
-& $python -I $example --dtype float64 --chunk-size 2 --output 'C:\work\ragged-consumer\clipped-float64.json'
+& $python -I $example --dtype float64 --aggregation forward-microbatches --chunk-size 2 --output 'C:\work\ragged-consumer\clipped-float64.json'
 if ($LASTEXITCODE -ne 0) { throw 'Installed float64 clipped-gradient consumer failed' }
 ```
 
-The JSON receipt declares method `autograd.grad.is_grads_batched`, aggregation `chunked_per_example_joint_clip`, requested/effective chunk sizes, selector and gradient shapes, graph-retention flags, native and reference optimizer-step counts, and control, invariance and empty-bag results. All three existing CPU workflows run both dtypes and check the default `[2,2,1]` partition before retaining receipts. A completed run at an identified revision establishes execution. Workflow source alone does not establish a pass.
+The selected JSON receipt declares method `autograd.grad.is_grads_batched`, aggregation method `microbatched_per_example_joint_clip`, requested/effective sizes, actual forward rows, local selector and gradient shapes, all-false graph-retention flags, global denominator, native and reference optimizer-step counts, retained-graph comparison errors, and control, invariance and empty-bag results. All three existing CPU workflows explicitly select this route in both dtypes and check the `[2,2,1]` forward partition before retaining receipts. A completed run at an identified revision establishes execution. Workflow source alone does not establish a pass.
+
+Omit `--aggregation` or select `backward-chunks` to run the accepted retained-full-graph route. Its receipt keeps method `chunked_per_example_joint_clip` and selectors `[2,5],[2,5],[1,5]`. Both routes share the positive `--chunk-size` contract and global clipping rule. They differ in where forward evaluation occurs and how long saved graph state is retained.
 
 ## Batching limits and interpretation
 

@@ -209,6 +209,82 @@ def chunked_clipped_gradients(model, raw, mask, targets, pool, C, chunk_size=2):
     return means, norms, scales, chunking
 
 
+def microbatched_clipped_gradients(model, raw, mask, targets, pool, C, chunk_size=2):
+    """Clip independent bags on fresh local forward graphs, then average once.
+
+    This caller assumes a deterministic model without cross-example operations
+    or mutable forward state. It does not inspect arbitrary model semantics.
+    Full inputs, byte snapshots and O(B) norm/scale diagnostics remain.
+    """
+    if type(chunk_size) is not int or chunk_size < 1:
+        raise ValueError("chunk_size must be a positive Python integer")
+    C = float(C)
+    if not math.isfinite(C) or C <= 0:
+        raise ValueError("C must be finite and positive")
+    batch = raw.shape[0]
+    if batch < 1 or targets.shape != (batch,):
+        raise ValueError("This caller needs B>=1 and one scalar target per example")
+    effective = min(chunk_size, batch)
+    inputs = raw, mask, targets
+    snapshots = _snapshots(inputs)
+    parameters = dict(model.named_parameters())
+    if not parameters:
+        raise ValueError("At least one connected parameter block is required")
+    sums = {name: torch.zeros_like(parameter, dtype=torch.float64) for name, parameter in parameters.items()}
+    norms = torch.empty(batch, dtype=torch.float64, device="cpu")
+    scales = torch.empty_like(norms)
+    chunking = {"requested_size": chunk_size, "effective_size": effective, "chunk_rows": [],
+                "forward_rows": [], "retain_graph": [], "seed_shapes": [], "gradient_shapes": [],
+                "max_rows": 0, "parameter_elements": sum(p.numel() for p in parameters.values()),
+                "global_denominator": batch}
+    for start in range(0, batch, effective):
+        stop = min(start + effective, batch)
+        rows = stop - start
+        local_raw, local_mask, local_targets = raw[start:stop], mask[start:stop], targets[start:stop]
+        predictions, pooled = model(local_raw, local_mask, pool)
+        losses = (predictions - local_targets).square()
+        if (losses.shape != (rows,) or losses.dtype not in DTYPES.values() or losses.device.type != "cpu"
+                or any(p.dtype != losses.dtype or p.device.type != "cpu" for p in parameters.values())):
+            raise ValueError("This caller requires one CPU float32/64 loss per example and matching parameters")
+        if not all(bool(torch.isfinite(t).all()) for t in (predictions, pooled, losses)):
+            raise AssertionError("Predictions, pooled features and losses must be finite")
+        seed = torch.eye(rows, dtype=losses.dtype, device="cpu")
+        gradients = torch.autograd.grad(losses, tuple(parameters.values()), seed,
+                                        retain_graph=False, create_graph=False,
+                                        allow_unused=False, is_grads_batched=True)
+        if any(g.shape != (rows, *p.shape) or g.dtype != p.dtype or g.device.type != "cpu"
+               for g, p in zip(gradients, parameters.values())):
+            raise AssertionError("Microbatch gradient blocks must keep their declared example rows")
+        if not all(bool(torch.isfinite(g).all()) for g in gradients):
+            raise AssertionError("Every microbatch parameter gradient must be finite")
+        squared_norms = torch.zeros(rows, dtype=torch.float64, device="cpu")
+        for gradient in gradients:
+            block = gradient.detach().double()
+            squared_norms.add_(block.reshape(rows, -1).square().sum(dim=1))
+        chunk_norms = squared_norms.sqrt()
+        if not bool(torch.isfinite(chunk_norms).all()):
+            raise ValueError("The joint gradient norm overflowed float64")
+        chunk_scales = torch.ones_like(chunk_norms)
+        active = chunk_norms > C
+        chunk_scales[active] = C / chunk_norms[active]
+        for (name, parameter), gradient in zip(parameters.items(), gradients):
+            block = gradient.detach().double()
+            sums[name].add_((block * chunk_scales.reshape((rows,) + (1,) * parameter.ndim)).sum(dim=0))
+        norms[start:stop], scales[start:stop] = chunk_norms, chunk_scales
+        chunking["chunk_rows"].append(rows)
+        chunking["forward_rows"].append(rows)
+        chunking["retain_graph"].append(False)
+        chunking["seed_shapes"].append(list(seed.shape))
+        chunking["gradient_shapes"].append({name: list(g.shape) for name, g in zip(parameters, gradients)})
+        chunking["max_rows"] = max(chunking["max_rows"], rows)
+        # Finish and release this local graph before beginning another forward.
+        del gradients, gradient, block, seed, predictions, pooled, losses
+        del local_raw, local_mask, local_targets, squared_norms, chunk_norms, chunk_scales, active
+    means = {name: (sums[name] / batch).to(parameter.dtype) for name, parameter in parameters.items()}
+    _unchanged(inputs, snapshots)
+    return means, norms, scales, chunking
+
+
 def _difference(left, right):
     return float((left.detach() - right.detach()).abs().max()) if left.numel() else 0.0
 
@@ -249,7 +325,7 @@ def _empty_gradients(per_example, predictions, mask, targets, tolerance):
         raise AssertionError("The empty-bag fixture must have a nonzero head-bias derivative")
 
 
-def _train(initial, layout, targets, C, tolerance, chunk_size):
+def _train(initial, layout, targets, C, tolerance, chunk_size, aggregation):
     native, reference = copy.deepcopy(initial), copy.deepcopy(initial)
     models = native, reference
     optimizers = [torch.optim.SGD(model.parameters(), lr=0.03) for model in models]
@@ -271,8 +347,16 @@ def _train(initial, layout, targets, C, tolerance, chunk_size):
             mean_errors.append(_compare({name: g.mean(dim=0) for name, g in blocks.items()}, evaluation["mean_gradients"], tolerance))
             _empty_gradients(blocks, evaluation["predictions"], mask, targets, tolerance)
         full_means, full_norms, full_scales = clip_per_example(per, C)
-        means, norms, scales, chunking = chunked_clipped_gradients(
+        retained_means, retained_norms, retained_scales, retained_chunking = chunked_clipped_gradients(
             native, raw, mask, targets, ragged_pool_padded, C, chunk_size)
+        if aggregation == "forward-microbatches":
+            means, norms, scales, chunking = microbatched_clipped_gradients(
+                native, raw, mask, targets, ragged_pool_padded, C, chunk_size)
+        else:
+            means, norms, scales, chunking = retained_means, retained_norms, retained_scales, retained_chunking
+        retained_errors = _compare(means, retained_means, tolerance)
+        torch.testing.assert_close(norms, retained_norms, **tolerance)
+        torch.testing.assert_close(scales, retained_scales, **tolerance)
         full_errors = _compare(means, full_means, tolerance)
         torch.testing.assert_close(norms, full_norms, **tolerance)
         torch.testing.assert_close(scales, full_scales, **tolerance)
@@ -300,6 +384,7 @@ def _train(initial, layout, targets, C, tolerance, chunk_size):
         metrics = {"step": step, "serial_parameter_errors": serial_errors, "reference_parameter_errors": reference_errors,
                    "output_errors": output_errors, "mean_loss_gradient_errors": mean_errors, "clipped_mean_errors": clipped_errors,
                    "full_clipped_mean_errors": full_errors, "chunking": chunking,
+                   "retained_graph_clipped_mean_errors": retained_errors,
                    "updated_parameter_errors": state_errors, "parameter_update_max_abs": updates,
                    "norms": norms.tolist(), "scales": scales.tolist(), "active_examples": int((scales < 1).sum()),
                    "controls": differences, "input_versions_raw_mask_targets": _unchanged(inputs, snapshots)}
@@ -329,7 +414,9 @@ def installed_identity():
             "native_library_sha256": sha256(libraries[0].read_bytes()).hexdigest()}
 
 
-def run(dtype_name, chunk_size=2):
+def run(dtype_name, chunk_size=2, aggregation="backward-chunks"):
+    if aggregation not in ("backward-chunks", "forward-microbatches"):
+        raise ValueError("aggregation must be backward-chunks or forward-microbatches")
     identity = installed_identity()
     torch.manual_seed(SEED)
     dtype = DTYPES[dtype_name]
@@ -337,7 +424,8 @@ def run(dtype_name, chunk_size=2):
     initial = PaddedRegressor().to(device="cpu", dtype=dtype)
     layouts = make_layouts(dtype_name)
     targets = torch.tensor([-0.3, 8., -0.5, 0.25, -4.], dtype=dtype, device="cpu")
-    histories = {name: _train(initial, layout, targets, 1., tolerance, chunk_size) for name, layout in layouts.items()}
+    histories = {name: _train(initial, layout, targets, 1., tolerance, chunk_size, aggregation)
+                 for name, layout in layouts.items()}
     baseline, comparisons = histories["fixed_holes"], []
     for name, history in histories.items():
         if name == "fixed_holes":
@@ -359,13 +447,21 @@ def run(dtype_name, chunk_size=2):
     predictions, _ = initial(empty_raw, empty_mask, ragged_pool_padded)
     _empty_gradients(empty, predictions, empty_mask, targets, tolerance)
     empty_errors = _compare(empty, empty_ref, tolerance)
+    resource_scope = ("The microbatch helper uses one fresh local forward graph at a time for this deterministic "
+        "sample-independent model. Full inputs, snapshots, O(B) diagnostics, allocator/fallback workspaces and "
+        "separate full-gradient validation oracles remain. No peak-memory or speed result."
+        if aggregation == "forward-microbatches" else
+        "Only the chunk helper bounds seed and returned gradient rows. The full forward graph, input snapshots, "
+        "O(B) diagnostics and separate full-gradient validation oracles remain. No peak-memory or speed result.")
     return {"status": "passed", "dtype": dtype_name, "method": "autograd.grad.is_grads_batched",
-        "aggregation_method": "chunked_per_example_joint_clip", "chunk_size_requested": chunk_size,
+        "aggregation_method": ("microbatched_per_example_joint_clip" if aggregation == "forward-microbatches"
+                               else "chunked_per_example_joint_clip"), "aggregation_route": aggregation,
+        "chunk_size_requested": chunk_size,
         "method_scope": "Experimental batched VJP. Batching fallbacks may execute serial work. No torch.func or speed claim.",
         "purpose": "Synthetic optimizer integration. No noise, privacy accounting, model quality or robustness result.",
         "seed": SEED, "examples": 5, "clip_threshold": 1., "norm": "joint L2 over every named parameter",
         "arithmetic": "Joint norms, scales and clipped sums in float64, divide once by global B and cast means once",
-        "resource_scope": "Only the chunk helper bounds seed and returned gradient rows. The full forward graph, input snapshots, O(B) diagnostics and separate full-gradient validation oracles remain. No peak-memory or speed result.",
+        "resource_scope": resource_scope,
         "zero_norm_scale": 1., "aggregation": "mean over every example, including empty bags",
         "optimizer": "SGD", "learning_rate": 0.03, "optimizer_steps": 2, "reference_optimizer_steps": 2,
         "controls": {"status": "passed", "steps": [step["metrics"]["controls"] for step in baseline]},
@@ -381,7 +477,9 @@ def run(dtype_name, chunk_size=2):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dtype", choices=tuple(DTYPES), default="float32")
-    parser.add_argument("--chunk-size", type=int, default=2, help="Positive selector rows per VJP call, capped at B")
+    parser.add_argument("--chunk-size", type=int, default=2, help="Positive rows per backward chunk or forward microbatch, capped at B")
+    parser.add_argument("--aggregation", choices=("backward-chunks", "forward-microbatches"), default="backward-chunks",
+                        help="Retain one full forward graph, or run fresh forwards on independent bag subsets")
     parser.add_argument("--output", type=Path, help="Optional new JSON receipt file")
     arguments = parser.parse_args()
     if arguments.output is not None and (arguments.output.exists() or arguments.output.is_symlink()):
@@ -389,7 +487,7 @@ if __name__ == "__main__":
     torch.set_num_threads(1)
     if torch.get_num_interop_threads() != 1:
         torch.set_num_interop_threads(1)
-    text = json.dumps(run(arguments.dtype, arguments.chunk_size), indent=2, allow_nan=False) + "\n"
+    text = json.dumps(run(arguments.dtype, arguments.chunk_size, arguments.aggregation), indent=2, allow_nan=False) + "\n"
     if arguments.output is not None:
         arguments.output.parent.mkdir(parents=True, exist_ok=True)
         with arguments.output.open("x", encoding="utf-8") as stream:
