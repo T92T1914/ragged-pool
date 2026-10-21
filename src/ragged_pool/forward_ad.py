@@ -62,6 +62,28 @@ def _serial_map(function, info, in_dims, arguments, value_index, offset_index):
     return torch.stack(results), 0
 
 
+class _SecondOrderTangent(torch.autograd.Function):
+    @staticmethod
+    def forward(tangent):
+        return tangent.clone()
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        pass
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        raise RuntimeError("ragged-pool differentiating Hessian-vector products is not supported")
+
+    @staticmethod
+    def jvp(ctx, direction):
+        raise RuntimeError("ragged-pool differentiating Hessian-vector products is not supported")
+
+    @staticmethod
+    def vmap(info, in_dims, tangent):
+        raise RuntimeError("ragged-pool mapped Hessian-vector products are not supported")
+
+
 class _PackedBackward(torch.autograd.Function):
     @staticmethod
     def forward(grad_output, values, logits, offsets):
@@ -70,6 +92,7 @@ class _PackedBackward(torch.autograd.Function):
     @staticmethod
     def setup_context(ctx, inputs, output):
         ctx.save_for_backward(*inputs)
+        ctx.save_for_forward(*inputs)
         ctx.set_materialize_grads(False)
 
     @staticmethod
@@ -89,8 +112,36 @@ class _PackedBackward(torch.autograd.Function):
         return _serial_map(_PackedBackward, info, in_dims, arguments, 1, 3)
 
     @staticmethod
-    def jvp(ctx, *directions):
-        raise RuntimeError("ragged-pool forward AD of reverse derivatives is not supported")
+    def jvp(ctx, direction_output, direction_values, direction_logits, direction_offsets):
+        grad_output, values, logits, offsets = ctx.saved_tensors
+        if direction_offsets is not None:
+            raise RuntimeError("ragged-pool offsets must remain fixed and have no tangent")
+        if direction_values is None:
+            direction_values = torch.zeros_like(values)
+        if direction_logits is None:
+            direction_logits = torch.zeros_like(logits)
+        if direction_output is None:
+            direction_output = torch.zeros_like(grad_output)
+        _check_direction(direction_values, values, "values")
+        _check_direction(direction_logits, logits, "logits")
+        # Protect every input before opaque native calls. In particular, an
+        # outer direction only on the cotangent must not disappear silently.
+        grad_output, values, logits, direction_output, direction_values, direction_logits = tuple(
+            _SecondOrderTangent.apply(tensor)
+            for tensor in (grad_output, values, logits, direction_output,
+                           direction_values, direction_logits)
+        )
+        # B(g,x)=J(x)^T*g, so dB=B(dg,x)+D_x B(g,x)[dx]. A nonlinear
+        # surrounding loss generally changes g and needs both contributions.
+        cotangent_values, cotangent_logits = torch.ops.ragged_pool._backward.default(
+            direction_output, values, logits, offsets,
+        )
+        _, primal_values, primal_logits = torch.ops.ragged_pool._double_backward.default(
+            direction_values, direction_logits, grad_output, values, logits, offsets,
+        )
+        return tuple(_SecondOrderTangent.apply(tensor)
+                     for tensor in (cotangent_values + primal_values,
+                                    cotangent_logits + primal_logits))
 
 
 def _check_direction(direction, primal, name):
@@ -191,7 +242,9 @@ def ragged_pool_forward_ad(values, logits, offsets):
     a larger complete axis through multiple bounded invocations. These bounds
     do not limit total work or total process memory. Manual batching calls
     native code serially without a speed claim.
-    Tangent differentiation, nested maps and mapped forward AD are excluded.
-    Ordinary primal reverse differentiation retains second order.
+    A single jvp(grad(scalar_loss)) composition returns a Hessian-vector
+    product using both primal and output-cotangent directions. Further
+    differentiation of that product, nested maps and mapped forward AD are
+    excluded. Ordinary primal reverse differentiation retains second order.
     """
     return _PackedForwardAD.apply(values, logits, offsets)

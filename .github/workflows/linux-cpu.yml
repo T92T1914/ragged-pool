@@ -301,6 +301,29 @@ jobs:
           PY
             cat "$receipt"
           done
+          for dtype in float32 float64; do
+            receipt="$RAGGED_EVIDENCE/curvature-$dtype.json"
+            "$python" -I examples/train_curvature.py --dtype "$dtype" --output "$receipt"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["method"] == "torch.func.jvp.grad.functional_call"
+          assert receipt["optimizer_steps"] == receipt["original_native_optimizer_steps"] == receipt["reference_optimizer_steps"] == 2
+          assert receipt["parameter_tensors"] == 5 and receipt["scalar_parameters"] == 25
+          result = receipt["curvature"]
+          assert result["status"] == "passed" and result["parameters_fixed"] and result["optimizer_steps"] == 0 and result["directions"] == 2
+          assert not result["full_hessian_materialized"] and result["inputs_and_parameters_unchanged"] and result["parameter_grad_fields_unset"]
+          assert all(result[key]["status"] == "passed" for key in ("bilinear_symmetry", "linearity", "zero_direction"))
+          assert receipt["inputs_unchanged"] and receipt["gradients_and_hvps_finite"] and receipt["installed_package"] and receipt["native_library_loaded"]
+          assert receipt["threads"] == receipt["interop_threads"] == 1
+          print("Curvature", sys.argv[2], "passed two updates and fixed-parameter HVP controls")
+          PY
+            cat "$receipt"
+          done
           mkdir "$RAGGED_EVIDENCE/padded-export"
           for dtype in float32 float64; do
             bundle="$RAGGED_EVIDENCE/padded-export/$dtype"
