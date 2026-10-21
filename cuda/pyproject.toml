@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools==80.9.0", "wheel==0.45.1", "torch==2.9.1+cu128"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragged-pool-cuda"
+version = "0.1.0"
+description = "Bounded packed CUDA pooling with first-order PyTorch autograd"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = ["torch==2.9.1+cu128"]
+license = "MIT"
+license-files = ["LICENSE", "NOTICE", "third_party/PYTORCH-LICENSE"]
+
+[project.urls]
+Repository = "https://github.com/T92T1914/ragged-pool"
+Issues = "https://github.com/T92T1914/ragged-pool/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
