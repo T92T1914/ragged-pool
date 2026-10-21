@@ -94,6 +94,10 @@ The example includes a detached-penalty control. It has the same scalar penalty 
 
 The [per-example gradient guide](docs/per-example-gradients.md) explains the update, chunk lifecycle, empty-bag behavior, padding invariance and installed commands for both dtypes. Within the chunk helper, selector and returned parameter-gradient blocks have at most `min(K,B)` example rows. The full forward graph and validation oracles remain, so this is not a measured process-memory reduction. This uses existing first-order autograd registrations. PyTorch's batching fallback can perform serial work, and direct `torch.func` transforms remain unsupported. The example adds no noise or privacy accountant and makes no differential privacy, model-quality or speed claim.
 
+Add `--aggregation forward-microbatches --chunk-size 2` to run a fresh forward and backward for each small group of bags. For five examples this gives forward rows `[2,2,1]`, local selector shapes `[2,2],[2,2],[1,1]` and `retain_graph=False` on every backward call. The model parameters stay fixed until the complete clipped sum is divided by five and passed to one optimizer step. Both actual steps compare against the retained-graph route and independent per-row reference.
+
+This forward partition preserves the update for the current deterministic model because each bag's prediction and loss are independent of its peers. Batch normalization, stochastic forwards, mutable state and cross-example objectives can invalidate that argument. A hand-derived coupled-model check deliberately disagrees under splitting. The helper releases each local graph before the next forward, while full inputs, snapshots and validation oracles remain. These are graph-lifecycle and tensor-shape checks, not a measured memory or speed advantage. The existing backward-chunk route remains the default.
+
 <a id="one-set-learning-and-cpu-cost-study"></a>
 
 ## One synthetic training study and CPU cost comparison
