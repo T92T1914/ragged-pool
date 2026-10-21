@@ -1,8 +1,8 @@
-# Packed CUDA pooling candidate
+# Packed CUDA pooling companion
 
 This optional companion adds native CUDA forward and backward to the CPU package's pooling problem, with a separate distribution, import and dependency pin. The root CPU installation, operators and broader derivative support retain their own contracts.
 
-This is a private candidate. Required native diagnostic qualification is open: the local Compute Sanitizer prerequisite probe could not initialize the Windows WDDM debugging interface and requested an administrator action. Functional tests and installed training are separate evidence. Do not describe the candidate as accepted or publish a GPU acceptance claim until the required memory, race and synchronization checks cover the actual native implementation.
+The Windows `sm_89` route below passed a fresh external wheel installation, 138 functional tests, two eager training updates per dtype, and six bounded Compute Sanitizer runs against the installed native implementation. The [validation record](evidence/windows-sm89-20261021.json) identifies the tested source, wheel and execution cohort. These results qualify that specific route and workload, with the limits described below.
 
 ## API and bounds
 
@@ -31,7 +31,7 @@ Autograd saves original tensors so their version checks remain effective. Both c
 
 ## One explicit installation route
 
-The selected local envelope is Windows x64, CPython 3.11.8, released `torch==2.9.1+cu128`, CUDA 12.8.1 components with NVCC 12.8.93, MSVC 19.44.35228/toolset 14.44.35207, C++17 and only `sm_89`. Setup requires `TORCH_CUDA_ARCH_LIST=8.9`. No compiler-guard bypass or fast-math flag is used. This names the selected combination, without promising broad wheel, ABI, platform or device compatibility.
+The tested envelope is Windows x64, CPython 3.11.8, released `torch==2.9.1+cu128` with CUDA runtime 12.8, CUDA 12.8.1 toolkit components with NVCC 12.8.93, MSVC 19.44.35228/toolset 14.44.35207, C++17 and only `sm_89`. The device was an NVIDIA GeForce RTX 4090 with compute capability 8.9 and driver 617.42. Setup requires `TORCH_CUDA_ARCH_LIST=8.9`. No compiler-guard bypass or fast-math flag is used. This names the tested combination, without promising broad wheel, ABI, platform or device compatibility.
 
 The [PyTorch release instructions](https://pytorch.org/get-started/previous-versions/#v291) identify the official CUDA wheel index. [Extension documentation](https://docs.pytorch.org/docs/2.9/cpp_extension.html) explains the separate compiler dependency. The [NVIDIA manifest](https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.8.1.json) supplies project-local component paths and checksums. The driver remains a separate prerequisite. No system installer, global environment change or driver replacement is required by this source route.
 
@@ -53,10 +53,16 @@ Verification builds from a checked source archive and uses an uncached native bu
 
 Each consumer performs two actual eager SGD updates through an encoder, score layer, pool and prediction head. It compares complete outputs, losses, raw-input and parameter gradients, and updated parameters with independently differentiated GPU primitives. Default tolerances are float32 `rtol=2e-4, atol=2e-6` and float64 `rtol=2e-10, atol=2e-12`. Endpoint tests state their separate absolute tolerance for cancellation near magnitude 1000. Registration checks remain separate from mathematical gradients. This synthetic example demonstrates integration, not model quality or real-world accuracy.
 
-## Limits and open native diagnostics
+## Validation and limits
+
+On 2026-10-21, an uncached build from source commit `15db410f153e6bcac498baa175fedbbd19c34f7f` produced the wheel tested in a fresh acceptance environment outside the checkout. All 138 installed functional tests passed. The float32 and float64 training consumers each completed two SGD updates and passed their independent GPU-reference comparisons. These are small synthetic fixtures, not evidence of training convergence or model quality.
+
+Compute Sanitizer 2025.1.0.0, build 35583870, then ran `memcheck`, `racecheck` and `synccheck` separately for each dtype against the installed native consumer. All six invocations exited with code 0, without a timeout or forced cleanup. Memory and synchronization checks reported zero errors. Race checks reported zero hazards, errors and warnings. This is actual instrumentation of the native route used by those fixtures. The full 138-test suite was not run under every sanitizer tool, and zero reported findings are limited to the executed scenarios.
+
+The first Windows WDDM prerequisite probe could not initialize the debugging interface. The owner manually launched a reviewed elevated helper to enable the required interface temporarily and run the checks. The setting was absent before the run, restoration completed, and an independent readback confirmed that it was absent again afterward. [NVIDIA's Windows requirements](https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html#windows-specific-behavior) explain this administrator-controlled diagnostic prerequisite. The failed probe and the later successful instrumentation are distinct observations in the validation record.
+
+GPU evidence remains tied to the source commit above and the hashes in the validation record. Publication adds documentation, the sanitized evidence summary and its source-archive inclusion. Native and Python implementation, tests and compiler settings remain unchanged. No separate GPU rerun is claimed for those publication edits.
 
 The companion does not inherit CPU padded pooling, second derivatives, HVPs, JVPs, vmap, compile/export, graph capture, stochastic recovery or other CPU example capabilities. No mixed precision, distributed training, other GPU backend or architecture, cross-version/platform/ABI, coinstallation matrix, performance or operational security result is claimed.
-
-Actual native memory/race/synchronization evidence remains required. [Compute Sanitizer's Windows requirements](https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html#windows-specific-behavior) identify the administrator-controlled debugging interface. Version output, compilation, ordinary GPU success, source review and failed instrumentation are different observations. No registry, driver or display timeout change is part of the current scope.
 
 Source is MIT licensed. [NOTICE](NOTICE) and the included [PyTorch license](third_party/PYTORCH-LICENSE) preserve attribution and the truthful assistance statement. Documentation informs API choices. Research rationale is not measured implementation evidence. CPU studies and earlier adverse results retain their separate identities.

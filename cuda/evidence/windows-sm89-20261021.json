@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "status": "qualified-for-declared-local-route",
+  "source": {
+    "executed_commit": "15db410f153e6bcac498baa175fedbbd19c34f7f",
+    "executed_git_tree": "251fd226ba855b3740dc47d5c140b64e73437db0",
+    "cpu_baseline": "58048fa659c7b3880da6585801bc496ae33de9f8",
+    "publication_delta": "Documentation, sanitized evidence and its source-archive inclusion only. Native/Python implementation, tests and compiler settings remain unchanged from the executed source. No final-documentation-tree GPU rerun is claimed."
+  },
+  "environment": {
+    "platform": "Windows x64",
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "torch_cuda_runtime": "12.8",
+    "cuda_toolkit_components": "12.8.1",
+    "nvcc": "12.8.93",
+    "host_compiler": "MSVC 19.44.35228",
+    "msvc_toolset": "14.44.35207",
+    "cxx_standard": "C++17",
+    "architecture": "sm_89",
+    "device": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "driver": "617.42",
+    "torch_threads": 1,
+    "torch_interop_threads": 1,
+    "nvcc_threads": 1,
+    "linker_threads": 2
+  },
+  "executed_artifacts": {
+    "source_archive_sha256": "32ed34bfd0508e699d94e67366a04846fe354bcd8b4c68f378abbbe6a4dbc581",
+    "wheel_sha256": "1f89cde15bd2f2dff3b3ee1f9beab8e86d56eac1dd2ee19aa8a3f65f6a3c0815",
+    "native_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "consumer_script_sha256": "5c8c90943e30a8385d232b2d34c96d7f1178d4504521a41dcc17a8b72060f7ab",
+    "note": "These are the exact earlier checked archive/wheel and loaded payload. Publication does not claim a newly compiled CUDA binary."
+  },
+  "functional": {
+    "fresh_external_installation": true,
+    "dependency_and_installed_identity_checks": "passed",
+    "manifest_checks_passed": 7,
+    "unchanged_source_snapshots": 15,
+    "tests_passed": 138,
+    "test_seconds": 4.59,
+    "operator_registration_and_mathematical_gradient_checks_separate": true,
+    "training": {
+      "float32": {
+        "optimizer_steps": 2,
+        "device": "NVIDIA GeForce RTX 4090",
+        "max_abs_errors": {
+          "output": 0.0,
+          "parameter_gradient": 0.0,
+          "updated_parameter": 0.0
+        },
+        "receipt_sha256": "ff68664eb2d1e6688590041a4cdf06b26e1f217934dcd29ee3fb83c77ba858d7",
+        "fixture_sha256": "b93bbd614ff77abb629a8747f8d95824cc8159beef0f1bcc008832a2d15389f4"
+      },
+      "float64": {
+        "optimizer_steps": 2,
+        "device": "NVIDIA GeForce RTX 4090",
+        "max_abs_errors": {
+          "output": 1.1102230246251565e-16,
+          "parameter_gradient": 2.220446049250313e-16,
+          "updated_parameter": 1.3877787807814457e-17
+        },
+        "receipt_sha256": "2a082d5bc7aced1e207cea22bb1029093074df7493cded97db196a0c6227c332",
+        "fixture_sha256": "dd7651040e7b151b5f5de01649607f4e12de39119f0c63f2b1bf568e2cde303d"
+      }
+    },
+    "synthetic_model_scalar_parameters": 25,
+    "model_parameter_tensors": 5,
+    "seed": 1811,
+    "comparison_tolerances": {
+      "float32": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "float64": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      }
+    }
+  },
+  "native_diagnostics": {
+    "compute_sanitizer": "2025.1.0.0",
+    "build": "35583870",
+    "target": "Installed eager packed two-update train_cuda.py consumer, each dtype separately",
+    "process_tracking": "all: launched root application and its children, including the real Python interpreter",
+    "actual_training_process_session_headers_reviewed": true,
+    "kernel_filters_or_suppressions_or_force_blocking": false,
+    "require_cuda_init": true,
+    "timeout_seconds_each": 120,
+    "racecheck_workers": 1,
+    "commands": [
+      {
+        "tool": "memcheck",
+        "dtype": "float32",
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "cleanup_verified": true,
+        "active_processes": 0,
+        "total_processes": 5,
+        "diagnostic_summary": "ERROR SUMMARY: 0 errors",
+        "diagnostic_summary_count": 1,
+        "log_sha256": "7f8f789ece0af8217702a4a0ebd57cba17e81e2c81ebbc2b439e1943f5ef5e36",
+        "receipt_sha256": "ff68664eb2d1e6688590041a4cdf06b26e1f217934dcd29ee3fb83c77ba858d7"
+      },
+      {
+        "tool": "memcheck",
+        "dtype": "float64",
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "cleanup_verified": true,
+        "active_processes": 0,
+        "total_processes": 5,
+        "diagnostic_summary": "ERROR SUMMARY: 0 errors",
+        "diagnostic_summary_count": 1,
+        "log_sha256": "74dd7840abe52d338ea1b66e9519ea963bb28b4fc857f4a016469a00bac9ebde",
+        "receipt_sha256": "2a082d5bc7aced1e207cea22bb1029093074df7493cded97db196a0c6227c332"
+      },
+      {
+        "tool": "racecheck",
+        "dtype": "float32",
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "cleanup_verified": true,
+        "active_processes": 0,
+        "total_processes": 5,
+        "diagnostic_summary": "RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)",
+        "diagnostic_summary_count": 1,
+        "log_sha256": "dad21d5b366f3c519b6ab86cc121267369082cf3b7b0b1928d5c7173ea10f2dd",
+        "receipt_sha256": "ff68664eb2d1e6688590041a4cdf06b26e1f217934dcd29ee3fb83c77ba858d7"
+      },
+      {
+        "tool": "racecheck",
+        "dtype": "float64",
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "cleanup_verified": true,
+        "active_processes": 0,
+        "total_processes": 5,
+        "diagnostic_summary": "RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)",
+        "diagnostic_summary_count": 1,
+        "log_sha256": "a245f63018f89850f4b5cc783b3258a2b327741888626c25ade19711281aa3fc",
+        "receipt_sha256": "2a082d5bc7aced1e207cea22bb1029093074df7493cded97db196a0c6227c332"
+      },
+      {
+        "tool": "synccheck",
+        "dtype": "float32",
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "cleanup_verified": true,
+        "active_processes": 0,
+        "total_processes": 5,
+        "diagnostic_summary": "ERROR SUMMARY: 0 errors",
+        "diagnostic_summary_count": 1,
+        "log_sha256": "aedf7d808adb89a69dd588062bc9145e198b8069e389f50b2f32179728b2b9c3",
+        "receipt_sha256": "ff68664eb2d1e6688590041a4cdf06b26e1f217934dcd29ee3fb83c77ba858d7"
+      },
+      {
+        "tool": "synccheck",
+        "dtype": "float64",
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "cleanup_verified": true,
+        "active_processes": 0,
+        "total_processes": 5,
+        "diagnostic_summary": "ERROR SUMMARY: 0 errors",
+        "diagnostic_summary_count": 1,
+        "log_sha256": "2de64532fe97ac58efda3266d02e2f7228d0c905e69fc8713c52f43315f8c6e7",
+        "receipt_sha256": "2a082d5bc7aced1e207cea22bb1029093074df7493cded97db196a0c6227c332"
+      }
+    ],
+    "entire_functional_suite_instrumented": false,
+    "driver_reported_cuda_header": "13.4 (tool/driver-reported header, not the selected Torch runtime or NVCC version)"
+  },
+  "historical_prerequisite": {
+    "initial_memcheck_probe_exit": 97,
+    "initial_result": "WDDM debugger-interface initialization refused, followed by a generic unsupported-device message",
+    "initial_log_sha256": "dec3fa1cdd78de30b77fdd034238ea62e82a20dc25a77215546f9b17e091a00f",
+    "resolution": "T manually launched the reviewed elevated diagnostic helper. It temporarily enabled only the documented NVIDIA interface value.",
+    "prior_target_key_and_value": "absent",
+    "helper_restoration_verified": true,
+    "separate_owner_readback": "target key absent again",
+    "driver_tdr_display_or_global_toolchain_changes": false
+  },
+  "review": {
+    "independent_native_source_review": "passed",
+    "independent_artifact_and_functional_readback": "passed",
+    "independent_actual_native_diagnostic_readback": "passed",
+    "native_review_sha256": "5fa8d224545b3c9b424864215dcabcdf9b56e3e4217cf97c2bf9b74806631397",
+    "raw_logs": "Retained privately with their hashes above; this whitelisted summary excludes local paths, account and machine identifiers."
+  },
+  "limits": [
+    "One Windows RTX 4090 sm_89 toolchain/device execution, eager packed first order only",
+    "Six instrumented synthetic training invocations; not the full 138-test suite under each tool",
+    "No claim of universal memory/race freedom, model quality, speed, production security or broad platform/device/ABI compatibility",
+    "No CUDA compile/export, graph capture, higher derivatives, padded API, mixed precision, distributed training or other GPU backend acceptance"
+  ]
+}
