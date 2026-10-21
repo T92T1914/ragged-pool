@@ -1,6 +1,7 @@
 """Per-example derivatives and independent clipping/reduction witnesses."""
 import importlib.util
 from pathlib import Path
+import weakref
 
 import pytest
 import torch
@@ -62,7 +63,7 @@ def test_batched_parameter_rows_match_serial_reference_mean_loss_and_empty_head_
     reference = _example.per_example_gradients(model, raw, mask, targets, ragged_pool_padded_reference, method='serial')
     predictions, pooled = model(raw, mask, ragged_pool_padded)
     mean_gradients = torch.autograd.grad((predictions-targets).square().mean(), tuple(parameters.values()))
-    tolerance = dict(rtol=4e-5, atol=4e-6) if dtype == torch.float32 else dict(rtol=1e-9, atol=1e-11)
+    tolerance = dict(rtol=2e-5, atol=2e-6) if dtype == torch.float32 else dict(rtol=1e-10, atol=1e-12)
     assert actual.keys() == serial.keys() == reference.keys() == parameters.keys()
     empty, = (~mask.any(dim=1)).nonzero().flatten().tolist()
     assert torch.count_nonzero(pooled[empty]) == 0
@@ -91,13 +92,169 @@ def test_consumer_rejects_zero_examples_without_narrowing_the_pooling_api():
     mask = torch.empty((0, 3), dtype=torch.bool)
     with pytest.raises(ValueError):
         _example.per_example_gradients(model, raw, mask, torch.empty((0,), dtype=raw.dtype), ragged_pool_padded)
+    with pytest.raises(ValueError):
+        _example.chunked_clipped_gradients(model, raw, mask, torch.empty((0,), dtype=raw.dtype), ragged_pool_padded, 1.)
     assert ragged_pool_padded(raw, torch.empty((0, 3), dtype=raw.dtype), mask).shape == (0, 3)
 
 
+@pytest.mark.parametrize('chunk_size', [1, 2, 3, 5, 9])
 @pytest.mark.parametrize('dtype_name', ['float32', 'float64'])
-def test_installed_consumer_takes_two_clipped_updates_with_controls_and_padding_invariance(dtype_name):
-    receipt = _example.run(dtype_name)
+def test_chunked_selectors_real_gradient_shapes_graph_lifecycle_and_no_mutation(monkeypatch, dtype_name, chunk_size):
+    dtype = getattr(torch, dtype_name)
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(731)
+        model = _example.PaddedRegressor().to(dtype)
+    layout = _example.make_layouts(dtype_name)['fixed_holes']
+    raw, mask = layout['raw'], layout['mask']
+    targets = raw.new_tensor([-.3, 8., -.5, .25, -4.])
+    named = dict(model.named_parameters())
+    first = next(iter(named.values()))
+    first.grad = torch.full_like(first, .125)
+    grad_before = {name: None if p.grad is None else p.grad.clone() for name, p in named.items()}
+    grad_objects = {name: p.grad for name, p in named.items()}
+    param_before = {name: (p.detach().view(torch.uint8).clone(), p._version) for name, p in named.items()}
+    snapshots = [(t.view(torch.uint8).clone(), t._version) for t in (raw, mask, targets)]
+    # Compute the independent full route before forbidding its eye(B) seed.
+    full = _example.per_example_gradients(model, raw, mask, targets, ragged_pool_padded)
+    expected_means, expected_norms, expected_scales = _example.clip_per_example(full, 1.)
+    serial = _example.per_example_gradients(model, raw, mask, targets, ragged_pool_padded, 'serial')
+    reference = _example.per_example_gradients(model, raw, mask, targets, ragged_pool_padded_reference, 'serial')
+    serial_means, _, _ = _example.clip_per_example(serial, 1.)
+    reference_means, _, _ = _example.clip_per_example(reference, 1.)
+    real_grad = torch.autograd.grad
+    calls, previous_refs = [], []
+    effective = min(chunk_size, len(targets))
+
+    def observed_grad(outputs, inputs, grad_outputs=None, **kwargs):
+        # Python references to previous returned blocks and selectors must be
+        # gone before another grad call begins. This does not measure RSS.
+        assert all(ref() is None for ref in previous_refs)
+        previous_refs.clear()
+        start = sum(call['rows'] for call in calls)
+        rows = min(effective, len(targets) - start)
+        assert grad_outputs.shape == (rows, len(targets))
+        expected = torch.zeros_like(grad_outputs)
+        for row in range(rows):
+            expected[row, start + row] = 1
+        assert torch.equal(grad_outputs, expected)
+        assert kwargs == {'retain_graph': start + rows < len(targets), 'create_graph': False,
+                          'allow_unused': False, 'is_grads_batched': True}
+        result = real_grad(outputs, inputs, grad_outputs, **kwargs)
+        assert len(result) == len(named)
+        for actual, parameter in zip(result, named.values()):
+            assert actual.shape == (rows, *parameter.shape)
+        calls.append({'rows': rows, 'retain_graph': kwargs['retain_graph'],
+                      'seed_shape': list(grad_outputs.shape),
+                      'gradient_shapes': {name: list(g.shape) for name, g in zip(named, result)}})
+        previous_refs.extend(weakref.ref(g) for g in result)
+        previous_refs.append(weakref.ref(grad_outputs))
+        return result
+
+    def forbidden_eye(*args, **kwargs):
+        raise AssertionError('The chunk helper must not allocate a full eye matrix')
+
+    with monkeypatch.context() as patch:
+        patch.setattr(torch.autograd, 'grad', observed_grad)
+        patch.setattr(torch, 'eye', forbidden_eye)
+        means, norms, scales, metadata = _example.chunked_clipped_gradients(
+            model, raw, mask, targets, ragged_pool_padded, 1., chunk_size)
+    assert all(ref() is None for ref in previous_refs)
+    tolerance = dict(rtol=2e-5, atol=2e-6) if dtype == torch.float32 else dict(rtol=1e-10, atol=1e-12)
+    torch.testing.assert_close(norms, expected_norms, **tolerance)
+    torch.testing.assert_close(scales, expected_scales, **tolerance)
+    assert metadata == {'requested_size': chunk_size, 'effective_size': effective,
+        'chunk_rows': [call['rows'] for call in calls],
+        'retain_graph': [call['retain_graph'] for call in calls],
+        'seed_shapes': [call['seed_shape'] for call in calls],
+        'gradient_shapes': [call['gradient_shapes'] for call in calls],
+        'max_rows': effective, 'parameter_elements': 25}
+    assert sum(metadata['chunk_rows']) == len(targets)
+    for name, parameter in named.items():
+        for expected in (expected_means, serial_means, reference_means):
+            torch.testing.assert_close(means[name], expected[name], **tolerance)
+        before_bytes, before_version = param_before[name]
+        assert parameter._version == before_version
+        assert torch.equal(parameter.detach().view(torch.uint8), before_bytes)
+        assert parameter.grad is grad_objects[name]
+        if grad_before[name] is None:
+            assert parameter.grad is None
+        else:
+            assert torch.equal(parameter.grad, grad_before[name])
+    for tensor, (before, version) in zip((raw, mask, targets), snapshots):
+        assert tensor._version == version and torch.equal(tensor.view(torch.uint8), before)
+
+
+@pytest.mark.parametrize('chunk_size', [0, -1, True, False, 1.5, 2.0, '2', None])
+def test_chunked_clipping_rejects_invalid_chunk_sizes(chunk_size):
+    model = _example.PaddedRegressor().double()
+    raw = torch.zeros((1, 2, 3), dtype=torch.float64)
+    with pytest.raises(ValueError, match='positive Python integer'):
+        _example.chunked_clipped_gradients(model, raw, torch.ones((1, 2), dtype=torch.bool),
+                                           torch.zeros(1, dtype=raw.dtype), ragged_pool_padded, 1., chunk_size)
+
+
+@pytest.mark.parametrize('dtype_name', ['float32', 'float64'])
+def test_uneven_tail_uses_global_example_count_instead_of_equal_chunk_weights(dtype_name):
+    class ScalarPrediction(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.zeros(1, dtype=getattr(torch, dtype_name)))
+
+        def forward(self, raw, mask, pool):
+            return self.weight.expand(raw.shape[0]), raw.new_zeros((raw.shape[0], 1))
+
+    model = ScalarPrediction()
+    raw = torch.zeros((5, 1, 1), dtype=getattr(torch, dtype_name))
+    targets = raw.new_tensor([-.5, -.5, -.5, -.5, 0.])
+    means, norms, scales, metadata = _example.chunked_clipped_gradients(
+        model, raw, torch.ones((5, 1), dtype=torch.bool), targets, None, 1., 2)
+    # At weight zero the five loss derivatives are exactly [1,1,1,1,0].
+    torch.testing.assert_close(norms, torch.tensor([1., 1., 1., 1., 0.], dtype=torch.float64), rtol=0, atol=0)
+    assert torch.equal(scales, torch.ones(5, dtype=torch.float64))
+    torch.testing.assert_close(means['weight'], raw.new_tensor([4/5]), rtol=0, atol=0)
+    assert not torch.allclose(means['weight'], raw.new_tensor([(1 + 1 + 0) / 3]))
+    assert metadata['chunk_rows'] == [2, 2, 1] and metadata['retain_graph'] == [True, True, False]
+    assert model.weight.grad is None and torch.count_nonzero(model.weight.detach()) == 0
+
+
+@pytest.mark.parametrize('batch', [1, 5])
+@pytest.mark.parametrize('dtype_name', ['float32', 'float64'])
+def test_chunked_single_example_and_all_empty_nonempty_batches(dtype_name, batch):
+    dtype = getattr(torch, dtype_name)
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(731)
+        model = _example.PaddedRegressor().to(dtype)
+    raw = torch.full((batch, 3, 3), float('nan'), dtype=dtype)
+    mask = torch.zeros((batch, 3), dtype=torch.bool)
+    targets = torch.linspace(-.5, 1., batch, dtype=dtype)
+    full = _example.per_example_gradients(model, raw, mask, targets, ragged_pool_padded)
+    expected, expected_norms, expected_scales = _example.clip_per_example(full, 1.)
+    actual, norms, scales, metadata = _example.chunked_clipped_gradients(
+        model, raw, mask, targets, ragged_pool_padded, 1., 2)
+    tolerance = dict(rtol=2e-5, atol=2e-6) if dtype == torch.float32 else dict(rtol=1e-10, atol=1e-12)
+    torch.testing.assert_close(norms, expected_norms, **tolerance)
+    torch.testing.assert_close(scales, expected_scales, **tolerance)
+    for name in expected:
+        torch.testing.assert_close(actual[name], expected[name], **tolerance)
+        if name != 'head.bias':
+            assert torch.count_nonzero(actual[name]) == 0
+    assert torch.count_nonzero(full['head.bias']) > 0
+    assert metadata['effective_size'] == min(2, batch)
+    assert metadata['retain_graph'][-1] is False
+
+
+@pytest.mark.parametrize('chunk_size', [1, 2, 3, 5, 9])
+@pytest.mark.parametrize('dtype_name', ['float32', 'float64'])
+def test_installed_consumer_takes_two_clipped_updates_with_controls_and_padding_invariance(dtype_name, chunk_size):
+    receipt = _example.run(dtype_name, chunk_size)
     assert receipt['status'] == 'passed' and receipt['dtype'] == dtype_name
     assert receipt['method'] == 'autograd.grad.is_grads_batched'
+    assert receipt['aggregation_method'] == 'chunked_per_example_joint_clip'
+    assert receipt['chunk_size_requested'] == chunk_size
     assert receipt['optimizer_steps'] == receipt['reference_optimizer_steps'] == 2
     assert receipt['controls']['status'] == receipt['invariance']['status'] == receipt['empty']['status'] == 'passed'
+    for step in receipt['steps']:
+        assert step['chunking']['effective_size'] == min(chunk_size, 5)
+        assert step['chunking']['max_rows'] <= chunk_size
+        assert sum(step['chunking']['chunk_rows']) == 5
+        assert step['chunking']['retain_graph'][-1] is False
