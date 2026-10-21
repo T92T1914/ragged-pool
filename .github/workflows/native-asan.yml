@@ -149,6 +149,24 @@ jobs:
           PY
             cat "$receipt"
           done
+          for dtype in float32 float64; do
+            receipt="$RUNNER_TEMP/asan-evidence/forward-ad-$dtype.json"
+            "$python" -I -u -X faulthandler examples/train_forward_ad.py --dtype "$dtype" --output "$receipt"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["optimizer_steps"] == receipt["reference_optimizer_steps"] == receipt["original_native_optimizer_steps"] == 2
+          assert receipt["sensitivity"]["status"] == "passed" and receipt["sensitivity"]["parameters_fixed"]
+          assert receipt["inputs_unchanged"] and receipt["installed_package"] and receipt["native_library_loaded"]
+          assert receipt["threads"] == receipt["interop_threads"] == 1
+          print("Packed forward AD", sys.argv[2], "passed two updates and fixed-parameter sensitivity")
+          PY
+            cat "$receipt"
+          done
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2

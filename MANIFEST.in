@@ -30,3 +30,5 @@ include examples/train_padded_gradient_penalty.py
 include docs/padded-second-order.md
 include examples/train_clipped.py
 include docs/per-example-gradients.md
+include docs/forward-ad.md
+include examples/train_forward_ad.py
