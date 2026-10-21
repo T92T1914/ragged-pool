@@ -167,6 +167,25 @@ jobs:
           PY
             cat "$receipt"
           done
+          for dtype in float32 float64; do
+            receipt="$RUNNER_TEMP/asan-evidence/functional-models-$dtype.json"
+            "$python" -I -u -X faulthandler examples/train_functional_models.py --dtype "$dtype" --output "$receipt"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["method"] == "torch.func.vmap.grad.functional_call" and receipt["models"] == 3
+          assert receipt["optimizer_steps"] == receipt["original_native_optimizer_steps"] == receipt["reference_optimizer_steps"] == 2
+          assert receipt["shared_input_gradients"]["status"] == "passed" and receipt["shared_input_gradients"]["sum_differs_from_mean"]
+          assert receipt["parameters_stacked_leaf"] and receipt["inputs_unchanged"] and receipt["installed_package"] and receipt["native_library_loaded"]
+          assert receipt["threads"] == receipt["interop_threads"] == 1
+          print("Functional models", sys.argv[2], "passed two updates and shared-input gradient controls")
+          PY
+            cat "$receipt"
+          done
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2
