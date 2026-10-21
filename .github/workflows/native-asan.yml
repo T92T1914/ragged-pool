@@ -125,6 +125,23 @@ jobs:
           PY
             cat "$receipt"
           done
+          for dtype in float32 float64; do
+            receipt="$RUNNER_TEMP/asan-evidence/clipped-$dtype.json"
+            "$python" -I -u -X faulthandler examples/train_clipped.py --dtype "$dtype" --output "$receipt"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["method"] == "autograd.grad.is_grads_batched"
+          assert receipt["optimizer_steps"] == receipt["reference_optimizer_steps"] == 2
+          assert receipt["controls"]["status"] == receipt["invariance"]["status"] == receipt["empty"]["status"] == "passed"
+          print("Per-example clipped gradients", sys.argv[2], "passed two updates, invariance and controls")
+          PY
+            cat "$receipt"
+          done
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2

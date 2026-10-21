@@ -1,0 +1,72 @@
+# Train with per-example clipped gradients
+
+`examples/train_clipped.py` uses one bag as one training example. It computes a separate parameter gradient for each bag, limits the length of each complete gradient vector, averages those vectors, and takes two SGD steps. The model keeps native padded pooling between its learned scorer and prediction head. This changes the optimizer's input without adding a package API or another native derivative.
+
+The example uses ordinary padded forward evaluation followed by the experimental [`torch.autograd.grad(..., is_grads_batched=True)` API](https://docs.pytorch.org/docs/2.9/generated/torch.autograd.grad.html). This batches backward products from an existing graph. Direct `torch.func.grad`, vmap and JVP through the native layer remain outside the contract. The existing first-order compiled path, eager second derivatives and exported inference callers keep their own limits.
+
+## One gradient for each bag
+
+The encoder, tanh, bias-free scorer and scalar prediction head operate independently on each bag. There is no batch normalization, dropout or cross-example objective. The model produces predictions `[B]` and unreduced squared losses `[B]`. Identity cotangents select each loss in turn:
+
+```python
+gradients = torch.autograd.grad(
+    losses,
+    tuple(model.parameters()),
+    grad_outputs=torch.eye(B, dtype=losses.dtype, device="cpu"),
+    is_grads_batched=True,
+    create_graph=False,
+    allow_unused=False,
+)
+```
+
+For each parameter tensor, the result has shape `[B, *parameter.shape]`. Its row `i` is the gradient of example `i` with respect to that parameter. The example requires all five named parameter blocks to remain connected. It does not implement a general solution for arbitrary models or unused parameters. Unlike `.backward()`, this API returns gradients without accumulating them into parameter `.grad` fields.
+
+The caller requires at least one example. An empty bag within a nonempty batch is valid. Its pooled features and encoder/scorer parameter contributions are zero. A scalar head bias can still receive a loss gradient because an empty bag can still have a target and a prediction. Including that gradient is part of the update.
+
+## Clip the complete parameter vector
+
+Let `G[i,p]` be example `i`'s gradient for parameter block `p`. For a declared positive clipping threshold `C`, the example computes:
+
+```text
+norm[i] = sqrt(sum over p and every element of G[i,p] ** 2)
+scale[i] = 1                         if norm[i] == 0
+           min(1, C / norm[i])       otherwise
+mean_gradient[p] = mean over i of scale[i] * G[i,p]
+```
+
+The threshold is `1.0`. The norm joins all parameter blocks for an example. Clipping each block separately would define a different update. Zero-norm examples use scale one without division by zero or an added epsilon. Each batch example remains in the averaging denominator, including an empty bag or a zero-gradient example.
+
+Native gradients retain the model's float32 or float64 dtype. The clipping helper converts gradients to float64 for the norm, scaling and averaging, then casts each mean once to the parameter dtype. Float32 rounding therefore happens when the final optimizer gradient is formed. This deliberate local arithmetic conversion does not move model inputs or parameters to another device or change the pooling contract. The means are assigned to `.grad` before SGD takes a step.
+
+Two small vectors show why clipping happens before the mean. With gradients `[2,0]` and `[0,0.5]` and threshold one, the mean of clipped gradients is `[0.5,0.25]`. Their unmodified mean is `[1,0.25]`. Clipping that mean gives approximately `[0.9701,0.2425]`, a different result. A second distinction is the joint norm: blocks containing `1.2` and `1.6` have combined norm two, so joint clipping produces `0.6` and `0.8`. Clipping each scalar block independently would produce `1` and `1`.
+
+## Checks around the update
+
+At each step the consumer compares every native batched per-example gradient with ordinary serial native gradients and an independent per-row PyTorch reference. The mean of unclipped rows must also match the gradient of mean loss. Native and reference models compare clipped means, updated parameters and predictions through two actual SGD steps in each supported dtype.
+
+The fixed fixture must activate clipping. Controls require meaningful differences from both the unclipped update and clipping after the mean. Independent split-parameter vectors check the joint norm and zero-norm behavior. These checks establish the chosen update's semantics for the fixture, not that clipping improves a model.
+
+Ignored raw padding is cleared before encoder arithmetic. Masking only the pool's output cannot undo a NaN that has already entered an upstream parameter-gradient calculation. Equivalent selected items are also represented with moved holes, added padded width and changed ignored nonfinite values. Those layouts must preserve the per-example gradients and two-step trajectory within dtype tolerances. Input bytes and version counters remain unchanged. The original [padded input contract](padded-batches.md) still applies at the pooling boundary.
+
+## Run the installed consumer
+
+Build and install a wheel using the [Windows route](../README.md#build-and-run) or [Linux source-distribution route](linux-cpu.md). Use a fresh environment outside the checkout, copy the standalone example outside the checkout, and choose new receipt paths:
+
+```powershell
+$python = 'C:\work\ragged-accept\Scripts\python.exe'
+$example = 'C:\work\ragged-consumer\train_clipped.py'
+& $python -I $example --dtype float32 --output 'C:\work\ragged-consumer\clipped-float32.json'
+if ($LASTEXITCODE -ne 0) { throw 'Installed float32 clipped-gradient consumer failed' }
+& $python -I $example --dtype float64 --output 'C:\work\ragged-consumer\clipped-float64.json'
+if ($LASTEXITCODE -ne 0) { throw 'Installed float64 clipped-gradient consumer failed' }
+```
+
+The JSON receipt declares method `autograd.grad.is_grads_batched`, native and reference optimizer-step counts, and control, invariance and empty-bag results. All three existing CPU workflows run both dtypes and retain the receipts. A completed run at an identified revision establishes execution. Workflow source alone does not establish a pass.
+
+## Batching limits and interpretation
+
+PyTorch 2.9.1 implements this experimental API through a [legacy batching wrapper](https://github.com/pytorch/pytorch/blob/v2.9.1/torch/autograd/__init__.py#L455-L468). Its [fallback](https://github.com/pytorch/pytorch/blob/v2.9.1/aten/src/ATen/LegacyBatchedFallback.cpp#L235-L330) can execute slices separately and stack the results. This is not a dedicated batched native kernel. The identity seed matrix uses `B * B` entries, and the returned parameter gradients have a leading example dimension. Keep this caller small. No throughput or memory advantage is claimed.
+
+The preliminary pinned Windows CPU probe matched serial native gradients in float32 and float64. Enabling PyTorch's documented fallback diagnostics identified missing legacy batching rules for the padded backward operation and tanh backward. A separate direct `torch.func.grad` attempt failed because the generated library autograd Function does not provide the separate `setup_context` required by transforms. Those observations qualify the selected route. The diagnostic warnings are not a performance measurement, and switching to a different transform is not a demonstrated repair.
+
+This example demonstrates per-example gradient handling and an actual clipped optimizer update. It adds no noise mechanism or privacy accountant and provides no differential privacy guarantee. It is not DP-SGD, an adversarial defense, a security control or evidence of improved prediction quality. Higher-order differentiation of this caller, arbitrary model batching, other devices and cross-version behavior are not promised.

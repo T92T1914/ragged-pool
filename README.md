@@ -88,6 +88,12 @@ The example includes a detached-penalty control. It has the same scalar penalty 
 
 `examples/train_padded_gradient_penalty.py` uses the padded encoder/scorer/head and normalizes its penalty by selected raw features. Moving mask holes or adding ignored padding therefore preserves the chosen objective and its two-step training trajectory. A dense-mean control shows that including ignored features in the denominator halves its penalty when padded width doubles. The [padded second-order guide](docs/padded-second-order.md) explains the objective, ownership rules, controls and installed commands. Its adapter reuses the existing native second derivative. Third derivatives and compiled double backward remain excluded. Existing packed and padded compiled training remains first-order, and saved export remains inference only.
 
+## Train with per-example clipped gradients
+
+`examples/train_clipped.py` computes one parameter gradient per bag using ordinary padded forward evaluation and the experimental `torch.autograd.grad(..., is_grads_batched=True)` API. It clips each example's joint parameter-gradient norm before averaging, then takes two SGD steps. Native batched gradients are compared with serial native and independent per-row PyTorch gradients. Controls distinguish this update from unclipped training and clipping after the mean, with float64 norm accumulation and explicit zero-norm handling.
+
+The [per-example gradient guide](docs/per-example-gradients.md) explains the update, empty-bag behavior, padding invariance and installed commands for both dtypes. This uses existing first-order autograd registrations. PyTorch's batching fallback can perform serial work, and direct `torch.func` transforms remain unsupported. The example adds no noise or privacy accountant and makes no differential privacy, model-quality or speed claim.
+
 <a id="one-set-learning-and-cpu-cost-study"></a>
 
 ## One synthetic training study and CPU cost comparison
@@ -137,7 +143,7 @@ This example accepts raw `[B,T,3]` features and a bool mask, with `B=2..32` and 
 
 The declared compiler acceptance path is `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=False)` for forward and backward, including the padded training consumer. It exercises graph capture and autograd integration. The separate CPU study also executed native Inductor forward/backward on one declared packed case in the pinned environment. Its equivalent attempt using built in operations failed during compilation of generated code, and no optimized speed advantage was established. Fake tensor implementations describe each forward and private backward output without reading tensor contents. Runtime execution still validates selected numerical contents and packed offsets.
 
-Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. The packed and padded eager second-order routes have their own [native derivative](docs/second-order.md) and [padded caller checks](docs/padded-second-order.md). CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, third derivatives and vmap are outside this version.
+Initial build and acceptance results are recorded in [the local acceptance note](docs/acceptance.md). The later [CPU study](docs/cpu-study.md) records its own source, installed wheel and bounded measurements. The packed and padded eager second-order routes have their own [native derivative](docs/second-order.md) and [padded caller checks](docs/padded-second-order.md). CUDA, other devices, float16/bfloat16, sparse inputs, arbitrary forward layouts, mixed precision, third derivatives and general `torch.func`/vmap transforms are outside this version. The bounded per-example caller uses the separate experimental batched-backward route described above.
 
 The [Windows CPU workflow](.github/workflows/cpu.yml) rebuilds the wheel, installs it into a fresh environment outside the checkout, checks package and license bytes, runs the test suite, and executes both dtype consumers with one step plus the study smoke using only validation. The actual run and revision determine CI status. A workflow file by itself is not an executed result.
 
