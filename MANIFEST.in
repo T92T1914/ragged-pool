@@ -36,3 +36,6 @@ include docs/functional-models.md
 include examples/train_functional_models.py
 include docs/hessian-vector-products.md
 include examples/train_curvature.py
+include docs/damped-curvature-solve.md
+include examples/damped_cg.py
+include examples/solve_curvature.py
