@@ -376,6 +376,32 @@ jobs:
           PY
             cat "$receipt"
           done
+          for dtype in float32 float64; do
+            receipt="$RAGGED_EVIDENCE/resume-$dtype.json"
+            "$python" -I examples/resume_training.py --dtype "$dtype" --directory "$RAGGED_EVIDENCE/resume-$dtype" --output "$receipt" > "$RAGGED_EVIDENCE/resume-$dtype.stdout.log" 2>&1
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import re
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["method"] == "state_dict.packed_training_resume" and receipt["device"] == "cpu"
+          assert receipt["optimizer_steps"] == 5 and receipt["producer_steps"] == 2 and receipt["resumed_steps"] == 3 and receipt["checkpoint_cursor"] == 2
+          assert receipt["optimizer"] == "SGD" and receipt["learning_rate"] == 0.03 and receipt["momentum"] == 0.8
+          assert receipt["same_native_exact"] and receipt["primitive_comparisons_passed"] and receipt["independent_momentum_recurrence"]
+          assert receipt["model_only_reset_optimizer_diverged"] and receipt["no_live_rng_continuation"]
+          assert receipt["input_sources_unchanged"] and receipt["loaded_state_storage_independent"] and len(receipt["steps"]) == 5
+          assert receipt["checkpoint_bytes"] <= receipt["checkpoint_byte_limit"]
+          process_ids = [receipt["process_ids"][name] for name in ("parent", "producer", "resumer")]
+          assert receipt["distinct_processes"] and len(set(process_ids)) == 3 and all(type(value) is int and value > 0 for value in process_ids)
+          assert receipt["checkpoint_unchanged"] and receipt["checkpoint_bytes"] > 0 and re.fullmatch(r"[0-9a-f]{64}", receipt["checkpoint_sha256"])
+          assert receipt["installed_package"] and receipt["native_library_loaded"] and receipt["threads"] == receipt["interop_threads"] == 1
+          print("Training resume", sys.argv[2], "passed two producer updates and three fresh-process continuation updates")
+          PY
+            cat "$receipt"
+          done
           mkdir "$RAGGED_EVIDENCE/padded-export"
           for dtype in float32 float64; do
             bundle="$RAGGED_EVIDENCE/padded-export/$dtype"
