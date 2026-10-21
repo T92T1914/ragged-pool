@@ -26,6 +26,7 @@ FIXED_FILES = (
     'docs/padded-export.md',
     'docs/padded-second-order.md',
     'docs/per-example-gradients.md',
+    'docs/forward-ad.md',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

@@ -13,9 +13,11 @@ from . import _registration  # noqa: E402,F401
 from .reference import ragged_pool_reference  # noqa: E402
 from .padded import ragged_pool_padded, ragged_pool_padded_reference  # noqa: E402
 from . import _padded_registration  # noqa: E402,F401
+from .forward_ad import ragged_pool_forward_ad  # noqa: E402
 
 __version__ = "0.1.0"
-__all__ = ["ragged_pool", "ragged_pool_reference", "ragged_pool_padded", "ragged_pool_padded_reference"]
+__all__ = ["ragged_pool", "ragged_pool_reference", "ragged_pool_padded", "ragged_pool_padded_reference",
+           "ragged_pool_forward_ad"]
 
 
 def ragged_pool(values, logits, offsets):
