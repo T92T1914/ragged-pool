@@ -1,5 +1,96 @@
-"""Packed eager forward-mode AD using the existing native derivative math."""
+"""Bounded packed eager transforms using the existing native derivative math."""
 import torch
+
+
+class _SingleMap(torch.autograd.Function):
+    @staticmethod
+    def forward(value):
+        # Preserve strides and the original version counter. Cloning here
+        # would admit a noncontiguous primal before native validation.
+        return value
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        pass
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output
+
+    @staticmethod
+    def vmap(info, in_dims, value):
+        raise RuntimeError("ragged-pool nested vmap is not supported")
+
+    @staticmethod
+    def jvp(ctx, direction):
+        raise RuntimeError("ragged-pool mapped forward AD is not supported")
+
+
+def _lane_shape(tensor, dim):
+    shape = tuple(tensor.shape)
+    if dim is None:
+        return shape
+    dim %= tensor.dim()
+    return shape[:dim] + shape[dim + 1:]
+
+
+def _serial_map(function, info, in_dims, arguments, value_index, offset_index):
+    # PyTorch supplies the current chunk size here. These limits apply to
+    # each rule invocation, not to the complete user axis under chunk_size.
+    count = info.batch_size
+    if not 1 <= count <= 8:
+        raise RuntimeError("ragged-pool mapped lane count must be in [1,8]")
+    value_shape = _lane_shape(arguments[value_index], in_dims[value_index])
+    offset_shape = _lane_shape(arguments[offset_index], in_dims[offset_index])
+    if len(value_shape) != 2 or len(offset_shape) != 1 or offset_shape[0] < 1:
+        raise RuntimeError("ragged-pool mapped lanes need values [N,D] and offsets [B+1]")
+    # Shared arguments are charged once for every actual native lane call.
+    if count * value_shape[0] > 4096 or count * (offset_shape[0] - 1) > 128:
+        raise RuntimeError("ragged-pool mapped aggregate requires K*N <=4096 and K*B <=128")
+    # A remaining outer map reaches this public Function and raises before
+    # native execution. The identity also keeps original primal lane strides.
+    arguments = tuple(_SingleMap.apply(tensor) for tensor in arguments)
+    results = []
+    for index in range(count):
+        lane = tuple(tensor if dim is None else tensor.select(dim, index)
+                     for tensor, dim in zip(arguments, in_dims))
+        results.append(function.apply(*lane))
+    if isinstance(results[0], tuple):
+        return (tuple(torch.stack([result[j] for result in results])
+                      for j in range(len(results[0]))),
+                (0,) * len(results[0]))
+    return torch.stack(results), 0
+
+
+class _PackedBackward(torch.autograd.Function):
+    @staticmethod
+    def forward(grad_output, values, logits, offsets):
+        return torch.ops.ragged_pool._backward.default(grad_output, values, logits, offsets)
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        ctx.save_for_backward(*inputs)
+        ctx.set_materialize_grads(False)
+
+    @staticmethod
+    def backward(ctx, grad_grad_values, grad_grad_logits):
+        grad_output, values, logits, offsets = ctx.saved_tensors
+        if grad_grad_values is None:
+            grad_grad_values = torch.zeros_like(values)
+        if grad_grad_logits is None:
+            grad_grad_logits = torch.zeros_like(logits)
+        grad_grad_output, grad_values, grad_logits = torch.ops.ragged_pool._double_backward.default(
+            grad_grad_values, grad_grad_logits, grad_output, values, logits, offsets,
+        )
+        return grad_grad_output, grad_values, grad_logits, None
+
+    @staticmethod
+    def vmap(info, in_dims, *arguments):
+        return _serial_map(_PackedBackward, info, in_dims, arguments, 1, 3)
+
+    @staticmethod
+    def jvp(ctx, *directions):
+        raise RuntimeError("ragged-pool forward AD of reverse derivatives is not supported")
 
 
 def _check_direction(direction, primal, name):
@@ -51,10 +142,14 @@ class _PackedForwardAD(torch.autograd.Function):
         values, logits, offsets = ctx.saved_tensors
         if grad_output is None:
             return None, None, None
-        grad_values, grad_logits = torch.ops.ragged_pool._backward.default(
+        grad_values, grad_logits = _PackedBackward.apply(
             grad_output, values, logits, offsets,
         )
         return grad_values, grad_logits, None
+
+    @staticmethod
+    def vmap(info, in_dims, *arguments):
+        return _serial_map(_PackedForwardAD, info, in_dims, arguments, 0, 2)
 
     @staticmethod
     def jvp(ctx, direction_values, direction_logits, direction_offsets):
@@ -83,12 +178,20 @@ class _PackedForwardAD(torch.autograd.Function):
 
 
 def ragged_pool_forward_ad(values, logits, offsets):
-    """Pool packed CPU groups with an eager first-order forward-mode AD bridge.
+    """Pool packed CPU groups through selected eager function transforms.
 
     Primal admission matches ragged_pool. Floating directions must match their
     primals' shape and dtype, be strided CPU tensors, and be finite within
     [-1000,1000]. Public Function guards copy inputs before native JVP reuse.
-    Keep offsets fixed. Tangent differentiation and nested transforms are
-    excluded. Ordinary primal reverse differentiation retains second order.
+    Keep offsets fixed under differentiation. Scalar-loss torch.func.grad,
+    torch.func.vjp and one vmap layer, including vmap(grad), reuse native math.
+    Every selected primal lane retains the original contiguous CPU contract.
+    Per rule invocation or chunk, bounds are 1 <=K <=8, K*N <=4096 and
+    K*B <=128, charging shared inputs K times. PyTorch chunk_size can process
+    a larger complete axis through multiple bounded invocations. These bounds
+    do not limit total work or total process memory. Manual batching calls
+    native code serially without a speed claim.
+    Tangent differentiation, nested maps and mapped forward AD are excluded.
+    Ordinary primal reverse differentiation retains second order.
     """
     return _PackedForwardAD.apply(values, logits, offsets)

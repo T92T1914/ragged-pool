@@ -104,9 +104,17 @@ This forward partition preserves the update for the current deterministic model 
 
 `ragged_pool_forward_ad(values, logits, offsets)` supplies the same packed pooled result through a separate eager API with first-order forward automatic differentiation. A Jacobian-vector product (JVP) answers how the result changes when values and logits move a little along a chosen direction. Both explicit dual tensors and `torch.func.jvp` are supported on the pinned CPU environment. Ordinary reverse-mode training and its native second derivative remain available on the primal result.
 
-The bridge reuses the first result of the existing native second-backward routine. It adds no C++ kernel or dispatcher operator. Floating tangents match their primals' shape and dtype, are finite within `[-1000,1000]`, and may use strided or expanded views. Offsets are fixed. Differentiating tangents again is excluded and rejected; this is not general `torch.func`, compiled forward AD or padded JVP support.
+The bridge reuses the first result of the existing native second-backward routine. It adds no C++ kernel or dispatcher operator. Floating tangents match their primals' shape and dtype, are finite within `[-1000,1000]`, and may use strided or expanded views. Offsets are fixed. Differentiating tangents again is excluded and rejected; broader transform compositions, compiled forward AD and padded JVP remain excluded.
 
 `examples/train_forward_ad.py` compares two actual SGD updates with the original native route and independent PyTorch composition, then checks input sensitivity through the trained encoder/scorer/pool/head model. The [forward AD guide](docs/forward-ad.md) gives the hand example, derivative, installed commands and limitations. These small synthetic checks establish integration, not accuracy, robustness or speed.
+
+## Functional model gradients
+
+The same packed bridge also supports eager `torch.func.grad`, `vjp`, and one bounded `vmap` or `vmap(grad)` composition. A separate public Function boundary around native backward lets functional reverse transforms reach the existing C++ derivatives. Explicit manual batching rules run native lanes serially. There is no new kernel or batching speed claim.
+
+Mapped values/logits/offsets have a common packed shape envelope. Each selected primal lane retains original contiguous CPU admission. Each batching-rule invocation admits at most eight lanes, with aggregate `K*N <= 4096` and `K*B <= 128`, including shared arguments. PyTorch's `chunk_size` can run a larger outer map through several bounded invocations, so these limits do not cap the caller's total work or process memory. Nested maps are rejected through an identity guard that preserves strides. These are complete packed problems or model replicas, not arbitrary per-bag ragged maps.
+
+`examples/train_functional_models.py` uses stacked leaf parameter dictionaries, `functional_call` and `vmap(grad)` to take two real SGD updates in three distinct models. Each model is checked against serial original-native and independent PyTorch execution. Shared-input sum and mean gradients use unequal lane contributions. The [functional training guide](docs/functional-models.md) explains representation, admission, reduction, installed commands and excluded compositions.
 
 ## One synthetic training study and CPU cost comparison
 

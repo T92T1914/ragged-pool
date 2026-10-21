@@ -32,3 +32,5 @@ include examples/train_clipped.py
 include docs/per-example-gradients.md
 include docs/forward-ad.md
 include examples/train_forward_ad.py
+include docs/functional-models.md
+include examples/train_functional_models.py
