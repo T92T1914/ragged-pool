@@ -135,7 +135,7 @@ jobs:
           }
           foreach ($dtype in @('float32', 'float64')) {
             $receiptPath = "clipped-$dtype.json"
-            & $python -I examples\train_clipped.py --dtype $dtype --output $receiptPath
+            & $python -I examples\train_clipped.py --dtype $dtype --chunk-size 2 --output $receiptPath
             if ($LASTEXITCODE -ne 0) { throw "Installed clipped gradient $dtype consumer failed" }
             $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
             if ($receipt.status -ne 'passed' -or $receipt.dtype -ne $dtype -or $receipt.method -ne 'autograd.grad.is_grads_batched' -or $receipt.optimizer_steps -ne 2 -or $receipt.reference_optimizer_steps -ne 2) {
@@ -143,6 +143,18 @@ jobs:
             }
             if ($receipt.controls.status -ne 'passed' -or $receipt.invariance.status -ne 'passed' -or $receipt.empty.status -ne 'passed') {
               throw "Incomplete clipped gradient $dtype invariance or controls"
+            }
+            if ($receipt.aggregation_method -ne 'chunked_per_example_joint_clip' -or $receipt.chunk_size_requested -ne 2) {
+              throw "Unexpected clipped gradient $dtype aggregation route"
+            }
+            foreach ($step in $receipt.steps) {
+              $chunk = $step.chunking
+              if ($chunk.effective_size -ne 2 -or $chunk.max_rows -ne 2 -or ($chunk.chunk_rows -join ',') -ne '2,2,1' -or ($chunk.retain_graph -join ',') -ne 'True,True,False') {
+                throw "Unexpected clipped gradient $dtype partition or graph lifecycle"
+              }
+              if ((($chunk.seed_shapes | ForEach-Object { $_ -join ',' }) -join ';') -ne '2,5;2,5;1,5') {
+                throw "Unexpected clipped gradient $dtype selector shapes"
+              }
             }
             Get-Content -LiteralPath $receiptPath
           }

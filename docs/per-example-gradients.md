@@ -6,7 +6,7 @@ The example uses ordinary padded forward evaluation followed by the experimental
 
 ## One gradient for each bag
 
-The encoder, tanh, bias-free scorer and scalar prediction head operate independently on each bag. There is no batch normalization, dropout or cross-example objective. The model produces predictions `[B]` and unreduced squared losses `[B]`. Identity cotangents select each loss in turn:
+The encoder, tanh, bias-free scorer and scalar prediction head operate independently on each bag. There is no batch normalization, dropout or cross-example objective. The model produces predictions `[B]` and unreduced squared losses `[B]`. The full-batch oracle used to check chunking selects each loss with identity cotangents:
 
 ```python
 gradients = torch.autograd.grad(
@@ -40,11 +40,23 @@ Native gradients retain the model's float32 or float64 dtype. The clipping helpe
 
 Two small vectors show why clipping happens before the mean. With gradients `[2,0]` and `[0,0.5]` and threshold one, the mean of clipped gradients is `[0.5,0.25]`. Their unmodified mean is `[1,0.25]`. Clipping that mean gives approximately `[0.9701,0.2425]`, a different result. A second distinction is the joint norm: blocks containing `1.2` and `1.6` have combined norm two, so joint clipping produces `0.6` and `0.8`. Clipping each scalar block independently would produce `1` and `1`.
 
+## Chunk the backward selectors
+
+Training uses `chunked_clipped_gradients` with default chunk size `K=2`. The helper runs one full forward evaluation, then constructs each selector directly with shape `[r,B]`, where `r <= min(K,B)`. Row `j` selects the global example `start+j`, including the final uneven chunk. It does not construct `eye(B)` and slice it. For five examples and K=2, selector shapes are `[2,5]`, `[2,5]` and `[1,5]`.
+
+Each batched VJP returns `[r,*parameter.shape]` blocks. The helper clips each example's joint vector, adds its float64 clipped sums to the accumulators and releases those gradient blocks before the next VJP call. It retains the forward graph before the last call and frees saved backward state on the last, with `create_graph=False`. Parameters remain fixed across the chunks. The caller assigns the final means and takes one optimizer step only after the whole batch has been processed.
+
+Divide the complete sums by global B once, then cast once to the parameter dtype. Averaging chunk means equally gives the wrong weight to an uneven tail. For already clipped scalar rows `[1,1,1,1,0]` and chunks `[2,2,1]`, the correct mean is `4/5`. The chunk means are `1,1,0`, whose unweighted mean is `2/3`. A focused executed control distinguishes these rules. Empty examples still count in B, including their possible head-bias contribution.
+
+K must be a positive Python integer. Bool, zero, negative and nonintegral values are rejected. K greater than B is normalized to B, so `--chunk-size 5` or `--chunk-size 9` gives one full-size call for this fixture. K=1 exercises one example at a time. Every training step constructs a fresh graph. The helper preserves input bytes/version counters, parameters and existing `.grad` tensors or None.
+
+The named intermediate bounds are `min(K,B)*B` selector entries and at most `min(K,B)*P` returned parameter-gradient entries across all blocks, with P=25 here. The full forward graph, saved activations, input snapshots, float64 temporaries and legacy batching fallback allocations remain. Norms/scales retain B entries. The validation command also runs full-gradient oracles. These dimensions establish a bounded helper interface, not a hard memory cap, measured peak RSS, throughput improvement or input microbatching.
+
 ## Checks around the update
 
 At each step the consumer compares every native batched per-example gradient with ordinary serial native gradients and an independent per-row PyTorch reference. The mean of unclipped rows must also match the gradient of mean loss. Native and reference models compare clipped means, updated parameters and predictions through two actual SGD steps in each supported dtype.
 
-The fixed fixture must activate clipping. Controls require meaningful differences from both the unclipped update and clipping after the mean. Independent split-parameter vectors check the joint norm and zero-norm behavior. These checks establish the chosen update's semantics for the fixture, not that clipping improves a model.
+The fixed fixture must activate clipping. Controls require meaningful differences from both the unclipped update and clipping after the mean. Independent split-parameter vectors check the joint norm and zero-norm behavior. Chunk partitions include K=1, uneven tails, K=B and K>B, with real batched-VJP selector/gradient-shape and graph-retention checks. Two-step comparisons verify the optimizer result rather than only a final scalar loss. These checks establish the chosen update's semantics for the fixture, not that clipping improves a model.
 
 Ignored raw padding is cleared before encoder arithmetic. Masking only the pool's output cannot undo a NaN that has already entered an upstream parameter-gradient calculation. Equivalent selected items are also represented with moved holes, added padded width and changed ignored nonfinite values. Those layouts must preserve the per-example gradients and two-step trajectory within dtype tolerances. Input bytes and version counters remain unchanged. The original [padded input contract](padded-batches.md) still applies at the pooling boundary.
 
@@ -55,17 +67,17 @@ Build and install a wheel using the [Windows route](../README.md#build-and-run) 
 ```powershell
 $python = 'C:\work\ragged-accept\Scripts\python.exe'
 $example = 'C:\work\ragged-consumer\train_clipped.py'
-& $python -I $example --dtype float32 --output 'C:\work\ragged-consumer\clipped-float32.json'
+& $python -I $example --dtype float32 --chunk-size 2 --output 'C:\work\ragged-consumer\clipped-float32.json'
 if ($LASTEXITCODE -ne 0) { throw 'Installed float32 clipped-gradient consumer failed' }
-& $python -I $example --dtype float64 --output 'C:\work\ragged-consumer\clipped-float64.json'
+& $python -I $example --dtype float64 --chunk-size 2 --output 'C:\work\ragged-consumer\clipped-float64.json'
 if ($LASTEXITCODE -ne 0) { throw 'Installed float64 clipped-gradient consumer failed' }
 ```
 
-The JSON receipt declares method `autograd.grad.is_grads_batched`, native and reference optimizer-step counts, and control, invariance and empty-bag results. All three existing CPU workflows run both dtypes and retain the receipts. A completed run at an identified revision establishes execution. Workflow source alone does not establish a pass.
+The JSON receipt declares method `autograd.grad.is_grads_batched`, aggregation `chunked_per_example_joint_clip`, requested/effective chunk sizes, selector and gradient shapes, graph-retention flags, native and reference optimizer-step counts, and control, invariance and empty-bag results. All three existing CPU workflows run both dtypes and check the default `[2,2,1]` partition before retaining receipts. A completed run at an identified revision establishes execution. Workflow source alone does not establish a pass.
 
 ## Batching limits and interpretation
 
-PyTorch 2.9.1 implements this experimental API through a [legacy batching wrapper](https://github.com/pytorch/pytorch/blob/v2.9.1/torch/autograd/__init__.py#L455-L468). Its [fallback](https://github.com/pytorch/pytorch/blob/v2.9.1/aten/src/ATen/LegacyBatchedFallback.cpp#L235-L330) can execute slices separately and stack the results. This is not a dedicated batched native kernel. The identity seed matrix uses `B * B` entries, and the returned parameter gradients have a leading example dimension. Keep this caller small. No throughput or memory advantage is claimed.
+PyTorch 2.9.1 implements this experimental API through a [legacy batching wrapper](https://github.com/pytorch/pytorch/blob/v2.9.1/torch/autograd/__init__.py#L455-L468). Its [fallback](https://github.com/pytorch/pytorch/blob/v2.9.1/aten/src/ATen/LegacyBatchedFallback.cpp#L235-L330) can execute slices separately and stack the results. This is not a dedicated batched native kernel. The full oracle still uses a `B * B` identity, while the chunk helper allocates each smaller selector directly. Keep this caller small. No throughput or process-memory advantage is claimed.
 
 The preliminary pinned Windows CPU probe matched serial native gradients in float32 and float64. Enabling PyTorch's documented fallback diagnostics identified missing legacy batching rules for the padded backward operation and tanh backward. A separate direct `torch.func.grad` attempt failed because the generated library autograd Function does not provide the separate `setup_context` required by transforms. Those observations qualify the selected route. The diagnostic warnings are not a performance measurement, and switching to a different transform is not a demonstrated repair.
 

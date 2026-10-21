@@ -242,7 +242,7 @@ jobs:
           done
           for dtype in float32 float64; do
             receipt="$RAGGED_EVIDENCE/clipped-$dtype.json"
-            "$python" -I examples/train_clipped.py --dtype "$dtype" --output "$receipt" 2>&1 | tee "$RAGGED_EVIDENCE/clipped-$dtype.log"
+            "$python" -I examples/train_clipped.py --dtype "$dtype" --chunk-size 2 --output "$receipt" 2>&1 | tee "$RAGGED_EVIDENCE/clipped-$dtype.log"
             "$python" -I - "$receipt" "$dtype" <<'PY'
           import json
           from pathlib import Path
@@ -251,6 +251,12 @@ jobs:
           receipt = json.loads(Path(sys.argv[1]).read_text())
           assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
           assert receipt["method"] == "autograd.grad.is_grads_batched"
+          assert receipt["aggregation_method"] == "chunked_per_example_joint_clip" and receipt["chunk_size_requested"] == 2
+          for step in receipt["steps"]:
+              chunk = step["chunking"]
+              assert chunk["effective_size"] == chunk["max_rows"] == 2
+              assert chunk["chunk_rows"] == [2, 2, 1] and chunk["retain_graph"] == [True, True, False]
+              assert chunk["seed_shapes"] == [[2, 5], [2, 5], [1, 5]]
           assert receipt["optimizer_steps"] == receipt["reference_optimizer_steps"] == 2
           assert receipt["controls"]["status"] == receipt["invariance"]["status"] == receipt["empty"]["status"] == "passed"
           print("Per-example clipped gradients", sys.argv[2], "passed two updates, invariance and controls")
