@@ -30,6 +30,9 @@ FIXED_FILES = (
     'docs/functional-models.md',
     'docs/hessian-vector-products.md',
     'examples/train_curvature.py',
+    'docs/damped-curvature-solve.md',
+    'examples/damped_cg.py',
+    'examples/solve_curvature.py',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',
