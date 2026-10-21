@@ -1,0 +1,7 @@
+include pyproject.toml setup.py README.md LICENSE NOTICE
+include third_party/PYTORCH-LICENSE
+include csrc/pool.cu
+recursive-include src *.py
+recursive-include examples *.py
+recursive-include tests *.py
+global-exclude __pycache__ *.py[cod] *.pyd *.so

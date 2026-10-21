@@ -86,6 +86,8 @@ For an installed consumer check, create a second fresh virtual environment outsi
 
 ## Resume packed training in a fresh process
 
+An optional [CUDA companion candidate](cuda/README.md) has a separate installation and a narrower first-order packed API. Its required native diagnostic gate is still open. It does not change this CPU package's dependency pin or imply accepted GPU training, portability or speed results.
+
 `examples/resume_training.py` saves the eager packed model and SGD momentum state after two complete updates, exits the producer, then restores them in a different process for updates three through five. It compares predictions, gradients, updated parameters and momentum buffers with uninterrupted native and independent primitive PyTorch trajectories in either dtype. A model-only optimizer-reset control must diverge on continuation. The [training resume guide](docs/training_resume.md) explains the fixed checkpoint schema, cursor, installed commands and trusted-local-artifact boundary. This is one deterministic CPU recovery example, with no general RNG, distributed recovery, security or performance claim.
 
 ## Train with an input-gradient penalty
