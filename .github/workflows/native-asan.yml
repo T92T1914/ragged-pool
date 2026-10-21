@@ -235,6 +235,32 @@ jobs:
           PY
             cat "$receipt"
           done
+          for dtype in float32 float64; do
+            receipt="$RUNNER_TEMP/asan-evidence/dynamic-$dtype.json"
+            "$python" -I -u -X faulthandler examples/train_dynamic.py --dtype "$dtype" --output "$receipt"
+            "$python" -I - "$receipt" "$dtype" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          receipt = json.loads(Path(sys.argv[1]).read_text())
+          assert receipt["status"] == "passed" and receipt["dtype"] == sys.argv[2]
+          assert receipt["method"] == "torch.compile.aot_eager.dynamic.packed_training"
+          assert receipt["optimizer_steps"] == receipt["compiled_optimizer_steps"] == receipt["native_optimizer_steps"] == receipt["original_native_optimizer_steps"] == receipt["reference_optimizer_steps"] == 5
+          assert len(receipt["steps"]) == 5
+          route = receipt["compile"]
+          assert route["backend"] == "aot_eager" and route["fullgraph"] and route["dynamic"] and route["compile_calls"] == 1
+          assert not route["graph_count_observed"] and not route["optimizer_inside_compiled_region"]
+          assert receipt["same_model_parameter_and_optimizer_objects"] and receipt["changed_partition_at_same_metadata"] and receipt["returned_shape_with_changed_partition"]
+          assert receipt["inputs_unchanged"] and receipt["initial_parameters_unchanged"] and receipt["gradients_finite"]
+          assert receipt["installed_package"] and receipt["native_library_loaded"] and receipt["threads"] == receipt["interop_threads"] == 1
+          for step in receipt["steps"]:
+              assert step["all_routes_all_parameter_blocks_changed"] and step["empty_group_pooled_zero"]
+              assert step["same_parameter_objects"] and step["same_optimizer_objects"] and step["inputs_unchanged"]
+          print("Dynamic training", sys.argv[2], "passed five changing-shape updates through the public backend string")
+          PY
+            cat "$receipt"
+          done
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)
           if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}"; then
             echo 'Expected exactly one instrumented wheel for the smoke receipt' >&2
