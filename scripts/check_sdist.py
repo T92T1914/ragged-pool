@@ -33,6 +33,8 @@ FIXED_FILES = (
     'docs/damped-curvature-solve.md',
     'examples/damped_cg.py',
     'examples/solve_curvature.py',
+    'docs/dynamic_training.md',
+    'examples/train_dynamic.py',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

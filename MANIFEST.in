@@ -39,3 +39,5 @@ include examples/train_curvature.py
 include docs/damped-curvature-solve.md
 include examples/damped_cg.py
 include examples/solve_curvature.py
+include docs/dynamic_training.md
+include examples/train_dynamic.py
