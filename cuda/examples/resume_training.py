@@ -435,10 +435,12 @@ def _phase(dtype_name, directory, phase, expected_sha256, source_revision, sourc
     unchanged(dict(initial.named_parameters()), initial_before)
     if installed_identity() != identity:
         raise AssertionError("Installed dependency or consumer source changed during the child")
-    result = {"phase": phase, "pid": os.getpid(), "metadata": expected, "identity": identity,
+    result = {"phase": phase, "pid": os.getpid(), "parent_pid": os.getppid(),
+              "metadata": expected, "identity": identity,
               "checkpoint_sha256": digest, "records": records}
     result_digest = _write_tensor_file(result_path, result, MAX_RESULT_BYTES)
-    print(json.dumps({"phase": phase, "pid": os.getpid(), "checkpoint_sha256": digest,
+    print(json.dumps({"phase": phase, "pid": os.getpid(), "parent_pid": os.getppid(),
+                      "checkpoint_sha256": digest,
                       "result_sha256": result_digest}, allow_nan=False))
 
 
@@ -466,21 +468,30 @@ def _child(dtype_name, directory, phase, expected_sha256=None, source_revision=N
     if child.returncode != 0:
         raise RuntimeError(f"The {phase} child failed with exit code {child.returncode}. Inspect its retained logs.")
     status = json.loads(stdout.decode("utf-8"))
-    if (type(status) is not dict or set(status) != {"phase", "pid", "checkpoint_sha256", "result_sha256"}
-            or type(status["pid"]) is not int or status["pid"] != child.pid or status["phase"] != phase):
+    if (type(status) is not dict or set(status) != {"phase", "pid", "parent_pid", "checkpoint_sha256", "result_sha256"}
+            or any(type(status[name]) is not int or status[name] <= 0 for name in ("pid", "parent_pid"))
+            or status["phase"] != phase):
         raise AssertionError("The child's completion report differs from its actual process")
+    if status["pid"] == child.pid:
+        relation = "direct"
+    elif os.name == "nt" and status["parent_pid"] == child.pid:
+        relation = "windows-venv-redirector"
+    else:
+        raise AssertionError("The Python runtime does not belong to the completed launcher")
     result_path = directory / ("producer-results.pt" if phase == "produce" else "resume-results.pt")
     payload = _read_bytes(result_path, MAX_RESULT_BYTES)
     if sha256(payload).hexdigest() != status["result_sha256"]:
         raise AssertionError("Child result bytes differ from its completion report")
     result = torch.load(io.BytesIO(payload), weights_only=True, map_location="cpu")
     if (type(result) is not dict
-            or set(result) != {"phase", "pid", "metadata", "identity", "checkpoint_sha256", "records"}
-            or result["phase"] != phase or type(result["pid"]) is not int or result["pid"] != child.pid
+            or set(result) != {"phase", "pid", "parent_pid", "metadata", "identity", "checkpoint_sha256", "records"}
+            or result["phase"] != phase or type(result["pid"]) is not int or result["pid"] != status["pid"]
+            or type(result["parent_pid"]) is not int or result["parent_pid"] != status["parent_pid"]
             or result["checkpoint_sha256"] != status["checkpoint_sha256"]):
         raise AssertionError("Child result metadata differs from its completion report")
     if expected_sha256 is not None and result["checkpoint_sha256"] != expected_sha256:
         raise AssertionError("The resumer used a different checkpoint")
+    result.update({"launcher_pid": child.pid, "launcher_relation": relation})
     return result
 
 
@@ -567,6 +578,10 @@ def run(dtype_name, directory, source_revision=None, source_tree=None):
             "optimizer_options": dict(OPTIONS), "optimizer_steps": TOTAL_STEPS,
             "producer_steps": CURSOR, "resumed_steps": TOTAL_STEPS - CURSOR,
             "checkpoint_cursor": CURSOR, "process_ids": pids, "distinct_processes": True,
+            "child_launchers": {"producer": {name: produced[name] for name in
+                                ("launcher_pid", "launcher_relation", "parent_pid")},
+                                "resumer": {name: resumed[name] for name in
+                                ("launcher_pid", "launcher_relation", "parent_pid")}},
             "parent_cuda_fixture_after_children_exit": True,
             "same_native_exact": True, "same_native_max_abs_error": exact_error,
             "primitive_comparisons_passed": True, "primitive_max_abs_error": primitive_error,
