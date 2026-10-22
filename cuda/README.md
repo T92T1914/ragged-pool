@@ -74,6 +74,8 @@ The [compiled validation record](evidence/compiled-windows-sm89-20261021.json) s
 
 `examples/export_cuda.py` saves a trained fixed-shape inference graph with `torch.export.export(..., strict=True)`. `examples/predict_cuda.py` loads the owned artifact in a separate process without importing the producer or model class. It retains the native CUDA pool and compares changed inputs/partitions against independent primitive math. The [model handoff guide](EXPORT.md) gives the CUDA0 `[9,3]`/`[6]` contract, float32/float64 commands, trusted-file boundary and limitations. It requires the same installed native package and pinned environment. A file digest identifies bytes rather than authenticating a publisher or making arbitrary serialized models safe.
 
+Both dtype round trips passed in an ordinary fresh isolated installation. The [export validation record](evidence/export-windows-sm89-20261021.json) separates256passed tests,4unavailable symlink fixtures and1PyTorch loader warning. It preserves the actual source/artifact identities, numerical differences and adverse attempts. This example reuses the accepted native binary without a new compiler or instrumentation result.
+
 ## Validation and limits
 
 On 2026-10-21, an uncached build from source commit `15db410f153e6bcac498baa175fedbbd19c34f7f` produced the wheel tested in a fresh acceptance environment outside the checkout. All 138 installed functional tests passed. The float32 and float64 training consumers each completed two SGD updates and passed their independent GPU-reference comparisons. These are small synthetic fixtures, not evidence of training convergence or model quality.

@@ -34,6 +34,14 @@ $produced = Get-Content -LiteralPath "$consumer\producer-float32.json" -Raw | Co
 
 The predictor compares changed raw data and offset partitions against primitive GPU math and saved native canaries. A within-group permutation must preserve both outputs. It checks original input bytes/versions, parameters and fresh output storage. Separate controls test native offset refusal and recovery, fixed-shape guards and rejected artifact changes before deserialization. Mathematical agreement, graph inspection and file admission are distinct checks.
 
+## Executed acceptance
+
+The [local validation record](evidence/export-windows-sm89-20261021.json) identifies executed source cb5c8b565b1eb7603a4dfbb2093b624692866803 and its checked archive, reused wheel, native payload and source hashes. All seven listed checks passed. The installed suite reported256passed,4skipped and1warning in8.04seconds, including the previous175CUDA tests. The four skipped symlink fixtures could not be created with ordinary Windows privilege. PyTorch's PT2 loader emitted a nonwritable-buffer warning, which remains visible in the logs. Loaded inference state byte/version checks passed. Neither skipped checks nor the warning were hidden.
+
+Separate producer and consumer invocations passed for both dtypes, with distinct process identities and no producer/training imports in the consumer. Each producer performed two matched updates and changed every parameter block in both routes. Captured and reloaded native outputs exactly matched eager native canaries in the six declared cases. Float32 comparisons with independent math were zero in this cohort. Float64 pooled inference differences were at most2.220446049250313e-16. These small numerical comparisons establish the exercised integration, without model-quality or general numerical-error claims.
+
+Review caught a draft dtype-variable shadowing defect before execution. The first passing cohort then exposed a receipt-label bug: merging an adjacent helper's identity dictionary overwrote the producer's top-level script hash. The artifact manifest and consumer retained the correct producer identity. The producer now checks and removes the helper's generic label before merging its other fields. Final acceptance reran the corrected source. Literal byte checks also replaced numerical equality for immutability, with a signed-zero write that bypasses the version counter as a sensitive regression control. Earlier attempts remain preserved privately.
+
 ## Choices and limits
 
 Strict export is explicit because the pinned API's default is False. The opaque custom operation keeps its runtime validation kernel and synchronization. Fake metadata permits capture without reading offsets. Changing offset contents must still affect execution after reload. A captured shape is not a substitute for content admission.
