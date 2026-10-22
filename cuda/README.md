@@ -80,9 +80,11 @@ The same installed `train_compiled.py` consumer also has an explicit `--dynamic`
 
 ## Trusted inference export
 
-`examples/export_cuda.py` saves a trained fixed-shape inference graph with `torch.export.export(..., strict=True)`. `examples/predict_cuda.py` loads the owned artifact in a separate process without importing the producer or model class. It retains the native CUDA pool and compares changed inputs/partitions against independent primitive math. The [model handoff guide](EXPORT.md) gives the CUDA0 `[9,3]`/`[6]` contract, float32/float64 commands, trusted-file boundary and limitations. It requires the same installed native package and pinned environment. A file digest identifies bytes rather than authenticating a publisher or making arbitrary serialized models safe.
+`examples/export_cuda.py` saves a trained inference graph with `torch.export.export(..., strict=True)`. Its default retains the fixed CUDA0 `[9,3]`/`[6]` artifact. `--dynamic` saves one graph for independent N2..32/B2..8 counts with fixed raw width3. `examples/predict_cuda.py` loads either supported owned schema in a separate process without importing the producer or model class. It retains the native CUDA pool and compares changed inputs/partitions against independent primitive math. The [model handoff guide](EXPORT.md) gives both float32/float64 routes, trusted-file boundary and limitations. They require the same installed native package and pinned environment. A file digest identifies bytes rather than authenticating a publisher or making arbitrary serialized models safe.
 
 Both dtype round trips passed in an ordinary fresh isolated installation. The [export validation record](evidence/export-windows-sm89-20261021.json) separates256passed tests,4unavailable symlink fixtures and1PyTorch loader warning. It preserves the actual source/artifact identities, numerical differences and adverse attempts. This example reuses the accepted native binary without a new compiler or instrumentation result.
+
+The later [dynamic export cohort](evidence/dynamic-export-windows-sm89-20261022.json) passed 17 commands and 444 CUDA tests, with 4 skips and 1 warning retained. One saved graph per dtype served 11 cases across independent item/group counts in a fresh process. Actual symbolic graph inspection, wrapper admission, saved guard behavior and native content refusal remain distinct checks. Both fixed-schema regressions and consumption of the preceding milestone's artifacts passed in the same pinned environment. No new native binary was built.
 
 ## Validation and limits
 

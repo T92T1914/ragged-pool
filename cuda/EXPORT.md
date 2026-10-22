@@ -55,13 +55,23 @@ Explicit consumer admission and saved graph guards are separate. In PyTorch2.9.1
 
 Schema1 retains the fixed contract and six cases. Schema2 has its own exact contract, ranges and variable-B canaries. A schema change around a static program does not supply the required symbolic graph metadata. Neither schema admits unknown fields or treats a digest as permission to load untrusted code.
 
-## Executed acceptance
+## Fixed artifact executed acceptance
 
 The [local validation record](evidence/export-windows-sm89-20261021.json) identifies executed source cb5c8b565b1eb7603a4dfbb2093b624692866803 and its checked archive, reused wheel, native payload and source hashes. All seven listed checks passed. The installed suite reported256passed,4skipped and1warning in8.04seconds, including the previous175CUDA tests. The four skipped symlink fixtures could not be created with ordinary Windows privilege. PyTorch's PT2 loader emitted a nonwritable-buffer warning, which remains visible in the logs. Loaded inference state byte/version checks passed. Neither skipped checks nor the warning were hidden.
 
 Separate producer and consumer invocations passed for both dtypes, with distinct process identities and no producer/training imports in the consumer. Each producer performed two matched updates and changed every parameter block in both routes. Captured and reloaded native outputs exactly matched eager native canaries in the six declared cases. Float32 comparisons with independent math were zero in this cohort. Float64 pooled inference differences were at most2.220446049250313e-16. These small numerical comparisons establish the exercised integration, without model-quality or general numerical-error claims.
 
 Review caught a draft dtype-variable shadowing defect before execution. The first passing cohort then exposed a receipt-label bug: merging an adjacent helper's identity dictionary overwrote the producer's top-level script hash. The artifact manifest and consumer retained the correct producer identity. The producer now checks and removes the helper's generic label before merging its other fields. Final acceptance reran the corrected source. Literal byte checks also replaced numerical equality for immutability, with a signed-zero write that bypasses the version counter as a sensitive regression control. Earlier attempts remain preserved privately.
+
+## Dynamic artifact executed acceptance
+
+The [dynamic export record](evidence/dynamic-export-windows-sm89-20261022.json) identifies executed source `3538b2d6388604d928793a5d04898c6b8b6c7c38`, its checked source archive, reused installed wheel and literal consumer/test hashes. All 17 commands passed in a fresh external environment. The complete CUDA suite reported 444 passed, 4 skipped and 1 warning in 13.92 seconds, including 98 new dynamic export cases and 346 established tests. The existing four symlink fixtures remain unavailable with ordinary Windows privilege. The PT2 nonwritable-buffer warning remains recorded, with loaded-state byte/version checks passing.
+
+Each dtype's producer performed two matched SGD updates and saved one dynamic artifact. Its separate consumer loaded that graph once without producer/training imports and exercised all 11 declared cases. Captured/reloaded native outputs matched eager native canaries exactly in this cohort. The fresh consumers' float32 primitive differences were zero. Float64 primitive differences were at most 8.326672684688674e-17 for predictions and 3.3306690738754696e-16 for pooled values. These are observations for the exercised inputs, without a general numerical-error or model-quality claim.
+
+Direct graph witnesses admitted N0/1 while the wrapper refused them. The other five shape cases produced the actual saved guard failures and then recovered on valid inputs. Separate tests retained native offset-content refusal, metadata admission before graph execution, actual serialized static/narrow-range graph rejection and changed-canary detection. Both dtypes' fixed export, static/dynamic training and fresh consumption of the actual preceding schema1 artifacts also passed. This compatibility observation covers those artifacts in the same pinned environment.
+
+The first attempt reported 10 failed, 434 passed, 4 skipped and 1 warning. The saved guards correctly raised `AssertionError: Guard failed: ...`, while new test/receipt helpers expected `RuntimeError`. Both dynamic consumers completed their numerical comparisons before the guard witness stopped their receipts. The correction recognizes guard-specific assertion/runtime forms and records the actual exception type. Guard-specific messages keep these controls from passing merely because native content admission refused an input. The corrected source was archived and all 17 commands rerun. The earlier failures remain retained, with no change to native math, runtime code or input admission.
 
 ## Choices and limits
 
