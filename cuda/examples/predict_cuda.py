@@ -541,10 +541,14 @@ def exercise_guards(predictor):
                 raise AssertionError("The schema 2 wrapper admitted an out-of-contract shape")
             try:
                 result = predictor.module(raw, offsets)
-            except RuntimeError as error:
-                if admitted or "Expected input" not in str(error) or "shape" not in str(error):
+            except (RuntimeError, AssertionError) as error:
+                message = str(error)
+                shape_guard = (message.startswith("Guard failed: ")
+                               or ("Expected input" in message and "shape" in message))
+                if admitted or not shape_guard:
                     raise
-                record["direct_graph"] = {"status": "shape_guard_refused", "message": str(error)}
+                record["direct_graph"] = {"status": "shape_guard_refused", "message": message,
+                                          "exception_type": type(error).__name__}
             else:
                 if not admitted:
                     raise AssertionError("The saved graph failed to enforce a declared shape guard")

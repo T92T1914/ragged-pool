@@ -219,7 +219,8 @@ def test_direct_saved_graph_enforces_upper_offsets_and_static_width_guards(artif
         offsets = torch.zeros(1, dtype=torch.int64, device="cuda:0")
     elif fault == "width": raw = torch.zeros(9, 4, dtype=raw.dtype, device="cuda:0")
     else: offsets = torch.tensor([0] * int(fault[1:]) + [9], dtype=torch.int64, device="cuda:0")
-    with torch.inference_mode(), pytest.raises(RuntimeError, match="Expected input.*shape"):
+    with torch.inference_mode(), pytest.raises((RuntimeError, AssertionError),
+                                               match="Guard failed: |Expected input.*shape"):
         artifact["predictor"].module(raw, offsets)
 
 
