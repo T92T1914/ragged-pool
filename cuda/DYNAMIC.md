@@ -25,9 +25,11 @@ The native contract remains ordinary contiguous same-device CUDA float32/float64
 
 Separate tests compare changing-shape forward/first-gradient math with independent row-wise double-softmax arithmetic. Other tests reuse the exercised compiled callable for content refusal and valid recovery, saved-original mutation refusal, metadata admission, fresh outputs and genuine expanded/transposed/stepped/logical-negative upstreams. Registration checks and finite differences remain separate in the established suite.
 
-Pinned callback tests inspect symbolic input/output metadata and native forward/private-backward targets. They record actual submissions for the exercised sequence. This diagnostic path is separate from the public backend-string consumer and is not a universal graph-count or compiler-cache guarantee. No private symbolic-shape setting, error suppression or enlarged cache is needed by the declared route.
+Pinned callback tests inspect symbolic primal and offset metadata and native forward/private-backward targets. They record actual submissions for the exercised sequence. This diagnostic path is separate from the public backend-string consumer and is not a universal graph-count or compiler-cache guarantee. No private symbolic-shape setting, error suppression or enlarged cache is needed by the declared route.
 
 ## Evidence limits
+
+The [executed record](evidence/dynamic-windows-sm89-20261021.json) joins source`a374906c0d2a3103f4ea4969dba9530cc72a62de`, its checked archive, unchanged accepted wheel and installed native payload. All11 local manifest commands passed. The complete CUDA suite passed346 tests, with4 ordinary-privilege Windows symlink skips and1 existing PT2 loader warning retained. Both dtypes completed all five updates through all three routes, and the default fixed consumer plus packed export producer/fresh-process regressions passed separately. The pinned direct-pool callback sequence observed one Dynamo, forward and backward submission per dtype with symbolic N and offset length. This observed sequence does not establish a general one-graph guarantee for the model or other shapes.
 
 The accepted runtime wheel and native payload are reused. A checked source archive supplies the changed consumer, tests and guide. A new source archive does not imply a new runtime wheel or native compilation. Historical NVCC12.8.93/MSVC19.44/C++17/sm89 provenance and native diagnostics remain their original cohorts. This changing-shape caller has no new native sanitizer result.
 
