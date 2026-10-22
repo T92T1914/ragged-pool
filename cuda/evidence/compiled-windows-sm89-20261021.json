@@ -283,7 +283,7 @@
   "retained_adverse_results": [
     {
       "attempt": "initial public compiled route",
-      "result": "32 failed,143 passed; both consumers failed before kernel execution",
+      "result": "32 failed,143 passed; both consumers failed before custom pooling kernel execution",
       "cause": "Dynamo could not proxy error-message lambdas in duplicate public Python metadata checks",
       "correction": "Public wrapper dispatches directly. Native real-input admission and registered fake metadata checks remain intact."
     },
