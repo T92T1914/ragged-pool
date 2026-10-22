@@ -1,0 +1,454 @@
+{
+  "status": "passed",
+  "scope": "Bounded first-order eager packed CUDA JVP and trained input sensitivity. No performance, robustness or operational-security result.",
+  "build": {
+    "revision": "a6364392a6c2844d4cd8c54cdb647b1c2da5a2bc",
+    "tree": "8680d54d0c1f8c1866694deb9f746d429e00bf5c",
+    "route": "Uncached pip wheel from checked setuptools sdist, fresh external ordinary install",
+    "sdist_sha256": "ef493cb9b863490d3d9903c76a6488caecdeef430eb65e387d0965ed8408fb8c",
+    "wheel_sha256": "9b0affe736f4f8f4442f92ad0865cab21428e5ab249e3b6b9d644d70fba303a1",
+    "native_sha256": "8bab64d15526210743c29dd733344ce1cad968edd5fb1f8b99f4fc445b6b1c1a",
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "cuda_runtime": "12.8",
+    "nvcc": "12.8.93",
+    "msvc": "19.44.35228",
+    "toolset": "14.44.35207",
+    "cxx_standard": "C++17",
+    "architecture": "sm_89",
+    "api": "Original ATen/dispatcher with separate torch.autograd.Function eager bridge",
+    "wheel_record_non_record_members_verified": 14,
+    "pip_check": "No broken requirements found."
+  },
+  "source_format_joins": {
+    "csrc/pool.cu": {
+      "git_sha256": "bbaec7750b0db038fc653c9c7520b73456b9055722885f0d3a44005e94400b78",
+      "sdist_sha256": "28b416a4ed089d7d5cf25ef34f420dd7e0c14ede30b74aeb186d0549e2fe7e76",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "src/ragged_pool_cuda/__init__.py": {
+      "git_sha256": "3d2d9626c9a0f8da14eb83000bf00324dd0cec2c4279d653561ee68c2577a8fc",
+      "sdist_sha256": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "src/ragged_pool_cuda/_registration.py": {
+      "git_sha256": "8dace68959ff79d4b52106b3de80f0bb7bb90130db7ab1917e9cea1ce5239bdf",
+      "sdist_sha256": "bcd6c90cfe8da9ac28121acc82c702d919554ad79662ed239f6a32d2fe044e08",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "src/ragged_pool_cuda/_validation.py": {
+      "git_sha256": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+      "sdist_sha256": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "src/ragged_pool_cuda/forward_ad.py": {
+      "git_sha256": "0e46090716f827c75290bf719d1756c6bde09c08ee438c756b2c0d1d86198808",
+      "sdist_sha256": "0e46090716f827c75290bf719d1756c6bde09c08ee438c756b2c0d1d86198808",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/functional.py": {
+      "git_sha256": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+      "sdist_sha256": "f67fef21320a7a4e8cfe29ec3767dda5e995f10fc68a31b80cfd7c0bafe63923",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "src/ragged_pool_cuda/padded.py": {
+      "git_sha256": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+      "sdist_sha256": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "src/ragged_pool_cuda/reference.py": {
+      "git_sha256": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e",
+      "sdist_sha256": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a",
+      "join": "complete CRLF-to-LF equality"
+    }
+  },
+  "installed_cohort": {
+    "revision": "8ee97e16de21fcf68cefcf2e2c139cf747d3fb22",
+    "tree": "49f49b121fab09e4cacbae0ab338f9229296cfa7",
+    "build_delta": [
+      "cuda/tests/test_forward_ad.py"
+    ],
+    "commands": [
+      "pytest",
+      "forward-float32",
+      "functional-float32",
+      "clipped-float32",
+      "compiled-float32",
+      "forward-float64",
+      "functional-float64",
+      "clipped-float64",
+      "compiled-float64"
+    ],
+    "commands_passed": 9,
+    "cuda_tests_passed": 625,
+    "cuda_tests_skipped": 4,
+    "cuda_test_warnings": 1,
+    "skips": "Existing Windows symlink-privilege fixtures",
+    "warning": "Existing PyTorch exported-loader non-writable buffer warning"
+  },
+  "test_review_followup": {
+    "revision": "d4334c31eacf548a72bfcb925ec889cbc1861f68",
+    "tree": "96a27adf347800fa6b5c1d8ead6d276a60ec7036",
+    "tests_passed": 48,
+    "test_sha256": "ad89f92995c67af0ae3ca46d3081ea9e18f3cbeaeed885e8e9aacaef25c4194a",
+    "delta": [
+      "cuda/tests/test_forward_ad.py"
+    ],
+    "scope": "Explicit connected dependency and intended refusal messages, plus three maximum-envelope/finite-endpoint cases; runtime and consumers unchanged"
+  },
+  "consumers": {
+    "float32": {
+      "status": "passed",
+      "method": "native.cuda.first_order_jvp.trained_input_sensitivity",
+      "dtype": "float32",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "source_revision": "8ee97e16de21fcf68cefcf2e2c139cf747d3fb22",
+      "source_tree": "49f49b121fab09e4cacbae0ab338f9229296cfa7",
+      "seed": 1811,
+      "fixture_sha256": "b93bbd614ff77abb629a8747f8d95824cc8159beef0f1bcc008832a2d15389f4",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps_per_route": 2,
+      "steps": [
+        {
+          "comparisons": {
+            "native": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "parameter_gradients": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "primitive": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "parameter_gradients": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            }
+          },
+          "parameter_update_max_abs": {
+            "encoder.weight": 0.0011692792177200317,
+            "encoder.bias": 0.004095643758773804,
+            "scorer.weight": 0.0003637373447418213,
+            "head.weight": 0.00798112154006958,
+            "head.bias": 0.01943349838256836
+          }
+        },
+        {
+          "comparisons": {
+            "native": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "parameter_gradients": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "primitive": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "parameter_gradients": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            }
+          },
+          "parameter_update_max_abs": {
+            "encoder.weight": 0.0005678534507751465,
+            "encoder.bias": 0.0031698644161224365,
+            "scorer.weight": 8.556991815567017e-05,
+            "head.weight": 0.00535014271736145,
+            "head.bias": 0.014667853713035583
+          }
+        }
+      ],
+      "sensitivity": {
+        "primal_max_abs": {
+          "predictions": 0.0,
+          "pooled": 0.0
+        },
+        "primitive_jvp_max_abs": {
+          "predictions": 0.0,
+          "pooled": 0.0
+        },
+        "explicit_dual_max_abs": {
+          "predictions": 0.0,
+          "pooled": 0.0
+        },
+        "centered_difference_max_abs": {
+          "predictions": 1.5780329704284668e-05,
+          "pooled": 2.3111701011657715e-05
+        },
+        "difference_step": 0.001,
+        "adjoint_absolute_difference": 1.6256926138602523e-08,
+        "empty_prediction_and_pool_tangents_zero": true
+      },
+      "parameter_and_grad_fields_unchanged_during_sensitivity": true,
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "model_optimizer_ownership_unchanged": true,
+      "threads": 1,
+      "interop_threads": 1,
+      "native_library_sha256": "8bab64d15526210743c29dd733344ce1cad968edd5fb1f8b99f4fc445b6b1c1a",
+      "cuda_helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "forward_ad_module_sha256": "0e46090716f827c75290bf719d1756c6bde09c08ee438c756b2c0d1d86198808",
+      "script_sha256": "47f7d48087029a5511aa01dde92fc0bea7acd1463c2b5768524a855b58c3995b",
+      "raw_receipt_sha256": "88a3762d533bfe96406a4c37d0e1f271d86240b615a0819c0316a8da589eedb9"
+    },
+    "float64": {
+      "status": "passed",
+      "method": "native.cuda.first_order_jvp.trained_input_sensitivity",
+      "dtype": "float64",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "source_revision": "8ee97e16de21fcf68cefcf2e2c139cf747d3fb22",
+      "source_tree": "49f49b121fab09e4cacbae0ab338f9229296cfa7",
+      "seed": 1811,
+      "fixture_sha256": "dd7651040e7b151b5f5de01649607f4e12de39119f0c63f2b1bf568e2cde303d",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps_per_route": 2,
+      "steps": [
+        {
+          "comparisons": {
+            "native": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "parameter_gradients": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "primitive": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 4.336808689942018e-19
+              },
+              "parameter_gradients": {
+                "encoder.weight": 1.734723475976807e-18,
+                "encoder.bias": 0.0,
+                "scorer.weight": 1.3010426069826053e-18,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            }
+          },
+          "parameter_update_max_abs": {
+            "encoder.weight": 0.0008292428274350172,
+            "encoder.bias": 0.0037348159080672905,
+            "scorer.weight": 4.094647882675606e-05,
+            "head.weight": 0.005101558024678932,
+            "head.bias": 0.010074860718194106
+          }
+        },
+        {
+          "comparisons": {
+            "native": {
+              "outputs": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "parameter_gradients": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "primitive": {
+              "outputs": {
+                "predictions": 5.551115123125783e-17,
+                "pooled": 1.1102230246251565e-16,
+                "loss": 0.0,
+                "input_gradient": 1.734723475976807e-18
+              },
+              "parameter_gradients": {
+                "encoder.weight": 1.734723475976807e-18,
+                "encoder.bias": 0.0,
+                "scorer.weight": 2.6020852139652106e-18,
+                "head.weight": 5.551115123125783e-17,
+                "head.bias": 2.220446049250313e-16
+              },
+              "updated_parameters": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 1.3877787807814457e-17
+              }
+            }
+          },
+          "parameter_update_max_abs": {
+            "encoder.weight": 0.0006195250022527632,
+            "encoder.bias": 0.005694568866150829,
+            "scorer.weight": 7.404383341080845e-05,
+            "head.weight": 0.010142693789438328,
+            "head.bias": 0.02764653429481996
+          }
+        }
+      ],
+      "sensitivity": {
+        "primal_max_abs": {
+          "predictions": 2.7755575615628914e-17,
+          "pooled": 1.1102230246251565e-16
+        },
+        "primitive_jvp_max_abs": {
+          "predictions": 1.3877787807814457e-17,
+          "pooled": 5.551115123125783e-17
+        },
+        "explicit_dual_max_abs": {
+          "predictions": 0.0,
+          "pooled": 0.0
+        },
+        "centered_difference_max_abs": {
+          "predictions": 2.312084551592264e-12,
+          "pooled": 7.0986445888099325e-12
+        },
+        "difference_step": 1e-05,
+        "adjoint_absolute_difference": 0.0,
+        "empty_prediction_and_pool_tangents_zero": true
+      },
+      "parameter_and_grad_fields_unchanged_during_sensitivity": true,
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "model_optimizer_ownership_unchanged": true,
+      "threads": 1,
+      "interop_threads": 1,
+      "native_library_sha256": "8bab64d15526210743c29dd733344ce1cad968edd5fb1f8b99f4fc445b6b1c1a",
+      "cuda_helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "forward_ad_module_sha256": "0e46090716f827c75290bf719d1756c6bde09c08ee438c756b2c0d1d86198808",
+      "script_sha256": "47f7d48087029a5511aa01dde92fc0bea7acd1463c2b5768524a855b58c3995b",
+      "raw_receipt_sha256": "c4259dec7748303356be2c290cf41116139720cfa042938cd3db26de0e988f4d"
+    }
+  },
+  "adverse": [
+    "Independent source review strengthened stream-result and nonzero-version coverage before the full cohort.",
+    "Broad RuntimeError refusal assertion could have accepted silent detach. Final focused tests require tangent.requires_grad and the declared guard error.",
+    "PyTorch compiler-version probe invoked cl and returned status2. Actual NVCC/MSVC compilation and linking then passed; no compiler-guard bypass.",
+    "No mathematical/native execution failure was observed in these cohorts."
+  ],
+  "instrumentation": {
+    "new_native_compute_sanitizer": "unavailable in this nonprivileged run",
+    "reason": "Earlier Windows WDDM diagnostics required an owner-administered prerequisite, restored after use. No elevation or settings change is included here.",
+    "historical_result_applies_to": "Earlier binary and declared old scenarios only"
+  },
+  "limits": [
+    "One Windows x64 Python3.11.8/Torch2.9.1+cu128/RTX4090 CUDA0 environment.",
+    "First-order eager JVP and ordinary first-order primal reverse only. No nested/map/higher/compiled/exported forward transforms or inference tensors.",
+    "Direction normalization, guard copies and explicit status synchronizations add work. No speed or process-memory claim.",
+    "No new binary release or version/platform/ABI/artifact compatibility claim. Hosted CPU CI is not CUDA execution."
+  ]
+}
