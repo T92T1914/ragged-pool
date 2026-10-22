@@ -25,7 +25,7 @@ That synchronization is a deliberate tradeoff for a small readable component. It
 
 One thread handles each group, without shared-memory reductions or barriers. Valid offsets divide rows into disjoint groups. Zero-filled outputs and gradients cover empty cases, including zero items and zero groups. This simple implementation is a framework integration and learning component, with no algorithmic novelty or performance claim.
 
-Autograd saves original tensors so their version checks remain effective. Both custom operations, including the private backward, have metadata-only fake rules. Native reverse differentiation is first order only. A second reverse derivative is explicitly refused. Fake registration does not establish compilation, export or transform support.
+Autograd saves original tensors so their version checks remain effective. Both custom operations, including the private backward, have metadata-only fake rules. Native reverse differentiation is first order only. A second reverse derivative is explicitly refused. Fake registration alone does not establish compilation, export or transform support. The bounded compiled route below has its own executed checks.
 
 `ragged_pool_reference` uses independent primitive GPU arithmetic. It explicitly transfers offsets to CPU for Python boundaries and synchronizes scalar admission checks. Differentiable values, logits and numerical operations stay on their CUDA device. The mathematical tests and training consumer also use independently supplied Python boundaries, so native device offsets do not supply their only oracle.
 
@@ -43,7 +43,7 @@ Use a separate build environment and a qualified x64 Visual Studio command envir
 & $buildPython -m pip --isolated wheel . --no-build-isolation --no-deps --no-cache-dir --wheel-dir C:\work\cuda-wheels
 ```
 
-Verification builds from a checked source archive and uses an uncached native build. Create a second fresh acceptance environment and consumer directory outside the checkout. Install CUDA PyTorch from its official index, install the companion wheel normally and run `pip check`. Copy `examples/train_cuda.py` and `tests` from the checked archive into the external consumer directory. Do not rely on source-tree imports.
+The original native qualification used an uncached build from a checked source archive. The compiled follow-up packages an updated Python dispatcher wrapper with that exact accepted native payload, without a new NVCC build. Create a separate acceptance environment and consumer directory outside the checkout. Install CUDA PyTorch from its official index, install the companion wheel normally and run `pip check`. Copy both `examples/train_cuda.py` and `examples/train_compiled.py`, plus `tests`, from the checked archive into the external consumer directory. Do not rely on source-tree imports.
 
 ```powershell
 & $acceptPython -I -m pytest -q --import-mode=importlib C:\work\cuda-consumer\tests
@@ -53,6 +53,23 @@ Verification builds from a checked source archive and uses an uncached native bu
 
 Each consumer performs two actual eager SGD updates through an encoder, score layer, pool and prediction head. It compares complete outputs, losses, raw-input and parameter gradients, and updated parameters with independently differentiated GPU primitives. Default tolerances are float32 `rtol=2e-4, atol=2e-6` and float64 `rtol=2e-10, atol=2e-12`. Endpoint tests state their separate absolute tolerance for cancellation near magnitude 1000. Registration checks remain separate from mathematical gradients. This synthetic example demonstrates integration, not model quality or real-world accuracy.
 
+## Fixed-shape compiled training
+
+`examples/train_compiled.py` compares three persistent models and SGD optimizers: compiled native, eager native and independent GPU primitives. It calls `torch.compile(model, backend="aot_eager", fullgraph=True, dynamic=False)`. Two batches keep N=9, B=5, raw width3 and pooled width4 while changing raw inputs, targets and offset contents. Empty and singleton groups occur in the sequence. Both dtypes complete two real updates and compare predictions, pooled values, loss, raw-input gradients, every parameter gradient and updated parameters. Input bytes/versions, initial parameters and model/optimizer ownership remain checked.
+
+Keep `train_cuda.py` beside `train_compiled.py`. The latter loads its sibling explicitly, reusing the model, primitive reference and installed-package checks without adding the source checkout to the import path.
+
+```powershell
+& $acceptPython -I C:\work\cuda-consumer\train_compiled.py --dtype float32 --output C:\work\cuda-consumer\compiled-float32.json
+& $acceptPython -I C:\work\cuda-consumer\train_compiled.py --dtype float64 --output C:\work\cuda-consumer\compiled-float64.json
+```
+
+The [PyTorch2.9 compiler FAQ](https://docs.pytorch.org/docs/2.9/torch.compiler_faq.html) explains the limit of `aot_eager`: Dynamo captures the forward and AOTAutograd traces backward, then eager PyTorch executes both graphs. This is graph integration, without backend optimization or generated fused kernels. Fullgraph refuses graph breaks. Static specialization does not promise one graph for every shape. The consumer records one compile API call without claiming a graph count. Its pinned backward-node witness and separate pinned callback tests establish actual AOT execution and native forward/private-backward graph targets for the exercised cases.
+
+The first installed compile attempt failed at the public wrapper's duplicate metadata checks because Dynamo could not trace their error-message lambdas. The wrapper now dispatches directly, matching the CPU API's structure. Native admission still validates real metadata and content before pointer/indexed access. Fake rules validate tracing metadata. Tests separately check registration, mathematics, changed partition contents, refusal/recovery after capture, original saved-input mutation, empty groups, fresh output storage and strided upstreams. Unsupported backends may have different dispatcher error text, while remaining rejected.
+
+The [compiled validation record](evidence/compiled-windows-sm89-20261021.json) separates this new installed functional cohort from the earlier native diagnostics. All175 functional tests passed on the declared Windows RTX4090 environment, including the original138 tests. The new Python wrapper was installed in an ordinary wheel with the exact prior native payload. No new compiled-consumer sanitizer execution is claimed, and no administrator or debugger-setting action is required by these ordinary checks.
+
 ## Validation and limits
 
 On 2026-10-21, an uncached build from source commit `15db410f153e6bcac498baa175fedbbd19c34f7f` produced the wheel tested in a fresh acceptance environment outside the checkout. All 138 installed functional tests passed. The float32 and float64 training consumers each completed two SGD updates and passed their independent GPU-reference comparisons. These are small synthetic fixtures, not evidence of training convergence or model quality.
@@ -61,8 +78,8 @@ Compute Sanitizer 2025.1.0.0, build 35583870, then ran `memcheck`, `racecheck` a
 
 The first Windows WDDM prerequisite probe could not initialize the debugging interface. The owner manually launched a reviewed elevated helper to enable the required interface temporarily and run the checks. The setting was absent before the run, restoration completed, and an independent readback confirmed that it was absent again afterward. [NVIDIA's Windows requirements](https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html#windows-specific-behavior) explain this administrator-controlled diagnostic prerequisite. The failed probe and the later successful instrumentation are distinct observations in the validation record.
 
-GPU evidence remains tied to the source commit above and the hashes in the validation record. Publication adds documentation, the sanitized evidence summary and its source-archive inclusion. Native and Python implementation, tests and compiler settings remain unchanged. No separate GPU rerun is claimed for those publication edits.
+The original eager GPU evidence remains tied to the source commit above and the hashes in its validation record. That publication added documentation, the sanitized evidence summary and its source-archive inclusion. The later compiled cohort changes the public Python dispatcher wrapper and adds consumer/tests. Its native source, exact native binary, operator registrations and compiler settings remain unchanged. Each cohort retains its own source and artifact identities.
 
-The companion does not inherit CPU padded pooling, second derivatives, HVPs, JVPs, vmap, compile/export, graph capture, stochastic recovery or other CPU example capabilities. No mixed precision, distributed training, other GPU backend or architecture, cross-version/platform/ABI, coinstallation matrix, performance or operational security result is claimed.
+The companion does not inherit CPU padded pooling, second derivatives, HVPs, JVPs, vmap, dynamic-shape compilation, export, CUDA graph capture, stochastic recovery or other CPU example capabilities. Only the fixed-shape first-order `aot_eager` route above is declared. No Inductor/Triton optimization, mixed precision, distributed training, other GPU backend or architecture, cross-version/platform/ABI, coinstallation matrix, performance or operational security result is claimed.
 
 Source is MIT licensed. [NOTICE](NOTICE) and the included [PyTorch license](third_party/PYTORCH-LICENSE) preserve attribution and the truthful assistance statement. Documentation informs API choices. Research rationale is not measured implementation evidence. CPU studies and earlier adverse results retain their separate identities.
