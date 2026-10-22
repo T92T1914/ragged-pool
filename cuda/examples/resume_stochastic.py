@@ -315,11 +315,37 @@ def _child(dtype_name, directory, phase, expected_sha256=None, source_revision=N
         try:
             stdout, stderr = child.communicate(timeout=120)
         except subprocess.TimeoutExpired as error:
-            child.kill()
-            stdout, stderr = child.communicate(timeout=15)
-            (directory / (phase + ".stdout.log")).write_bytes(stdout)
-            (directory / (phase + ".stderr.log")).write_bytes(stderr)
-            raise RuntimeError(f"The {phase} child exceeded 120 seconds") from error
+            marker = directory / "timeout.json"
+            marker.write_text(json.dumps({
+                "status": "needs-owned-runtime-check", "launcher_pid": child.pid,
+                "phase": phase, "deadline_seconds": 120,
+                "explanation": "Cleanup addresses the direct launcher only. A Windows virtual-environment redirector may have a descendant runtime whose completion is unknown. Halt further GPU work until the owned runtime is checked."
+            }, indent=2) + "\n", encoding="utf-8")
+            (directory / (phase + ".stdout.log")).write_bytes(error.stdout or b"")
+            (directory / (phase + ".stderr.log")).write_bytes(error.stderr or b"")
+            try:
+                child.kill()
+            except OSError as cleanup_error:
+                raise RuntimeError(
+                    f"The {phase} child exceeded 120 seconds and direct-launcher cleanup failed. "
+                    f"Descendant completion is unknown. Inspect {marker} before further GPU work."
+                ) from cleanup_error
+            try:
+                cleanup_stdout, cleanup_stderr = child.communicate(timeout=15)
+            except subprocess.TimeoutExpired as cleanup_error:
+                (directory / (phase + ".cleanup.stdout.log")).write_bytes(cleanup_error.stdout or b"")
+                (directory / (phase + ".cleanup.stderr.log")).write_bytes(cleanup_error.stderr or b"")
+                raise RuntimeError(
+                    f"The {phase} child exceeded 120 seconds and direct-launcher cleanup did not "
+                    f"complete within 15 seconds. Descendant completion is unknown. Inspect {marker} "
+                    "before further GPU work."
+                ) from cleanup_error
+            (directory / (phase + ".cleanup.stdout.log")).write_bytes(cleanup_stdout or b"")
+            (directory / (phase + ".cleanup.stderr.log")).write_bytes(cleanup_stderr or b"")
+            raise RuntimeError(
+                f"The {phase} child exceeded 120 seconds. Only its direct launcher was addressed, "
+                f"so descendant completion is unknown. Inspect {marker} before further GPU work."
+            ) from error
     (directory / (phase + ".stdout.log")).write_bytes(stdout)
     (directory / (phase + ".stderr.log")).write_bytes(stderr)
     if child.returncode != 0:

@@ -3,6 +3,7 @@ import copy
 from hashlib import sha256
 import importlib.util
 import io
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -396,3 +397,81 @@ def test_verified_buffer_load_is_restricted_and_does_not_restore_live_state(prep
     exact(order.state_dict(), order_before)
     module.restore(loaded, target, opt, order, metadata)
     assert all(value.grad is None for value in target.parameters())
+
+
+@pytest.mark.parametrize("cleanup_times_out", [False, True])
+def test_child_timeout_preserves_evidence_and_stops_without_claiming_runtime_cleanup(
+        tmp_path, monkeypatch, cleanup_times_out):
+    module = example()
+    phase = "produce"
+    first_output, first_error = b"partial producer output", b"partial producer error"
+    cleanup_output, cleanup_error = b"partial cleanup output", b"partial cleanup error"
+    marker_path = tmp_path / "timeout.json"
+    launches, timeouts, kills, exits, first_timeout = [], [], [], [], []
+
+    class Child:
+        pid = 4107
+        returncode = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, kind, value, traceback):
+            exits.append((kind, value))
+            return False
+
+        def communicate(self, timeout):
+            timeouts.append(timeout)
+            if len(timeouts) == 1:
+                error = module.subprocess.TimeoutExpired(
+                    launches[0], timeout, output=first_output, stderr=first_error)
+                first_timeout.append(error)
+                raise error
+            assert timeout == 15 and len(timeouts) == 2
+            if cleanup_times_out:
+                raise module.subprocess.TimeoutExpired(
+                    launches[0], timeout, output=cleanup_output, stderr=cleanup_error)
+            self.returncode = -9
+            return cleanup_output, cleanup_error
+
+        def kill(self):
+            # The stop marker and initial partial logs must survive even when
+            # direct-launcher cleanup cannot establish descendant completion.
+            marker = json.loads(marker_path.read_text(encoding="utf-8"))
+            assert marker["status"] == "needs-owned-runtime-check"
+            assert marker["launcher_pid"] == self.pid and marker["phase"] == phase
+            assert marker["deadline_seconds"] == 120
+            assert (tmp_path / "produce.stdout.log").read_bytes() == first_output
+            assert (tmp_path / "produce.stderr.log").read_bytes() == first_error
+            kills.append(self.pid)
+
+    def launch(command, **kwargs):
+        launches.append(command)
+        assert len(launches) == 1
+        assert kwargs["stdin"] == module.subprocess.DEVNULL
+        assert kwargs["stdout"] == kwargs["stderr"] == module.subprocess.PIPE
+        return Child()
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A timed-out child reached deserialization or numerical work")
+
+    monkeypatch.setattr(module.subprocess, "Popen", launch)
+    monkeypatch.setattr(module.torch, "load", forbidden)
+    monkeypatch.setattr(module, "fixture", forbidden)
+    monkeypatch.setattr(module, "run_steps", forbidden)
+    with pytest.raises(RuntimeError) as stopped:
+        module._child("float32", tmp_path, phase)
+    assert isinstance(stopped.value.__cause__, module.subprocess.TimeoutExpired)
+    assert stopped.value.__cause__.timeout == (15 if cleanup_times_out else 120)
+    if not cleanup_times_out:
+        assert stopped.value.__cause__ is first_timeout[0]
+    assert timeouts == [120, 15] and kills == [4107] and len(launches) == 1
+    assert len(exits) == 1 and exits[0] == (RuntimeError, stopped.value)
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    assert marker["status"] == "needs-owned-runtime-check"
+    assert marker["phase"] == phase and marker["launcher_pid"] == 4107
+    assert marker["deadline_seconds"] == 120 and type(marker["explanation"]) is str
+    assert (tmp_path / "produce.stdout.log").read_bytes() == first_output
+    assert (tmp_path / "produce.stderr.log").read_bytes() == first_error
+    assert (tmp_path / "produce.cleanup.stdout.log").read_bytes() == cleanup_output
+    assert (tmp_path / "produce.cleanup.stderr.log").read_bytes() == cleanup_error
