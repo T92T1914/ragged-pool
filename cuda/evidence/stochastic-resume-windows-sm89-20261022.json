@@ -1,0 +1,1118 @@
+{
+  "status": "passed",
+  "scope": "One trusted local eager CUDA stochastic continuation; no general crash/distributed/security/performance claim.",
+  "consumer_source": {
+    "revision": "33d8bc445474ffb5cce66d552f03268851967e78",
+    "tree": "ba91f3a2cab167b8971de338e89caee4524b8d77",
+    "sdist_sha256": "6556161643676a01691a5349a05740caee109814f27e9b125db224d1f1974aa2",
+    "archive_members_checked": 65,
+    "tracked_sources_checked": 58,
+    "copied_consumer_test_files_checked": 23
+  },
+  "unchanged_native": {
+    "native_build_revision": "b500a3bfd1f79cdc2ad03f93176871d4229b0066",
+    "native_build_tree": "b69449580fba3bdaf414d3e9c82bed0e5c6e4c57",
+    "wheel_sha256": "a3217cf695a05da486ec920fb7446c94a3f78f9a37509640b84575b81a220823",
+    "native_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+    "new_wheel": false,
+    "new_native_compilation": false,
+    "new_native_instrumentation": false,
+    "original_compiler": "NVCC 12.8.93 / MSVC 19.44.35228 / toolset 14.44.35207 / C++17 / sm89",
+    "api": "Original ATen/dispatcher runtime unchanged; consumer uses public state_dict and per-device RNG APIs"
+  },
+  "runtime_source_joins": {
+    "csrc/pool.cu": {
+      "source_sha256": "6b53d31e9874572d81f7b5d456c0f7c987cad708fd60f23375a29835a3a25c23",
+      "native_build_source_sha256": "6b53d31e9874572d81f7b5d456c0f7c987cad708fd60f23375a29835a3a25c23",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/__init__.py": {
+      "source_sha256": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+      "native_build_source_sha256": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/_registration.py": {
+      "source_sha256": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+      "native_build_source_sha256": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/_validation.py": {
+      "source_sha256": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+      "native_build_source_sha256": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/forward_ad.py": {
+      "source_sha256": "fc3bb29195ce87d8199b674719ef9bc5b6cfc76fbaea7713bcc366528ea3cb25",
+      "native_build_source_sha256": "fc3bb29195ce87d8199b674719ef9bc5b6cfc76fbaea7713bcc366528ea3cb25",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/functional.py": {
+      "source_sha256": "f67fef21320a7a4e8cfe29ec3767dda5e995f10fc68a31b80cfd7c0bafe63923",
+      "native_build_source_sha256": "f67fef21320a7a4e8cfe29ec3767dda5e995f10fc68a31b80cfd7c0bafe63923",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/padded.py": {
+      "source_sha256": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+      "native_build_source_sha256": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/reference.py": {
+      "source_sha256": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a",
+      "native_build_source_sha256": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a",
+      "join": "literal"
+    },
+    "src/ragged_pool_cuda/second_order.py": {
+      "source_sha256": "e671bf773ab808e20984456697135066008f5387896a38bfe7b54d6181c2858d",
+      "native_build_source_sha256": "63bc0069fa51d863e53e374f42ca90920beaa2164f8370558f8cdd2923e65ca2",
+      "join": "complete CRLF-to-LF equality"
+    },
+    "setup.py": {
+      "source_sha256": "36146e1b1ddc91f011e953bd32b4f1043298fd5d66cbc7ca671c6a162362e278",
+      "native_build_source_sha256": "36146e1b1ddc91f011e953bd32b4f1043298fd5d66cbc7ca671c6a162362e278",
+      "join": "literal"
+    },
+    "pyproject.toml": {
+      "source_sha256": "89ff79f2132e2fa52c76c016089a29f83e8a101422c3c39038db767aed510dc6",
+      "native_build_source_sha256": "89ff79f2132e2fa52c76c016089a29f83e8a101422c3c39038db767aed510dc6",
+      "join": "literal"
+    },
+    "LICENSE": {
+      "source_sha256": "36d11440260989b755260cc6b2e6bb1207a9e2813ef63abf64d0d59323e33264",
+      "native_build_source_sha256": "36d11440260989b755260cc6b2e6bb1207a9e2813ef63abf64d0d59323e33264",
+      "join": "literal"
+    },
+    "NOTICE": {
+      "source_sha256": "21ad188fcd69af250123f4f2d71b5dcaf5c4796d3dc5651c4ff4c97f9f46033e",
+      "native_build_source_sha256": "21ad188fcd69af250123f4f2d71b5dcaf5c4796d3dc5651c4ff4c97f9f46033e",
+      "join": "literal"
+    },
+    "third_party/PYTORCH-LICENSE": {
+      "source_sha256": "3a1bf20ba0b5acaf4a0c5f82048af8fb1cb371d1c6d38828ccfc6e6900e55d0f",
+      "native_build_source_sha256": "3a1bf20ba0b5acaf4a0c5f82048af8fb1cb371d1c6d38828ccfc6e6900e55d0f",
+      "join": "literal"
+    }
+  },
+  "ordinary_installation": {
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "cuda_runtime": "12.8",
+    "record_non_record_members_verified": 15,
+    "pip_check": "No broken requirements found.",
+    "fresh_external_environment": true
+  },
+  "installed_cohort": {
+    "commands_passed": 13,
+    "commands": [
+      "pytest",
+      "stochastic-float32",
+      "resume-float32",
+      "second-float32",
+      "forward-float32",
+      "functional-float32",
+      "compiled-float32",
+      "stochastic-float64",
+      "resume-float64",
+      "second-float64",
+      "forward-float64",
+      "functional-float64",
+      "compiled-float64"
+    ],
+    "cuda_tests_passed": 742,
+    "cuda_tests_skipped": 4,
+    "cuda_test_warnings": 1,
+    "skips": "Existing Windows symlink-privilege fixtures",
+    "warning": "Existing exported-loader non-writable buffer warning",
+    "result_sha256": "c1e66cc66fb1db43d0e7422949ca0c981193b0a975b5aaea588f99a230e8d5f8"
+  },
+  "consumers": {
+    "float32": {
+      "status": "passed",
+      "method": "state_dict.stochastic_packed_cuda_training_resume",
+      "purpose": "Fixed CUDA dropout and shuffled-batch continuation in fresh processes",
+      "scope": "Known local eager CUDA0 state only. No general replay, workers, Python/NumPy RNG, distributed, hostile-file safety, crash consistency, performance or model-quality claim.",
+      "dtype": "float32",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "training_mode": true,
+      "source_revision": "33d8bc445474ffb5cce66d552f03268851967e78",
+      "source_tree": "ba91f3a2cab167b8971de338e89caee4524b8d77",
+      "source_identity_basis": "Caller labels plus hashed consumer/helper/package/native and fixture bytes",
+      "dropout_probability": 0.25,
+      "dropout_seed": 2011,
+      "dropout_rng_device": "cuda:0",
+      "cuda_rng_state_bytes": 16,
+      "order_seed": 2111,
+      "order_regenerations": 1,
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0.8,
+      "optimizer_options": {
+        "lr": 0.03,
+        "momentum": 0.8,
+        "dampening": 0,
+        "weight_decay": 0,
+        "nesterov": false,
+        "maximize": false,
+        "foreach": false,
+        "differentiable": false,
+        "fused": false
+      },
+      "optimizer_steps": 7,
+      "producer_steps": 2,
+      "resumed_steps": 5,
+      "checkpoint_cursor": 2,
+      "checkpoint_epoch": 0,
+      "distinct_processes": true,
+      "parent_cuda_fixture_after_children_exit": true,
+      "same_native_exact": true,
+      "same_native_max_abs_error": 0.0,
+      "primitive_comparisons_passed": true,
+      "primitive_max_abs_error": 0.0,
+      "comparison_tolerance": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "independent_momentum_recurrence": true,
+      "controls": {
+        "reset_dropout_rng": {
+          "final_parameter_max_abs_error": 0.029547646641731262,
+          "divergence_threshold": 1e-07,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          "causal_witness": {
+            "next_batch_unchanged": true,
+            "next_dropout_mask_changed": true,
+            "next_forward_max_abs_error": 0.19333799183368683
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "omit_dropout_rng": {
+          "final_parameter_max_abs_error": 0.03238902986049652,
+          "divergence_threshold": 1e-07,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          "causal_witness": {
+            "next_batch_unchanged": true,
+            "next_dropout_mask_changed": true,
+            "next_forward_max_abs_error": 0.1749764084815979
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "reset_order_generator": {
+          "final_parameter_max_abs_error": 0.02940450608730316,
+          "divergence_threshold": 1e-07,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            1,
+            4
+          ],
+          "causal_witness": {
+            "current_permutation_suffix_exact": true,
+            "post_rollover_order_changed": true
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "reset_optimizer": {
+          "final_parameter_max_abs_error": 0.07678049057722092,
+          "divergence_threshold": 1e-07,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          "causal_witness": {
+            "next_forward_and_gradients_exact": true,
+            "first_update_parameter_max_abs_error": 0.033619027584791183
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "repeat_cursor": {
+          "final_parameter_max_abs_error": 0.03951611369848251,
+          "divergence_threshold": 1e-07,
+          "diverged": true,
+          "batch_ids": [
+            4,
+            0,
+            2,
+            3,
+            3
+          ],
+          "causal_witness": {
+            "next_batch_changed": true,
+            "selected_saved_permutation_position": 1
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "skip_cursor": {
+          "final_parameter_max_abs_error": 0.014600425958633423,
+          "divergence_threshold": 1e-07,
+          "diverged": true,
+          "batch_ids": [
+            2,
+            3,
+            3,
+            0,
+            4
+          ],
+          "causal_witness": {
+            "next_batch_changed": true,
+            "selected_saved_permutation_position": 3
+          },
+          "live_state_bypass_after_valid_restore": true
+        }
+      },
+      "checkpoint_sha256": "6355989583f41e939cebbfde18a713e51904e76dabc0ce7db6efd5994f7109ac",
+      "checkpoint_bytes": 12351,
+      "checkpoint_byte_limit": 131072,
+      "checkpoint_unchanged": true,
+      "input_sources_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "loaded_state_storage_independent": true,
+      "same_parameter_and_optimizer_objects": true,
+      "all_parameter_blocks_changed_each_step": true,
+      "checkpoint_metadata": {
+        "format": "ragged-pool-cuda-fixed-stochastic-training-state",
+        "schema": 1,
+        "dtype": "float32",
+        "device": "cuda:0",
+        "checkpoint_tensor_device": "cpu",
+        "next_update": 2,
+        "total_updates": 7,
+        "seed": 1811,
+        "architecture": "encoder3x4-tanh-scorer4x1-pool-head4x1",
+        "training": true,
+        "parameters": [
+          {
+            "name": "encoder.weight",
+            "shape": [
+              4,
+              3
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "encoder.bias",
+            "shape": [
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "scorer.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "head.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "head.bias",
+            "shape": [
+              1
+            ],
+            "dtype": "torch.float32"
+          }
+        ],
+        "optimizer": {
+          "class": "torch.optim.SGD",
+          "options": {
+            "lr": 0.03,
+            "momentum": 0.8,
+            "dampening": 0,
+            "weight_decay": 0,
+            "nesterov": false,
+            "maximize": false,
+            "foreach": false,
+            "differentiable": false,
+            "fused": false
+          }
+        },
+        "offsets": [
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          [
+            0,
+            1,
+            5,
+            7,
+            12
+          ],
+          [
+            0,
+            3,
+            3,
+            8,
+            11
+          ],
+          [
+            0,
+            1,
+            4,
+            6,
+            6,
+            9
+          ]
+        ],
+        "fixture_sha256": "b3bce957c9852e7cca373458eb3d185366bda6211d2bf290ba3af82fed22be11",
+        "source_revision": "33d8bc445474ffb5cce66d552f03268851967e78",
+        "source_tree": "ba91f3a2cab167b8971de338e89caee4524b8d77",
+        "script_sha256": "44d215b1db396883357f6bea8775c5b8fb813ba24163b66af7ea4bf19283337a",
+        "fixture_script_sha256": "0c2fb7cc545fb17c213f8a3e2edeac3f623b45c435c581726b7cceebcfc225ea",
+        "training_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "package_version": "0.1.0",
+        "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+        "package_python_sha256": {
+          "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+          "_registration.py": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+          "_validation.py": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+          "padded.py": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+          "reference.py": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a"
+        },
+        "stochastic_forward": true,
+        "live_rng_continuation": true,
+        "resume_script_sha256": "dd5f5a9d46d39404de40663b811ede1d08e241acc29f0e2df827e4cebc4c307d",
+        "dropout_probability": 0.25,
+        "dropout_seed": 2011,
+        "dropout_rng_device": "cuda:0",
+        "cuda_rng_state_bytes": 16,
+        "order_seed": 2111,
+        "order_length": 5,
+        "checkpoint_epoch": 0,
+        "checkpoint_order_cursor": 2,
+        "training_mode": true
+      },
+      "steps": [
+        {
+          "update": 1,
+          "batch_id": 1,
+          "epoch": 0,
+          "cursor_before": 0,
+          "cursor_after": 1,
+          "cuda_rng_before_sha256": "30d2f1d2491ed4bcd739dc10a6deb2ca9997cabb08954e8d8682808b9efdb79d",
+          "cuda_rng_after_sha256": "db6c7577f3373cc9027f06e3c17c229234947c8e5751578abfc7b28c202e908c",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "62a2daa0436ebdd3caab2594b0b071c328701e6a4fb288cbb639ed4efc4e3f4d",
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          "native_loss": 0.20526844263076782,
+          "primitive_loss": 0.20526844263076782
+        },
+        {
+          "update": 2,
+          "batch_id": 4,
+          "epoch": 0,
+          "cursor_before": 1,
+          "cursor_after": 2,
+          "cuda_rng_before_sha256": "db6c7577f3373cc9027f06e3c17c229234947c8e5751578abfc7b28c202e908c",
+          "cuda_rng_after_sha256": "9a30b572a370508ba3428dc62546f5c03ff2515a72957c72c55583203c2759d3",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "b9f80d1857d6e3f3eb8afee0ec5dc0d5454ffcf27ec953b066fc9fcbc3208958",
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            1,
+            4,
+            6,
+            6,
+            9
+          ],
+          "native_loss": 0.7759299874305725,
+          "primitive_loss": 0.7759299874305725
+        },
+        {
+          "update": 3,
+          "batch_id": 0,
+          "epoch": 0,
+          "cursor_before": 2,
+          "cursor_after": 3,
+          "cuda_rng_before_sha256": "9a30b572a370508ba3428dc62546f5c03ff2515a72957c72c55583203c2759d3",
+          "cuda_rng_after_sha256": "4657b4143e3e9eadd8cdd5bbc26acaecc79b87cd85b6bc2f1e1c9a78e3f246a0",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "a393ab6ca14159b94ae46e0b15d8bdd1a81d38b190a77ca87e494cf7200a97d1",
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "native_loss": 0.37439343333244324,
+          "primitive_loss": 0.37439343333244324
+        },
+        {
+          "update": 4,
+          "batch_id": 2,
+          "epoch": 0,
+          "cursor_before": 3,
+          "cursor_after": 4,
+          "cuda_rng_before_sha256": "4657b4143e3e9eadd8cdd5bbc26acaecc79b87cd85b6bc2f1e1c9a78e3f246a0",
+          "cuda_rng_after_sha256": "c7c053e8e217df92b5427432e4c633f3ca9a306ef71f5ecf50801c1f054635ce",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "d6e29c46e01b69e795849eb774324c6c6f01722a15dcde696ac1bc9748abd907",
+          "N": 12,
+          "B": 4,
+          "offsets": [
+            0,
+            1,
+            5,
+            7,
+            12
+          ],
+          "native_loss": 0.04835645854473114,
+          "primitive_loss": 0.04835645854473114
+        },
+        {
+          "update": 5,
+          "batch_id": 3,
+          "epoch": 0,
+          "cursor_before": 4,
+          "cursor_after": 5,
+          "cuda_rng_before_sha256": "c7c053e8e217df92b5427432e4c633f3ca9a306ef71f5ecf50801c1f054635ce",
+          "cuda_rng_after_sha256": "125ec773f6647d6ae5aeb47465506cd060287b0b381ab7e657094d47edcfad94",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "5e5fa82efcd8e60793e157a8b0b80e777b9bbdf27ae40212947e678c4698a924",
+          "N": 11,
+          "B": 4,
+          "offsets": [
+            0,
+            3,
+            3,
+            8,
+            11
+          ],
+          "native_loss": 0.4193767011165619,
+          "primitive_loss": 0.4193767011165619
+        },
+        {
+          "update": 6,
+          "batch_id": 3,
+          "epoch": 1,
+          "cursor_before": 5,
+          "cursor_after": 1,
+          "cuda_rng_before_sha256": "125ec773f6647d6ae5aeb47465506cd060287b0b381ab7e657094d47edcfad94",
+          "cuda_rng_after_sha256": "69c7c63c020db9284930f83d2aba98a69e0581bb76fcb63c3b82e40e453134ce",
+          "order_rng_sha256": "6a5d81972fb59b62a26cafea51c4ddb7239e862fa20f0a52ff31a9a68e0d3a15",
+          "dropout_mask_sha256": "912b5cc434b604a4433ae1c7d7064d7f076e7fc1b226497b8279576a1d812727",
+          "N": 11,
+          "B": 4,
+          "offsets": [
+            0,
+            3,
+            3,
+            8,
+            11
+          ],
+          "native_loss": 0.4154103100299835,
+          "primitive_loss": 0.4154103100299835
+        },
+        {
+          "update": 7,
+          "batch_id": 0,
+          "epoch": 1,
+          "cursor_before": 1,
+          "cursor_after": 2,
+          "cuda_rng_before_sha256": "69c7c63c020db9284930f83d2aba98a69e0581bb76fcb63c3b82e40e453134ce",
+          "cuda_rng_after_sha256": "4a86ca829c923bbc187edbfd022c3d8734d59cd99228a8fed9cac0b2293cab1f",
+          "order_rng_sha256": "6a5d81972fb59b62a26cafea51c4ddb7239e862fa20f0a52ff31a9a68e0d3a15",
+          "dropout_mask_sha256": "883f3c75f79cfce49f7e1b6b3fab62218e22d249f2204803d69c52471287aa7f",
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "native_loss": 0.279426246881485,
+          "primitive_loss": 0.279426246881485
+        }
+      ],
+      "child_timeout_seconds": 120,
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "threads": 1,
+      "interop_threads": 1,
+      "package_version": "0.1.0",
+      "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+      "script_sha256": "44d215b1db396883357f6bea8775c5b8fb813ba24163b66af7ea4bf19283337a",
+      "resume_script_sha256": "dd5f5a9d46d39404de40663b811ede1d08e241acc29f0e2df827e4cebc4c307d",
+      "fixture_script_sha256": "0c2fb7cc545fb17c213f8a3e2edeac3f623b45c435c581726b7cceebcfc225ea",
+      "training_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+        "_validation.py": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+        "padded.py": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+        "reference.py": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a"
+      },
+      "child_launcher_relations": {
+        "producer": "windows-venv-redirector",
+        "resumer": "windows-venv-redirector"
+      },
+      "raw_receipt_sha256": "1611ff19e06d7552a663e951e2ed28c2b248af91fa2f82bc5d32ecc74be449d2"
+    },
+    "float64": {
+      "status": "passed",
+      "method": "state_dict.stochastic_packed_cuda_training_resume",
+      "purpose": "Fixed CUDA dropout and shuffled-batch continuation in fresh processes",
+      "scope": "Known local eager CUDA0 state only. No general replay, workers, Python/NumPy RNG, distributed, hostile-file safety, crash consistency, performance or model-quality claim.",
+      "dtype": "float64",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "training_mode": true,
+      "source_revision": "33d8bc445474ffb5cce66d552f03268851967e78",
+      "source_tree": "ba91f3a2cab167b8971de338e89caee4524b8d77",
+      "source_identity_basis": "Caller labels plus hashed consumer/helper/package/native and fixture bytes",
+      "dropout_probability": 0.25,
+      "dropout_seed": 2011,
+      "dropout_rng_device": "cuda:0",
+      "cuda_rng_state_bytes": 16,
+      "order_seed": 2111,
+      "order_regenerations": 1,
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0.8,
+      "optimizer_options": {
+        "lr": 0.03,
+        "momentum": 0.8,
+        "dampening": 0,
+        "weight_decay": 0,
+        "nesterov": false,
+        "maximize": false,
+        "foreach": false,
+        "differentiable": false,
+        "fused": false
+      },
+      "optimizer_steps": 7,
+      "producer_steps": 2,
+      "resumed_steps": 5,
+      "checkpoint_cursor": 2,
+      "checkpoint_epoch": 0,
+      "distinct_processes": true,
+      "parent_cuda_fixture_after_children_exit": true,
+      "same_native_exact": true,
+      "same_native_max_abs_error": 0.0,
+      "primitive_comparisons_passed": true,
+      "primitive_max_abs_error": 2.220446049250313e-16,
+      "comparison_tolerance": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      },
+      "independent_momentum_recurrence": true,
+      "controls": {
+        "reset_dropout_rng": {
+          "final_parameter_max_abs_error": 0.02744709786699029,
+          "divergence_threshold": 1e-10,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          "causal_witness": {
+            "next_batch_unchanged": true,
+            "next_dropout_mask_changed": true,
+            "next_forward_max_abs_error": 0.23439177898818175
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "omit_dropout_rng": {
+          "final_parameter_max_abs_error": 0.014536873732209799,
+          "divergence_threshold": 1e-10,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          "causal_witness": {
+            "next_batch_unchanged": true,
+            "next_dropout_mask_changed": true,
+            "next_forward_max_abs_error": 0.1331527516684506
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "reset_order_generator": {
+          "final_parameter_max_abs_error": 0.07627523782602344,
+          "divergence_threshold": 1e-10,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            1,
+            4
+          ],
+          "causal_witness": {
+            "current_permutation_suffix_exact": true,
+            "post_rollover_order_changed": true
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "reset_optimizer": {
+          "final_parameter_max_abs_error": 0.07620384591686914,
+          "divergence_threshold": 1e-10,
+          "diverged": true,
+          "batch_ids": [
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          "causal_witness": {
+            "next_forward_and_gradients_exact": true,
+            "first_update_parameter_max_abs_error": 0.03282616824563757
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "repeat_cursor": {
+          "final_parameter_max_abs_error": 0.05116074272143942,
+          "divergence_threshold": 1e-10,
+          "diverged": true,
+          "batch_ids": [
+            4,
+            0,
+            2,
+            3,
+            3
+          ],
+          "causal_witness": {
+            "next_batch_changed": true,
+            "selected_saved_permutation_position": 1
+          },
+          "live_state_bypass_after_valid_restore": true
+        },
+        "skip_cursor": {
+          "final_parameter_max_abs_error": 0.016293133931288353,
+          "divergence_threshold": 1e-10,
+          "diverged": true,
+          "batch_ids": [
+            2,
+            3,
+            3,
+            0,
+            4
+          ],
+          "causal_witness": {
+            "next_batch_changed": true,
+            "selected_saved_permutation_position": 3
+          },
+          "live_state_bypass_after_valid_restore": true
+        }
+      },
+      "checkpoint_sha256": "a544daf7b94ce7be9baebe0f853cbd0921d3e4bfb44f6570f6b799e862df66cf",
+      "checkpoint_bytes": 12479,
+      "checkpoint_byte_limit": 131072,
+      "checkpoint_unchanged": true,
+      "input_sources_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "loaded_state_storage_independent": true,
+      "same_parameter_and_optimizer_objects": true,
+      "all_parameter_blocks_changed_each_step": true,
+      "checkpoint_metadata": {
+        "format": "ragged-pool-cuda-fixed-stochastic-training-state",
+        "schema": 1,
+        "dtype": "float64",
+        "device": "cuda:0",
+        "checkpoint_tensor_device": "cpu",
+        "next_update": 2,
+        "total_updates": 7,
+        "seed": 1811,
+        "architecture": "encoder3x4-tanh-scorer4x1-pool-head4x1",
+        "training": true,
+        "parameters": [
+          {
+            "name": "encoder.weight",
+            "shape": [
+              4,
+              3
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "encoder.bias",
+            "shape": [
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "scorer.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "head.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "head.bias",
+            "shape": [
+              1
+            ],
+            "dtype": "torch.float64"
+          }
+        ],
+        "optimizer": {
+          "class": "torch.optim.SGD",
+          "options": {
+            "lr": 0.03,
+            "momentum": 0.8,
+            "dampening": 0,
+            "weight_decay": 0,
+            "nesterov": false,
+            "maximize": false,
+            "foreach": false,
+            "differentiable": false,
+            "fused": false
+          }
+        },
+        "offsets": [
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          [
+            0,
+            1,
+            5,
+            7,
+            12
+          ],
+          [
+            0,
+            3,
+            3,
+            8,
+            11
+          ],
+          [
+            0,
+            1,
+            4,
+            6,
+            6,
+            9
+          ]
+        ],
+        "fixture_sha256": "2ec7af6d2c5803b798c2b8c4a67d71a767a1e5b20452431316e6a96fdca0e628",
+        "source_revision": "33d8bc445474ffb5cce66d552f03268851967e78",
+        "source_tree": "ba91f3a2cab167b8971de338e89caee4524b8d77",
+        "script_sha256": "44d215b1db396883357f6bea8775c5b8fb813ba24163b66af7ea4bf19283337a",
+        "fixture_script_sha256": "0c2fb7cc545fb17c213f8a3e2edeac3f623b45c435c581726b7cceebcfc225ea",
+        "training_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "package_version": "0.1.0",
+        "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+        "package_python_sha256": {
+          "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+          "_registration.py": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+          "_validation.py": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+          "padded.py": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+          "reference.py": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a"
+        },
+        "stochastic_forward": true,
+        "live_rng_continuation": true,
+        "resume_script_sha256": "dd5f5a9d46d39404de40663b811ede1d08e241acc29f0e2df827e4cebc4c307d",
+        "dropout_probability": 0.25,
+        "dropout_seed": 2011,
+        "dropout_rng_device": "cuda:0",
+        "cuda_rng_state_bytes": 16,
+        "order_seed": 2111,
+        "order_length": 5,
+        "checkpoint_epoch": 0,
+        "checkpoint_order_cursor": 2,
+        "training_mode": true
+      },
+      "steps": [
+        {
+          "update": 1,
+          "batch_id": 1,
+          "epoch": 0,
+          "cursor_before": 0,
+          "cursor_after": 1,
+          "cuda_rng_before_sha256": "30d2f1d2491ed4bcd739dc10a6deb2ca9997cabb08954e8d8682808b9efdb79d",
+          "cuda_rng_after_sha256": "db6c7577f3373cc9027f06e3c17c229234947c8e5751578abfc7b28c202e908c",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "5c94dfe44dfd8267ed75f9729c4d12141521d7b4a6c6cf94aafd915ce4515120",
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          "native_loss": 0.3564445465417719,
+          "primitive_loss": 0.3564445465417719
+        },
+        {
+          "update": 2,
+          "batch_id": 4,
+          "epoch": 0,
+          "cursor_before": 1,
+          "cursor_after": 2,
+          "cuda_rng_before_sha256": "db6c7577f3373cc9027f06e3c17c229234947c8e5751578abfc7b28c202e908c",
+          "cuda_rng_after_sha256": "9a30b572a370508ba3428dc62546f5c03ff2515a72957c72c55583203c2759d3",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "229febb59f71afc3bd5decad25daea3cd90aedaf6ce792098e6c6361f3b0e049",
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            1,
+            4,
+            6,
+            6,
+            9
+          ],
+          "native_loss": 0.41245323214151863,
+          "primitive_loss": 0.41245323214151863
+        },
+        {
+          "update": 3,
+          "batch_id": 0,
+          "epoch": 0,
+          "cursor_before": 2,
+          "cursor_after": 3,
+          "cuda_rng_before_sha256": "9a30b572a370508ba3428dc62546f5c03ff2515a72957c72c55583203c2759d3",
+          "cuda_rng_after_sha256": "4657b4143e3e9eadd8cdd5bbc26acaecc79b87cd85b6bc2f1e1c9a78e3f246a0",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "2c46b0d4b0fd165ae7ba930ca436cebd59b4aeb28da4d6656e7b02547306e344",
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "native_loss": 0.14685474098208398,
+          "primitive_loss": 0.14685474098208398
+        },
+        {
+          "update": 4,
+          "batch_id": 2,
+          "epoch": 0,
+          "cursor_before": 3,
+          "cursor_after": 4,
+          "cuda_rng_before_sha256": "4657b4143e3e9eadd8cdd5bbc26acaecc79b87cd85b6bc2f1e1c9a78e3f246a0",
+          "cuda_rng_after_sha256": "c7c053e8e217df92b5427432e4c633f3ca9a306ef71f5ecf50801c1f054635ce",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "4df6b0cf0174f420ce505ccda7f11fb9e15b86a04d01539912af4ed1ac80ac8d",
+          "N": 12,
+          "B": 4,
+          "offsets": [
+            0,
+            1,
+            5,
+            7,
+            12
+          ],
+          "native_loss": 0.5119782184793702,
+          "primitive_loss": 0.5119782184793702
+        },
+        {
+          "update": 5,
+          "batch_id": 3,
+          "epoch": 0,
+          "cursor_before": 4,
+          "cursor_after": 5,
+          "cuda_rng_before_sha256": "c7c053e8e217df92b5427432e4c633f3ca9a306ef71f5ecf50801c1f054635ce",
+          "cuda_rng_after_sha256": "125ec773f6647d6ae5aeb47465506cd060287b0b381ab7e657094d47edcfad94",
+          "order_rng_sha256": "dd9190d61919a5a7389f2ff46c5517a66ba79a97eb76518b5ead34cc5facee6a",
+          "dropout_mask_sha256": "420213521ea99fc80a38260059133f01e13d11dbab6ac8e2c869d01bf2618c6e",
+          "N": 11,
+          "B": 4,
+          "offsets": [
+            0,
+            3,
+            3,
+            8,
+            11
+          ],
+          "native_loss": 0.3254980903514397,
+          "primitive_loss": 0.3254980903514397
+        },
+        {
+          "update": 6,
+          "batch_id": 3,
+          "epoch": 1,
+          "cursor_before": 5,
+          "cursor_after": 1,
+          "cuda_rng_before_sha256": "125ec773f6647d6ae5aeb47465506cd060287b0b381ab7e657094d47edcfad94",
+          "cuda_rng_after_sha256": "69c7c63c020db9284930f83d2aba98a69e0581bb76fcb63c3b82e40e453134ce",
+          "order_rng_sha256": "6a5d81972fb59b62a26cafea51c4ddb7239e862fa20f0a52ff31a9a68e0d3a15",
+          "dropout_mask_sha256": "6558d093dd829fd8415af91c658bafcab8c37744bcaaf759a4c3216d699c9b4e",
+          "N": 11,
+          "B": 4,
+          "offsets": [
+            0,
+            3,
+            3,
+            8,
+            11
+          ],
+          "native_loss": 0.28510409842859785,
+          "primitive_loss": 0.28510409842859785
+        },
+        {
+          "update": 7,
+          "batch_id": 0,
+          "epoch": 1,
+          "cursor_before": 1,
+          "cursor_after": 2,
+          "cuda_rng_before_sha256": "69c7c63c020db9284930f83d2aba98a69e0581bb76fcb63c3b82e40e453134ce",
+          "cuda_rng_after_sha256": "4a86ca829c923bbc187edbfd022c3d8734d59cd99228a8fed9cac0b2293cab1f",
+          "order_rng_sha256": "6a5d81972fb59b62a26cafea51c4ddb7239e862fa20f0a52ff31a9a68e0d3a15",
+          "dropout_mask_sha256": "3da9e2479aef3b3cac53d22973021a758c82dbd4d582344da072f1950f05ae27",
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "native_loss": 0.1648366550133787,
+          "primitive_loss": 0.1648366550133787
+        }
+      ],
+      "child_timeout_seconds": 120,
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "threads": 1,
+      "interop_threads": 1,
+      "package_version": "0.1.0",
+      "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+      "script_sha256": "44d215b1db396883357f6bea8775c5b8fb813ba24163b66af7ea4bf19283337a",
+      "resume_script_sha256": "dd5f5a9d46d39404de40663b811ede1d08e241acc29f0e2df827e4cebc4c307d",
+      "fixture_script_sha256": "0c2fb7cc545fb17c213f8a3e2edeac3f623b45c435c581726b7cceebcfc225ea",
+      "training_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+        "_validation.py": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+        "padded.py": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+        "reference.py": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a"
+      },
+      "child_launcher_relations": {
+        "producer": "windows-venv-redirector",
+        "resumer": "windows-venv-redirector"
+      },
+      "raw_receipt_sha256": "de2b5b4a88e63588f7afba9896ffb7b11758e031cd6cbfd9ba9296143fad8542"
+    }
+  },
+  "review_refinement": "Before execution, independent review added retained timeout evidence and a stop-before-more-GPU-work boundary. Mocked timeout checks do not establish descendant termination.",
+  "limits": [
+    "One Windows x64 CPython 3.11.8 / Torch 2.9.1+cu128 / RTX 4090 CUDA0 environment.",
+    "Existing training=True target and one fixed checkpoint after update two. Only CUDA0 dropout and the dedicated CPU order generator are restored.",
+    "Trusted bounded local bytes and expected digest, weights_only=True and map_location=cpu. Digest identity is not publisher authentication or hostile-file safety.",
+    "Explicit CPU staging belongs to this consumer; native operator transfer/admission contracts are unchanged.",
+    "No general replay, workers, Python/NumPy RNG, compiled state, scheduler, distributed/crash recovery, cross-device/release compatibility, model-quality, security, speed or memory claim.",
+    "No new native compilation or instrumentation, binary release/tag or platform claim. Hosted CPU CI is separate from local CUDA execution."
+  ]
+}
