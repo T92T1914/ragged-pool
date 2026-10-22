@@ -1,0 +1,744 @@
+{
+  "status": "passed",
+  "scope": "Ordinary installed first-order eager packed CUDA functional grad/VJP bridge",
+  "public_api": "ragged_pool_cuda.functional.ragged_pool_functional",
+  "executed_source_revision": "22b280b98a925c7f7a61197b9ecc66699a8d1737",
+  "executed_source_tree": "4180bd5e8e2d47f1eaac92db58e016e92145b476",
+  "source_archive_sha256": "3a05ca4e5acc74fa5e9bf8afc964c198d0265e19402f3bf2d011c06699ea116f",
+  "source_archive_tracked_members": 40,
+  "consumer_and_test_sha256": {
+    "examples/export_cuda.py": "ae8dfdd9b0dc1c6bbc13a2e50d1a0c0917bf42182293c995cac75a0e75e24d0a",
+    "examples/predict_cuda.py": "df5af21a322ea52192c99b5b980e906d52b859070bdd64a550b4d628f2f68372",
+    "examples/resume_training.py": "dd5f5a9d46d39404de40663b811ede1d08e241acc29f0e2df827e4cebc4c307d",
+    "examples/train_compiled.py": "0c2fb7cc545fb17c213f8a3e2edeac3f623b45c435c581726b7cceebcfc225ea",
+    "examples/train_cuda.py": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+    "examples/train_functional.py": "6c80f700e1730683a36c8176252877c9ebeb3c26075a2ad0a08b256be4ca87eb",
+    "examples/train_padded.py": "acb51a53d1976fe4e170ac6e16f37524b9bc20d034bf50d2a68cc6b980924ae6",
+    "tests/test_compiled.py": "dfecabd46cecf54623c676dd75cf2f11eb2bb309fe7d8398dea5d8c92e36f312",
+    "tests/test_cuda.py": "ba2f2c7d503a59d6e7c0eaa921ab7fa870084a4fa30cbab5927ab88c63bcbf89",
+    "tests/test_dynamic.py": "fc87baa7ee99014a566aceb008ff85ef078687bd1d5b650c9d4a6a444c585038",
+    "tests/test_dynamic_exported.py": "6da01d58bb97e8a62fb1ec2658b792ab838629f8eee41630202f3fbb47721f30",
+    "tests/test_exported.py": "b6c1f7bd8daf604346dcfe6e2721da2a5ba860ff7bcedb33d9f50bd50c029002",
+    "tests/test_functional.py": "fb29ca7c151fbb05fdddd983abb758f3e2ae18c007271dfd5c1caf4aaf528da3",
+    "tests/test_padded.py": "b92c03ce971617bee7303561dec70d86bf369585c637680dee6698d92b8fd26d",
+    "tests/test_training_resume.py": "aa03513e83e81a32a1aa6df8b95a77e84c153233ef0f45ca8ca821f29e811cb6"
+  },
+  "installed_package_payload_sha256": {
+    "ragged_pool_cuda/_C.cp311-win_amd64.pyd": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "ragged_pool_cuda/__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+    "ragged_pool_cuda/_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+    "ragged_pool_cuda/_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+    "ragged_pool_cuda/functional.py": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+    "ragged_pool_cuda/padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+    "ragged_pool_cuda/reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+  },
+  "environment": {
+    "os": "Windows x64",
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "cuda_runtime": "12.8",
+    "device": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "torch_threads": 1,
+    "torch_interop_threads": 1
+  },
+  "installation": {
+    "isolated_environment_created_for_this_goal_outside_checkout": true,
+    "corrected_wheel_reinstalled_after_failed_candidate": true,
+    "ordinary_new_python_wheel": true,
+    "wheel_sha256": "5bc7f5e36d5697fdb35185835f57e2c1a1b03d3a6ab5657696e71b0c7755f220",
+    "native_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "unchanged_six_member_payload": {
+      "ragged_pool_cuda/_C.cp311-win_amd64.pyd": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+      "ragged_pool_cuda/__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+      "ragged_pool_cuda/_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+      "ragged_pool_cuda/_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+      "ragged_pool_cuda/padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+      "ragged_pool_cuda/reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+    },
+    "packaging_route": "Checked sdist, standard build_py, exact accepted payload copy, bdist_wheel --skip-build, ordinary pip installation and complete RECORD/member checks",
+    "new_native_math": false,
+    "new_native_compilation": false,
+    "new_native_instrumentation": false,
+    "original_compiler_provenance": {
+      "nvcc": "12.8.93",
+      "msvc": "19.44.35228",
+      "cpp_standard": 17,
+      "architecture": "sm_89"
+    }
+  },
+  "checks": {
+    "manifest_commands_passed": 23,
+    "pytest_passed": 552,
+    "pytest_skipped": 4,
+    "pytest_warnings": 1,
+    "established_cuda_cases": 492,
+    "new_functional_cases": 60,
+    "skips": "Four established ordinary-Windows symlink fixtures unavailable",
+    "warning": "Established PyTorch PT2 nonwritable-buffer loader warning retained",
+    "math": "Nonlinear scalar grad, ordinary reverse, repeated unequal VJPs, independent primitive and eager comparisons, float64 directional finite difference and shift invariance",
+    "ownership": "Saved-primal version mutation, nonzero initial versions, pure-call .grad identity, source bytes/versions/storage, fresh repeated pullback results",
+    "refusals": "Higher reverse and cotangent differentiation, JVP/vmap, compile/export, malformed primal/cotangent admission and valid recovery; inference primals excluded",
+    "cotangent_dtype": "Outer VJP follows ordinary autograd-engine floating dtype normalization. Native backward validates the tensor it receives, not necessarily the caller's original cotangent dtype.",
+    "regressions": "Both dtypes: eager resume, static/dynamic compiled training, fixed/dynamic new export roundtrips and consumption of actual preceding fixed/dynamic artifacts under the new wheel"
+  },
+  "functional_consumers": {
+    "float32": {
+      "dtype": "float32",
+      "device": "cuda:0",
+      "fixture_sha256": "b93bbd614ff77abb629a8747f8d95824cc8159beef0f1bcc008832a2d15389f4",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps": 2,
+      "native_optimizer_steps": 2,
+      "reference_optimizer_steps": 2,
+      "parameter_tensors": 5,
+      "scalar_parameters": 25,
+      "comparison_tolerance": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "steps": [
+        {
+          "update": 1,
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "losses": {
+            "functional": 0.3642439544200897,
+            "native": 0.3642439544200897,
+            "primitive": 0.3642439544200897
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 0.0
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 0.0
+            }
+          },
+          "parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            },
+            "primitive": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            },
+            "functional": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            }
+          },
+          "pure_call_preserves_grad_fields": true,
+          "inputs_unchanged": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        },
+        {
+          "update": 2,
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          "losses": {
+            "functional": 0.15170782804489136,
+            "native": 0.15170782804489136,
+            "primitive": 0.15170782804489136
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 0.0
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 0.0
+            }
+          },
+          "parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            },
+            "primitive": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            },
+            "functional": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            }
+          },
+          "pure_call_preserves_grad_fields": true,
+          "inputs_unchanged": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        }
+      ],
+      "model_vjp": {
+        "status": "passed",
+        "outputs": [
+          "predictions",
+          "pooled"
+        ],
+        "cotangent_cases": [
+          {
+            "case": 1,
+            "cotangent_shapes": [
+              [
+                6
+              ],
+              [
+                6,
+                4
+              ]
+            ],
+            "complete_vjp_max_abs_errors": {
+              "native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 0.0
+              },
+              "primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 0.0
+              }
+            },
+            "raw_vjp_max_abs": 0.08760315179824829,
+            "inputs_parameters_and_grad_fields_unchanged": true
+          },
+          {
+            "case": 2,
+            "cotangent_shapes": [
+              [
+                6
+              ],
+              [
+                6,
+                4
+              ]
+            ],
+            "complete_vjp_max_abs_errors": {
+              "native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 0.0
+              },
+              "primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 0.0
+              }
+            },
+            "raw_vjp_max_abs": 0.06237867474555969,
+            "inputs_parameters_and_grad_fields_unchanged": true
+          }
+        ],
+        "output_max_abs_errors": {
+          "native": {
+            "predictions": 0.0,
+            "pooled": 0.0
+          },
+          "primitive": {
+            "predictions": 0.0,
+            "pooled": 0.0
+          }
+        },
+        "same_pullback_reused": true,
+        "distinct_cotangents_change_vjp": true,
+        "optimizer_steps": 0
+      },
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "package_identity_unchanged": true,
+      "functional_module_sha256": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+      "script_sha256": "6c80f700e1730683a36c8176252877c9ebeb3c26075a2ad0a08b256be4ca87eb",
+      "helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+        "_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+        "padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+        "reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+      },
+      "native_library_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+      "threads": 1,
+      "interop_threads": 1,
+      "private_receipt_sha256": "db47540788c83cab9d07abc67da9b85229404a0c29bdbb5eb904058132917d17"
+    },
+    "float64": {
+      "dtype": "float64",
+      "device": "cuda:0",
+      "fixture_sha256": "dd7651040e7b151b5f5de01649607f4e12de39119f0c63f2b1bf568e2cde303d",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps": 2,
+      "native_optimizer_steps": 2,
+      "reference_optimizer_steps": 2,
+      "parameter_tensors": 5,
+      "scalar_parameters": 25,
+      "comparison_tolerance": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      },
+      "steps": [
+        {
+          "update": 1,
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "losses": {
+            "functional": 0.1752760009969802,
+            "native": 0.1752760009969802,
+            "primitive": 0.1752760009969802
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 0.0
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 4.336808689942018e-19
+            }
+          },
+          "parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 0.0,
+              "scorer.weight": 1.3010426069826053e-18,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            },
+            "primitive": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            },
+            "functional": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            }
+          },
+          "pure_call_preserves_grad_fields": true,
+          "inputs_unchanged": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        },
+        {
+          "update": 2,
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          "losses": {
+            "functional": 0.4396604293856726,
+            "native": 0.4396604293856726,
+            "primitive": 0.4396604293856726
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "input_gradient": 0.0
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 5.551115123125783e-17,
+              "pooled": 1.1102230246251565e-16,
+              "input_gradient": 1.734723475976807e-18
+            }
+          },
+          "parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 0.0,
+              "scorer.weight": 2.6020852139652106e-18,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 2.220446049250313e-16
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 1.3877787807814457e-17
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.02764653429481996
+            },
+            "primitive": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.027646534294819974
+            },
+            "functional": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.02764653429481996
+            }
+          },
+          "pure_call_preserves_grad_fields": true,
+          "inputs_unchanged": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        }
+      ],
+      "model_vjp": {
+        "status": "passed",
+        "outputs": [
+          "predictions",
+          "pooled"
+        ],
+        "cotangent_cases": [
+          {
+            "case": 1,
+            "cotangent_shapes": [
+              [
+                6
+              ],
+              [
+                6,
+                4
+              ]
+            ],
+            "complete_vjp_max_abs_errors": {
+              "native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 0.0
+              },
+              "primitive": {
+                "encoder.weight": 1.3877787807814457e-17,
+                "encoder.bias": 5.551115123125783e-17,
+                "scorer.weight": 3.507394027990607e-17,
+                "head.weight": 5.551115123125783e-17,
+                "head.bias": 0.0,
+                "raw": 2.949029909160572e-17
+              }
+            },
+            "raw_vjp_max_abs": 0.08939746582201785,
+            "inputs_parameters_and_grad_fields_unchanged": true
+          },
+          {
+            "case": 2,
+            "cotangent_shapes": [
+              [
+                6
+              ],
+              [
+                6,
+                4
+              ]
+            ],
+            "complete_vjp_max_abs_errors": {
+              "native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 0.0
+              },
+              "primitive": {
+                "encoder.weight": 6.938893903907228e-18,
+                "encoder.bias": 2.7755575615628914e-17,
+                "scorer.weight": 3.686287386450715e-18,
+                "head.weight": 0.0,
+                "head.bias": 0.0,
+                "raw": 6.938893903907228e-18
+              }
+            },
+            "raw_vjp_max_abs": 0.060881296663212375,
+            "inputs_parameters_and_grad_fields_unchanged": true
+          }
+        ],
+        "output_max_abs_errors": {
+          "native": {
+            "predictions": 0.0,
+            "pooled": 0.0
+          },
+          "primitive": {
+            "predictions": 1.3877787807814457e-17,
+            "pooled": 1.1102230246251565e-16
+          }
+        },
+        "same_pullback_reused": true,
+        "distinct_cotangents_change_vjp": true,
+        "optimizer_steps": 0
+      },
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "package_identity_unchanged": true,
+      "functional_module_sha256": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+      "script_sha256": "6c80f700e1730683a36c8176252877c9ebeb3c26075a2ad0a08b256be4ca87eb",
+      "helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+        "_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+        "padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+        "reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+      },
+      "native_library_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+      "threads": 1,
+      "interop_threads": 1,
+      "private_receipt_sha256": "37b96b2ef162a3b6bda62af749923965860dc07b3dfa14d414009dad0b78160d"
+    }
+  },
+  "adverse_attempts": [
+    {
+      "attempt": 1,
+      "phase": "packaging",
+      "source_revision": "b9e1d2405ea340c7499f305da61d47e5da52baa7",
+      "result": "Failed before wheel construction/install: audit normalized only source but accepted wheel contains CRLF too",
+      "correction": "Explicit CRLF-to-LF source equivalence on both sides, then literal preservation of all six accepted wheel members"
+    },
+    {
+      "attempt": 2,
+      "phase": "installed acceptance",
+      "source_revision": "b9e1d2405ea340c7499f305da61d47e5da52baa7",
+      "commands_passed": 22,
+      "failed_command": "pytest",
+      "tests_failed": 3,
+      "tests_passed": 546,
+      "skipped": 4,
+      "warnings": 1,
+      "failure": "Each original values/logits/offsets mutation after VJP did not raise. save_for_backward alone did not establish the intended transform mutation guard.",
+      "observed_mechanism": "Pinned transform wrappers can report independent version counters. A retained four-case probe observed wrapper0, physical baseline1 and changed physical2.",
+      "correction_revision": "22b280b98a925c7f7a61197b9ecc66699a8d1737",
+      "correction": "Capture actual integer counters in plain outer forward and check in plain inner backward-forward before native derivative work. Carry hidden nonTensor metadata; public result remains the pooled Tensor.",
+      "failed_manifest_sha256": "fa68c0a9d314c818e182228848e78e4506a673940456fe6721a47506cf40f901",
+      "probe_sha256": "d0d2de3ba03373a9e30869d0bdaf48515fb79fbeaa80a9c86d209fdea9a94060"
+    }
+  ],
+  "review": {
+    "semantic_source": "Independent read-only agent accepted corrected source; earlier source assumption was superseded by actual mutation failures",
+    "receipt_privacy": "Publication claims are reconciled separately from semantic source review and root execution",
+    "code_review_plugin": "Actual CI diagnostics only; not a semantic reviewer",
+    "research": "Original pinned docs/source and Context7; Consensus prior quota refusal preserved without retry or fresh synthesis",
+    "licensing": "MIT T92T1914, PyTorch license/notices and assistance attribution retained"
+  },
+  "limits": [
+    "First-order eager packed grad/VJP only; no padded, mapping, forward/higher derivatives or compiled/exported use",
+    "Mutation guard reads pin-internal Tensor._version at plain Function boundaries; not a portable public version API or external-memory-write detector",
+    "Ordinary versioned contiguous primals only; inference-mode-created primals excluded",
+    "Existing native finite value/cotangent bounds and four-byte status transfer/synchronization remain unchanged",
+    "No new CUDA compiler/sanitizer, device/platform/version/ABI matrix, speed, model quality, operational security or employer qualification result"
+  ]
+}
