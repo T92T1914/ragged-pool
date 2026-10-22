@@ -12,7 +12,9 @@ def _check_metadata(values, logits, mask):
             raise RuntimeError("Padded inputs must share one CUDA device")
         if tensor.layout != torch.strided or not tensor.is_contiguous():
             raise RuntimeError("Padded inputs must have contiguous strided layout")
-        if tensor.is_neg() or tensor.is_conj():
+        # Pinned Dynamo cannot trace these bool-returning metadata methods.
+        # Compiled admission is qualified for ordinary primal tensors only.
+        if not torch.compiler.is_compiling() and (tensor.is_neg() or tensor.is_conj()):
             raise RuntimeError("Logical negative or conjugate padded primal views are not supported")
     if values.dim() != 3 or logits.dim() != 2 or mask.dim() != 2:
         raise RuntimeError("Expected padded values[B,T,D], logits[B,T] and mask[B,T]")
@@ -106,8 +108,8 @@ def ragged_pool_padded(values, logits, mask):
     Originals, including ignored entries, must not change before backward.
     Packing allocates and may synchronize. Inputs stay on their CUDA device.
     """
-    # Check originals before dispatcher view fallbacks can normalize them.
-    # These static metadata conditions are also traceable by the pinned route.
+    # Eager checks originals before dispatcher view fallbacks normalize them.
+    # The compiler route admits ordinary primals, without a view-refusal claim.
     _check_metadata(values, logits, mask)
     return torch.ops.ragged_pool_cuda.padded.default(values, logits, mask)
 
