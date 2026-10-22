@@ -47,6 +47,10 @@ Ignored raw features contain NaN and both infinities. The model replaces them wi
 
 ## Evidence boundaries
 
+The [executed record](evidence/padded-windows-sm89-20261021.json) identifies source `a545f16e0b8f037a236e5d8843fbd32b1a21b026`, the checked source archive, installed wrapper wheel and reused native payload. Local Windows RTX4090 checks passed 335 tests, with four symlink cases skipped for ordinary privilege and one existing PT2 loader warning retained. Both dtypes completed two real SGD updates through each of compiled native, eager native and independent per-row primitives, including changed masks and poisoned raw padding. Packed export production and fresh-process consumption also passed with the new package identity. These CUDA results are local execution evidence; hosted CPU CI is a separate regression gate.
+
+The first attempt retained 333 passing tests, two failed compiler checks and two failed training consumers. Dynamo rejected the bool-returning `is_neg()` inspection. The corrected attempt restricts that eager inspection while retaining all other admission. This debugging result narrows compiled qualification to ordinary primals instead of claiming unsupported original-view refusal.
+
 The package's existing native payload is reused unchanged. The new wheel packages the Python API and registrations through standard setuptools build and wheel commands. Its original NVCC12.8.93/MSVC19.44/C++17/sm89 provenance remains historical. This is not a fresh native compilation or new Compute Sanitizer cohort for the padded gather/scatter caller.
 
 Mathematical tests use independent per-row double-softmax arithmetic and finite differences. Registration/schema/fake/AOT checks remain separate. Other checks cover selected admission and recovery, ignored sentinels, empty cases, bounds, original mutation and genuine upstream layouts. Full established CUDA regression and export checks retain their own source/artifact identities. Exact execution results belong in the accompanying revision-linked record rather than following merely from this source description.
