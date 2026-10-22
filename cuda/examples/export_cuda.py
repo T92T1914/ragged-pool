@@ -1,8 +1,9 @@
-"""Train two CUDA updates and export one owned, fixed-shape inference graph.
+"""Train two CUDA updates and export one owned CUDA inference graph.
 
 Use only trusted local artifacts. The adjacent predictor does not import this
 producer or its training model class. This is a same-environment handoff, with
-no optimization, portable executable or hostile-model safety claim.
+no optimization, portable executable or hostile-model safety claim. The default
+keeps fixed shapes; --dynamic admits bounded independent item/group counts.
 """
 from __future__ import annotations
 
@@ -79,8 +80,11 @@ def train_model(dtype_name):
         "all_parameter_blocks_changed": True, "steps": steps}
 
 
-def create_artifact(model, directory, *, dtype_name, source_revision, source_tree, training):
+def create_artifact(model, directory, *, dtype_name, source_revision, source_tree, training,
+                    dynamic=False):
     """Save only the selected state and a small trusted-local identity manifest."""
+    if type(dynamic) is not bool:
+        raise ValueError("dynamic must be a boolean export mode")
     for identifier in (source_revision, source_tree):
         if not isinstance(identifier, str) or re.fullmatch(r"[0-9a-f]{40}", identifier) is None:
             raise ValueError("Source revision/tree must be complete lowercase Git identifiers")
@@ -89,17 +93,22 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
     predict.validate_state(weights, dtype_name)
     native_before = predict.snapshot(dict(model.named_parameters()))
     frozen = copy.deepcopy(model).eval()
-    cases = predict.make_cases(dtype_name)
-    capture = cases[0]
+    cases = predict.make_cases(dtype_name, dynamic=dynamic)
+    # Capture an interior pair with distinct counts rather than the envelope's
+    # minimum, then exercise every declared shape after capture and reload.
+    capture = next(case for case in cases if case["name"] == "base") if dynamic else cases[0]
+    shapes = ({0: torch.export.Dim("items", min=2, max=32)},
+              {0: torch.export.Dim("offset_count", min=3, max=9)}) if dynamic else None
     with torch.no_grad():
-        exported = torch.export.export(frozen, (capture["raw"], capture["offsets"]), strict=True)
-    graph = predict.graph_metadata(exported)
+        exported = torch.export.export(frozen, (capture["raw"], capture["offsets"]),
+                                       dynamic_shapes=shapes, strict=True)
+    graph = predict.graph_metadata(exported, dynamic=dynamic)
     expected, comparisons = [], []
     functional_state = predict.state_tensors(weights, dtype_name)
     with torch.no_grad():
         for case in cases:
             raw, offsets = case["raw"], case["offsets"]
-            predict.validate_inputs(raw, offsets, dtype_name)
+            predict.validate_inputs(raw, offsets, dtype_name, dynamic=dynamic)
             inputs = {"raw": raw, "offsets": offsets}
             before = predict.snapshot(inputs)
             eager = model(raw, offsets)
@@ -122,10 +131,10 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
     directory.mkdir(parents=True, exist_ok=False)
     program = directory / "model.pt2"
     torch.export.save(exported, program)
-    manifest = {"schema_version": 1, "dtype": dtype_name, "source_revision": source_revision,
+    manifest = {"schema_version": 2 if dynamic else 1, "dtype": dtype_name, "source_revision": source_revision,
         "source_tree": source_tree, "producer_pid": os.getpid(),
         "producer_script_sha256": sha256(Path(__file__).read_bytes()).hexdigest(),
-        "environment": identity, "contract": predict.contract(dtype_name), "graph": graph,
+        "environment": identity, "contract": predict.contract(dtype_name, dynamic=dynamic), "graph": graph,
         "training": training, "weights": weights,
         "files": {"model.pt2": {"sha256": sha256(program.read_bytes()).hexdigest(), "size_bytes": program.stat().st_size}},
         "expected": expected}
@@ -137,6 +146,8 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
     # The producer checks the same ordinary loader. Final acceptance also runs
     # that loader in a separate process with no producer/model imports.
     predictor = predict.load_artifact(directory, digest)
+    if predict.graph_metadata(predictor.exported_program, dynamic=dynamic) != graph:
+        raise AssertionError("Reloaded graph differs from the declared shape contract")
     for case, errors in zip(cases, comparisons):
         with torch.no_grad():
             actual, eager = predictor(case["raw"], case["offsets"]), model(case["raw"], case["offsets"])
@@ -159,6 +170,7 @@ def main():
     parser.add_argument("--source-tree", required=True)
     parser.add_argument("--wheel", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--dynamic", action="store_true", help="Export independent N=2..32 and B=2..8 shapes")
     arguments = parser.parse_args()
     output, directory = arguments.output.resolve(), arguments.directory.resolve()
     if directory.exists() or directory.is_symlink():
@@ -168,7 +180,8 @@ def main():
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("x", encoding="utf-8") as stream:
         stream.write("{}\n")
-    receipt = {"status": "running", "method": "strict.fixed_cuda_export", "dtype": arguments.dtype,
+    receipt = {"status": "running", "method": ("strict.dynamic_cuda_export" if arguments.dynamic
+                                              else "strict.fixed_cuda_export"), "dtype": arguments.dtype,
         "producer_pid": os.getpid(), "source_revision": arguments.source_revision, "source_tree": arguments.source_tree,
         "script_sha256": sha256(Path(__file__).read_bytes()).hexdigest(),
         "training_script_sha256": sha256(Path(train.__file__).read_bytes()).hexdigest(),
@@ -190,7 +203,8 @@ def main():
         receipt["wheel_sha256"] = sha256(arguments.wheel.read_bytes()).hexdigest()
         model, training = train_model(arguments.dtype)
         receipt["artifact"] = create_artifact(model, directory, dtype_name=arguments.dtype,
-            source_revision=arguments.source_revision, source_tree=arguments.source_tree, training=training)
+            source_revision=arguments.source_revision, source_tree=arguments.source_tree,
+            training=training, dynamic=arguments.dynamic)
         properties = torch.cuda.get_device_properties(0)
         receipt.update({"status": "passed", "device_name": properties.name,
             "compute_capability": [properties.major, properties.minor],
