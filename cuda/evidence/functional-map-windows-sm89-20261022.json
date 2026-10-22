@@ -1,0 +1,918 @@
+{
+  "status": "passed",
+  "scope": "One pinned installed CUDA eager functional map and three-model training cohort",
+  "consumer_revision": "43526b7e761f9bce76e8ccd4d1f5c0907412fb26",
+  "consumer_tree": "8ed5cde8150a0bd6bbf5106180c1a73e540ac7f2",
+  "native_build_revision": "b500a3bfd1f79cdc2ad03f93176871d4229b0066",
+  "native_build_tree": "b69449580fba3bdaf414d3e9c82bed0e5c6e4c57",
+  "source_archive_sha256": "f645314fcd9327f4ee9ad9d5cb298ad81c9131887fda62b4e7372c88db0d57f7",
+  "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+  "native_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+  "new_python_wheel": true,
+  "new_native_compilation": false,
+  "new_native_instrumentation": false,
+  "local_checks": {
+    "commands": 15,
+    "passed": 812,
+    "skipped": 4,
+    "warnings": 1,
+    "new_map_test_cases": 70,
+    "cohort_sha256": "a6fa48b49438195fa5128103256ab1eed60767d0c19341bc14b9764c88a9f1f6",
+    "skip_reason": "Four existing Windows symlink privilege cases",
+    "warning_reason": "Existing torch.export non-writable buffer warning"
+  },
+  "map_contract": {
+    "lanes_per_invocation": [
+      1,
+      8
+    ],
+    "aggregate_items": 4096,
+    "aggregate_groups": 128,
+    "shared_inputs_charged_per_lane": true,
+    "serial_native_lanes": true,
+    "chunk_bounds_are_not_total_work_or_memory_limits": true
+  },
+  "consumers": {
+    "float32": {
+      "status": "passed",
+      "method": "eager.cuda.vmap.grad.functional_call.training",
+      "scope": "Three complete models share packed batches. Serial native lanes, without per-bag, parallel-kernel, speed, quality, security or general transform claims.",
+      "dtype": "float32",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "models": 3,
+      "model_seeds": [
+        1811,
+        1812,
+        1813
+      ],
+      "model_states_distinct": true,
+      "parameters_stacked_leaf": true,
+      "mapped_axis": "leading parameter dictionary axis",
+      "shared_raw_input": true,
+      "shared_offsets": true,
+      "stacked_parameter_shapes": {
+        "encoder.weight": [
+          3,
+          4,
+          3
+        ],
+        "encoder.bias": [
+          3,
+          4
+        ],
+        "scorer.weight": [
+          3,
+          1,
+          4
+        ],
+        "head.weight": [
+          3,
+          1,
+          4
+        ],
+        "head.bias": [
+          3,
+          1
+        ]
+      },
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "source_revision": "43526b7e761f9bce76e8ccd4d1f5c0907412fb26",
+      "source_tree": "8ed5cde8150a0bd6bbf5106180c1a73e540ac7f2",
+      "source_identity_basis": "Caller source labels plus installed module, helper, consumer and native byte hashes",
+      "fixture_sha256": "b93bbd614ff77abb629a8747f8d95824cc8159beef0f1bcc008832a2d15389f4",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps": 2,
+      "native_optimizer_steps": 2,
+      "reference_optimizer_steps": 2,
+      "parameter_tensors_per_model": 5,
+      "scalar_parameters_per_model": 25,
+      "comparison_tolerance": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "steps": [
+        {
+          "update": 1,
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "losses": {
+            "functional": [
+              0.3642439544200897,
+              0.3033068776130676,
+              0.24473147094249725
+            ],
+            "native": [
+              0.3642439544200897,
+              0.3033068776130676,
+              0.24473147094249725
+            ],
+            "primitive": [
+              0.3642439544200897,
+              0.3033068776130676,
+              0.24473147094249725
+            ]
+          },
+          "complete_output_loss_and_raw_gradient_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 1.4901161193847656e-08,
+              "pooled": 3.725290298461914e-09,
+              "input_gradient": 7.450580596923828e-09
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 1.4901161193847656e-08,
+              "pooled": 3.725290298461914e-09,
+              "input_gradient": 7.450580596923828e-09
+            }
+          },
+          "complete_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 5.587935447692871e-09,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 4.656612873077393e-10,
+              "head.weight": 2.9802322387695312e-08,
+              "head.bias": 2.9802322387695312e-08
+            },
+            "primitive": {
+              "encoder.weight": 5.587935447692871e-09,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 4.656612873077393e-10,
+              "head.weight": 2.9802322387695312e-08,
+              "head.bias": 2.9802322387695312e-08
+            }
+          },
+          "complete_updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 2.3283064365386963e-10,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 3.725290298461914e-09
+            },
+            "primitive": {
+              "encoder.weight": 2.3283064365386963e-10,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 3.725290298461914e-09
+            }
+          },
+          "per_model_parameter_update_max_abs": {
+            "functional": [
+              {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              },
+              {
+                "encoder.weight": 0.0017544478178024292,
+                "encoder.bias": 0.00167158804833889,
+                "scorer.weight": 5.1215291023254395e-05,
+                "head.weight": 0.002064257860183716,
+                "head.bias": 0.0072679221630096436
+              },
+              {
+                "encoder.weight": 0.0011832192540168762,
+                "encoder.bias": 0.0017622709274291992,
+                "scorer.weight": 1.0147690773010254e-05,
+                "head.weight": 0.003518134355545044,
+                "head.bias": 0.005044858902692795
+              }
+            ],
+            "native": [
+              {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              },
+              {
+                "encoder.weight": 0.0017544478178024292,
+                "encoder.bias": 0.00167158804833889,
+                "scorer.weight": 5.1215291023254395e-05,
+                "head.weight": 0.002064257860183716,
+                "head.bias": 0.0072679221630096436
+              },
+              {
+                "encoder.weight": 0.0011832192540168762,
+                "encoder.bias": 0.0017622709274291992,
+                "scorer.weight": 1.0147690773010254e-05,
+                "head.weight": 0.003518134355545044,
+                "head.bias": 0.005044862627983093
+              }
+            ],
+            "primitive": [
+              {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              },
+              {
+                "encoder.weight": 0.0017544478178024292,
+                "encoder.bias": 0.00167158804833889,
+                "scorer.weight": 5.1215291023254395e-05,
+                "head.weight": 0.002064257860183716,
+                "head.bias": 0.0072679221630096436
+              },
+              {
+                "encoder.weight": 0.0011832192540168762,
+                "encoder.bias": 0.0017622709274291992,
+                "scorer.weight": 1.0147690773010254e-05,
+                "head.weight": 0.003518134355545044,
+                "head.bias": 0.005044862627983093
+              }
+            ]
+          },
+          "all_models_all_parameter_blocks_changed": true,
+          "pure_calls_preserve_grad_fields": true,
+          "inputs_and_templates_unchanged": true,
+          "same_stacked_parameter_optimizer_objects_and_storage": true
+        },
+        {
+          "update": 2,
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          "losses": {
+            "functional": [
+              0.15170782804489136,
+              0.12314991652965546,
+              0.12183481454849243
+            ],
+            "native": [
+              0.15170782804489136,
+              0.12314991652965546,
+              0.12183481454849243
+            ],
+            "primitive": [
+              0.15170782804489136,
+              0.12314991652965546,
+              0.12183481454849243
+            ]
+          },
+          "complete_output_loss_and_raw_gradient_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 1.4901161193847656e-08,
+              "pooled": 2.9802322387695312e-08,
+              "input_gradient": 9.313225746154785e-10
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 1.4901161193847656e-08,
+              "pooled": 2.9802322387695312e-08,
+              "input_gradient": 9.313225746154785e-10
+            }
+          },
+          "complete_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 4.656612873077393e-10,
+              "encoder.bias": 7.450580596923828e-09,
+              "scorer.weight": 2.3283064365386963e-10,
+              "head.weight": 1.5832483768463135e-08,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 4.656612873077393e-10,
+              "encoder.bias": 7.450580596923828e-09,
+              "scorer.weight": 2.3283064365386963e-10,
+              "head.weight": 1.5832483768463135e-08,
+              "head.bias": 0.0
+            }
+          },
+          "complete_updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 4.656612873077393e-10,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 3.725290298461914e-09
+            },
+            "primitive": {
+              "encoder.weight": 4.656612873077393e-10,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 3.725290298461914e-09
+            }
+          },
+          "per_model_parameter_update_max_abs": {
+            "functional": [
+              {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              },
+              {
+                "encoder.weight": 0.0008298158645629883,
+                "encoder.bias": 0.0005173021927475929,
+                "scorer.weight": 9.018182754516602e-05,
+                "head.weight": 0.0012072622776031494,
+                "head.bias": 0.003773026168346405
+              },
+              {
+                "encoder.weight": 0.000464513897895813,
+                "encoder.bias": 0.0026595592498779297,
+                "scorer.weight": 9.208917617797852e-06,
+                "head.weight": 0.0037679076194763184,
+                "head.bias": 0.008159037679433823
+              }
+            ],
+            "native": [
+              {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              },
+              {
+                "encoder.weight": 0.0008298158645629883,
+                "encoder.bias": 0.0005173021927475929,
+                "scorer.weight": 9.018182754516602e-05,
+                "head.weight": 0.0012072622776031494,
+                "head.bias": 0.003773026168346405
+              },
+              {
+                "encoder.weight": 0.000464513897895813,
+                "encoder.bias": 0.0026595592498779297,
+                "scorer.weight": 9.208917617797852e-06,
+                "head.weight": 0.0037679076194763184,
+                "head.bias": 0.008159037679433823
+              }
+            ],
+            "primitive": [
+              {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              },
+              {
+                "encoder.weight": 0.0008298158645629883,
+                "encoder.bias": 0.0005173021927475929,
+                "scorer.weight": 9.018182754516602e-05,
+                "head.weight": 0.0012072622776031494,
+                "head.bias": 0.003773026168346405
+              },
+              {
+                "encoder.weight": 0.000464513897895813,
+                "encoder.bias": 0.0026595592498779297,
+                "scorer.weight": 9.208917617797852e-06,
+                "head.weight": 0.0037679076194763184,
+                "head.bias": 0.008159037679433823
+              }
+            ]
+          },
+          "all_models_all_parameter_blocks_changed": true,
+          "pure_calls_preserve_grad_fields": true,
+          "inputs_and_templates_unchanged": true,
+          "same_stacked_parameter_optimizer_objects_and_storage": true
+        }
+      ],
+      "shared_input_gradients": {
+        "status": "passed",
+        "models": 3,
+        "optimizer_steps": 0,
+        "parameters_fixed": true,
+        "objectives": [
+          "sum of three complete-model MSE losses",
+          "mean of three complete-model MSE losses"
+        ],
+        "complete_gradient_max_abs_errors": {
+          "native": {
+            "sum": 5.587935447692871e-09,
+            "mean": 1.862645149230957e-09
+          },
+          "primitive": {
+            "sum": 5.587935447692871e-09,
+            "mean": 1.862645149230957e-09
+          }
+        },
+        "serial_native_vs_primitive_contribution_errors": {
+          "contributions": 0.0
+        },
+        "sum_vs_mean_max_abs_difference": 0.026874864473938942,
+        "sum_differs_from_mean": true,
+        "unequal_model_contributions": true,
+        "pairwise_contribution_max_abs_differences": [
+          0.029991554096341133,
+          0.03253059461712837,
+          0.024497298523783684
+        ],
+        "per_model_input_gradient_max_abs": [
+          0.03342814743518829,
+          0.023311970755457878,
+          0.00567478034645319
+        ],
+        "input_gradient_shape": [
+          12,
+          3
+        ],
+        "inputs_parameters_and_grad_fields_unchanged": true
+      },
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "template_parameters_unchanged": true,
+      "package_identity_unchanged": true,
+      "threads": 1,
+      "interop_threads": 1,
+      "installed_package": true,
+      "package_version": "0.1.0",
+      "native_library_loaded": true,
+      "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+      "cpu_package_imported": false,
+      "script_sha256": "9b0578ee2f8b499d56b099e925a0abc2b76bdf50f1025e7d870726f5711d8038",
+      "helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "functional_module_sha256": "cdae1c500b32d148e01034ccd5e9b5480a5f95a7950523150ba01b8f244ed145",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+        "_validation.py": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+        "padded.py": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+        "reference.py": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a"
+      },
+      "raw_receipt_sha256": "781095e13394fbc21ec52494d237a23c2d4be51f4f68e7f2864c03e9fa2e3f97"
+    },
+    "float64": {
+      "status": "passed",
+      "method": "eager.cuda.vmap.grad.functional_call.training",
+      "scope": "Three complete models share packed batches. Serial native lanes, without per-bag, parallel-kernel, speed, quality, security or general transform claims.",
+      "dtype": "float64",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "models": 3,
+      "model_seeds": [
+        1811,
+        1812,
+        1813
+      ],
+      "model_states_distinct": true,
+      "parameters_stacked_leaf": true,
+      "mapped_axis": "leading parameter dictionary axis",
+      "shared_raw_input": true,
+      "shared_offsets": true,
+      "stacked_parameter_shapes": {
+        "encoder.weight": [
+          3,
+          4,
+          3
+        ],
+        "encoder.bias": [
+          3,
+          4
+        ],
+        "scorer.weight": [
+          3,
+          1,
+          4
+        ],
+        "head.weight": [
+          3,
+          1,
+          4
+        ],
+        "head.bias": [
+          3,
+          1
+        ]
+      },
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "source_revision": "43526b7e761f9bce76e8ccd4d1f5c0907412fb26",
+      "source_tree": "8ed5cde8150a0bd6bbf5106180c1a73e540ac7f2",
+      "source_identity_basis": "Caller source labels plus installed module, helper, consumer and native byte hashes",
+      "fixture_sha256": "dd7651040e7b151b5f5de01649607f4e12de39119f0c63f2b1bf568e2cde303d",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps": 2,
+      "native_optimizer_steps": 2,
+      "reference_optimizer_steps": 2,
+      "parameter_tensors_per_model": 5,
+      "scalar_parameters_per_model": 25,
+      "comparison_tolerance": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      },
+      "steps": [
+        {
+          "update": 1,
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          "losses": {
+            "functional": [
+              0.17527600099698018,
+              0.13096486520137582,
+              0.1742635119251296
+            ],
+            "native": [
+              0.1752760009969802,
+              0.13096486520137582,
+              0.1742635119251296
+            ],
+            "primitive": [
+              0.1752760009969802,
+              0.13096486520137582,
+              0.1742635119251296
+            ]
+          },
+          "complete_output_loss_and_raw_gradient_max_abs_errors": {
+            "native": {
+              "loss": 2.7755575615628914e-17,
+              "predictions": 2.7755575615628914e-17,
+              "pooled": 1.3877787807814457e-17,
+              "input_gradient": 6.938893903907228e-18
+            },
+            "primitive": {
+              "loss": 2.7755575615628914e-17,
+              "predictions": 2.7755575615628914e-17,
+              "pooled": 1.1102230246251565e-16,
+              "input_gradient": 6.938893903907228e-18
+            }
+          },
+          "complete_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 1.3877787807814457e-17,
+              "scorer.weight": 8.673617379884035e-19,
+              "head.weight": 1.3877787807814457e-17,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 5.204170427930421e-18,
+              "encoder.bias": 3.122502256758253e-17,
+              "scorer.weight": 2.1412992906588713e-18,
+              "head.weight": 2.7755575615628914e-17,
+              "head.bias": 2.7755575615628914e-17
+            }
+          },
+          "complete_updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 1.3877787807814457e-17
+            }
+          },
+          "per_model_parameter_update_max_abs": {
+            "functional": [
+              {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              },
+              {
+                "encoder.weight": 0.0005596282910933191,
+                "encoder.bias": 0.0008989315794412089,
+                "scorer.weight": 3.7276642027100904e-05,
+                "head.weight": 0.001685099430911552,
+                "head.bias": 0.0007306001853419897
+              },
+              {
+                "encoder.weight": 0.00011126706969526862,
+                "encoder.bias": 0.0018798368713841551,
+                "scorer.weight": 1.2685942396395422e-05,
+                "head.weight": 0.0030828455836864332,
+                "head.bias": 0.011284288256921751
+              }
+            ],
+            "native": [
+              {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              },
+              {
+                "encoder.weight": 0.0005596282910933191,
+                "encoder.bias": 0.0008989315794412089,
+                "scorer.weight": 3.7276642027100904e-05,
+                "head.weight": 0.001685099430911552,
+                "head.bias": 0.0007306001853419897
+              },
+              {
+                "encoder.weight": 0.00011126706969526862,
+                "encoder.bias": 0.0018798368713841551,
+                "scorer.weight": 1.2685942396395422e-05,
+                "head.weight": 0.0030828455836864332,
+                "head.bias": 0.011284288256921751
+              }
+            ],
+            "primitive": [
+              {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              },
+              {
+                "encoder.weight": 0.0005596282910933191,
+                "encoder.bias": 0.0008989315794412089,
+                "scorer.weight": 3.7276642027100904e-05,
+                "head.weight": 0.001685099430911552,
+                "head.bias": 0.0007306001853419758
+              },
+              {
+                "encoder.weight": 0.00011126706969526862,
+                "encoder.bias": 0.0018798368713841551,
+                "scorer.weight": 1.2685942396395422e-05,
+                "head.weight": 0.0030828455836864332,
+                "head.bias": 0.011284288256921751
+              }
+            ]
+          },
+          "all_models_all_parameter_blocks_changed": true,
+          "pure_calls_preserve_grad_fields": true,
+          "inputs_and_templates_unchanged": true,
+          "same_stacked_parameter_optimizer_objects_and_storage": true
+        },
+        {
+          "update": 2,
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          "losses": {
+            "functional": [
+              0.4396604293856726,
+              0.3341949324285345,
+              0.24152125831534005
+            ],
+            "native": [
+              0.4396604293856726,
+              0.3341949324285345,
+              0.24152125831534005
+            ],
+            "primitive": [
+              0.4396604293856726,
+              0.3341949324285345,
+              0.24152125831534005
+            ]
+          },
+          "complete_output_loss_and_raw_gradient_max_abs_errors": {
+            "native": {
+              "loss": 0.0,
+              "predictions": 5.551115123125783e-17,
+              "pooled": 5.551115123125783e-17,
+              "input_gradient": 1.3877787807814457e-17
+            },
+            "primitive": {
+              "loss": 0.0,
+              "predictions": 5.551115123125783e-17,
+              "pooled": 1.1102230246251565e-16,
+              "input_gradient": 1.3877787807814457e-17
+            }
+          },
+          "complete_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 4.336808689942018e-18,
+              "encoder.bias": 2.7755575615628914e-17,
+              "scorer.weight": 6.505213034913027e-19,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 5.551115123125783e-17
+            },
+            "primitive": {
+              "encoder.weight": 6.938893903907228e-18,
+              "encoder.bias": 1.3877787807814457e-17,
+              "scorer.weight": 2.6020852139652106e-18,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 2.220446049250313e-16
+            }
+          },
+          "complete_updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 1.3877787807814457e-17
+            }
+          },
+          "per_model_parameter_update_max_abs": {
+            "functional": [
+              {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.02764653429481996
+              },
+              {
+                "encoder.weight": 0.0009164619521586925,
+                "encoder.bias": 0.0051793254055695305,
+                "scorer.weight": 7.510928890813728e-06,
+                "head.weight": 0.004319677760162177,
+                "head.bias": 0.01740495844467059
+              },
+              {
+                "encoder.weight": 0.00038144325756036407,
+                "encoder.bias": 0.0003081207613720438,
+                "scorer.weight": 1.3771733248069129e-05,
+                "head.weight": 0.001186131484981423,
+                "head.bias": 0.00531802347848602
+              }
+            ],
+            "native": [
+              {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.02764653429481996
+              },
+              {
+                "encoder.weight": 0.0009164619521586925,
+                "encoder.bias": 0.0051793254055695305,
+                "scorer.weight": 7.510928890813728e-06,
+                "head.weight": 0.004319677760162177,
+                "head.bias": 0.01740495844467059
+              },
+              {
+                "encoder.weight": 0.00038144325756036407,
+                "encoder.bias": 0.0003081207613720438,
+                "scorer.weight": 1.3771733248069129e-05,
+                "head.weight": 0.001186131484981423,
+                "head.bias": 0.00531802347848602
+              }
+            ],
+            "primitive": [
+              {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.027646534294819974
+              },
+              {
+                "encoder.weight": 0.0009164619521586925,
+                "encoder.bias": 0.0051793254055695305,
+                "scorer.weight": 7.510928890813728e-06,
+                "head.weight": 0.004319677760162177,
+                "head.bias": 0.01740495844467059
+              },
+              {
+                "encoder.weight": 0.00038144325756036407,
+                "encoder.bias": 0.0003081207613720438,
+                "scorer.weight": 1.3771733248069129e-05,
+                "head.weight": 0.001186131484981423,
+                "head.bias": 0.00531802347848602
+              }
+            ]
+          },
+          "all_models_all_parameter_blocks_changed": true,
+          "pure_calls_preserve_grad_fields": true,
+          "inputs_and_templates_unchanged": true,
+          "same_stacked_parameter_optimizer_objects_and_storage": true
+        }
+      ],
+      "shared_input_gradients": {
+        "status": "passed",
+        "models": 3,
+        "optimizer_steps": 0,
+        "parameters_fixed": true,
+        "objectives": [
+          "sum of three complete-model MSE losses",
+          "mean of three complete-model MSE losses"
+        ],
+        "complete_gradient_max_abs_errors": {
+          "native": {
+            "sum": 1.3877787807814457e-17,
+            "mean": 3.469446951953614e-18
+          },
+          "primitive": {
+            "sum": 1.3877787807814457e-17,
+            "mean": 3.469446951953614e-18
+          }
+        },
+        "serial_native_vs_primitive_contribution_errors": {
+          "contributions": 1.734723475976807e-18
+        },
+        "sum_vs_mean_max_abs_difference": 0.0619751429875601,
+        "sum_differs_from_mean": true,
+        "unequal_model_contributions": true,
+        "pairwise_contribution_max_abs_differences": [
+          0.07597973964304244,
+          0.06927464222054976,
+          0.05953778096489238
+        ],
+        "per_model_input_gradient_max_abs": [
+          0.07232021314872122,
+          0.05703376237007672,
+          0.008315329087217695
+        ],
+        "input_gradient_shape": [
+          12,
+          3
+        ],
+        "inputs_parameters_and_grad_fields_unchanged": true
+      },
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "template_parameters_unchanged": true,
+      "package_identity_unchanged": true,
+      "threads": 1,
+      "interop_threads": 1,
+      "installed_package": true,
+      "package_version": "0.1.0",
+      "native_library_loaded": true,
+      "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+      "cpu_package_imported": false,
+      "script_sha256": "9b0578ee2f8b499d56b099e925a0abc2b76bdf50f1025e7d870726f5711d8038",
+      "helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "functional_module_sha256": "cdae1c500b32d148e01034ccd5e9b5480a5f95a7950523150ba01b8f244ed145",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "f1e8fa7333ec581bea41445a7e39fa971f7bf064c1ddbdbd3f84ed041d79ad57",
+        "_validation.py": "4c323cdc353920a2210f41c53ee627cd313f1473c352604de779681b74fa55e7",
+        "padded.py": "42fcdb69f1c23023894600fd8f2abca5949c8a41a0d72c350561fba78795c27e",
+        "reference.py": "0e7b638f845ef2632b1d1989e9a98c9d74b475118f10f572d5d456923ea6729a"
+      },
+      "raw_receipt_sha256": "960a4fd7e5f1bb66813b8589c027c5a66ba6fe0aaf988219a90251dd70ff2048"
+    }
+  },
+  "limitations": [
+    "Windows x64 CPython3.11.8 torch2.9.1+cu128 CUDA12.8 RTX4090 sm89 CUDA0 only executed",
+    "First-order eager packed functional route only; original per-lane contiguous admission",
+    "Nested maps, mapped JVP, higher derivatives and transformed compile/export excluded",
+    "No new native compiler or instrumented-binary result",
+    "No fused batched kernel, parallel-lane, speed, memory, model-quality, security or portability claim"
+  ]
+}

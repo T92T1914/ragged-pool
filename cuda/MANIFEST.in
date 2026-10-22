@@ -22,6 +22,7 @@ include evidence/clipping-windows-sm89-20261022.json
 include evidence/forward-ad-windows-sm89-20261022.json
 include evidence/second-order-windows-sm89-20261022.json
 include evidence/stochastic-resume-windows-sm89-20261022.json
+include evidence/functional-map-windows-sm89-20261022.json
 recursive-include src *.py
 recursive-include examples *.py
 recursive-include tests *.py
