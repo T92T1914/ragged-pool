@@ -66,7 +66,7 @@ def environment_identity():
               "cuda_runtime_version": torch.version.cuda, "package_version": installed.version,
               "native_library_sha256": sha256(libraries[0].read_bytes()).hexdigest(),
               "package_python_sha256": {name: sha256((directory / name).read_bytes()).hexdigest()
-                                        for name in ("__init__.py", "_registration.py", "_validation.py", "reference.py")}}
+                                        for name in ("__init__.py", "_registration.py", "_validation.py", "reference.py", "padded.py")}}
     if tuple(result[k] for k in ("python_version", "torch_version", "cuda_runtime_version", "package_version")) != (
             "3.11.8", "2.9.1+cu128", "12.8", "0.1.0"):
         raise RuntimeError("This consumer requires the declared pinned CUDA environment")
