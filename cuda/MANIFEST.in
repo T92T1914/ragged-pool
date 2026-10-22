@@ -2,6 +2,7 @@ include pyproject.toml setup.py README.md LICENSE NOTICE
 include EXPORT.md
 include PADDED.md
 include DYNAMIC.md
+include RESUME.md
 include third_party/PYTORCH-LICENSE
 include csrc/pool.cu
 include evidence/windows-sm89-20261021.json
@@ -10,6 +11,7 @@ include evidence/export-windows-sm89-20261021.json
 include evidence/padded-windows-sm89-20261021.json
 include evidence/dynamic-windows-sm89-20261021.json
 include evidence/dynamic-export-windows-sm89-20261022.json
+include evidence/resume-windows-sm89-20261022.json
 recursive-include src *.py
 recursive-include examples *.py
 recursive-include tests *.py

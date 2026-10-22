@@ -74,6 +74,12 @@ The [compiled validation record](evidence/compiled-windows-sm89-20261021.json) s
 
 The same installed `train_compiled.py` consumer also has an explicit `--dynamic` mode for changing packed N/B counts through five updates while retaining its model and SGD optimizer. The [changing-shape guide](DYNAMIC.md) gives the seeded trajectory, full three-route comparisons, symbolic graph checks and first-order limits. Its default remains the fixed-shape route above. This source/consumer extension reuses the accepted installed runtime wheel and native binary.
 
+## Eager training state
+
+For a bounded eager training continuation, [the CUDA resume example](RESUME.md) saves model parameters and SGD momentum after update two, exits the producer and completes the remaining three changing-shape updates in a fresh process. It checks the full trajectory against uninterrupted native and independent primitive routes, with a weights-only reset control that exposes missing optimizer history. This uses the same installed wheel and retains an explicit trusted-local-state boundary.
+
+The [installed resume cohort](evidence/resume-windows-sm89-20261022.json) passed 17 commands. The CUDA suite reported 492 passed tests, 4 skipped symlink fixtures and 1 existing PyTorch loader warning. Both dtypes matched uninterrupted native records byte for byte. The first cohort's Windows launcher-ID assertion failure and its correction remain recorded separately from the passing training result. This consumer increment adds no new native build or instrumentation claim.
+
 ## Masked padded batches
 
 `ragged_pool_padded(values[B,T,D], logits[B,T], mask[B,T])` accepts a contiguous masked CUDA batch and reuses the packed native math. Holes and empty rows are supported. Ignored nonfinite padding is selected out before arithmetic, with exact zero ignored gradients. Opaque padded forward/backward operations retain original-input version checks and metadata-only fake rules. The [padded guide](PADDED.md) gives finite storage bounds, a worked example, first-order eager/fixed-shape AOT training and the compaction/synchronization tradeoff. No new native kernel or performance result is implied.
