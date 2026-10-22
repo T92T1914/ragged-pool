@@ -148,13 +148,27 @@ def test_reverse_of_tangent_and_nested_jvp_refuse_instead_of_detaching(field):
     varied = v if field == 'primal' else dv
     varied.requires_grad_()
     tangent = torch.func.jvp(lambda x, s: pool(x, s, o), (v, l), (dv, dl))[1]
-    with pytest.raises(REJECT):
+    assert tangent.requires_grad, 'The first-order guard must retain dependency rather than silently detach'
+    with pytest.raises(RuntimeError, match='first-order JVP|differentiating tangents'):
         torch.autograd.grad(tangent.sum(), varied)
     def inner(x):
         return torch.func.jvp(lambda a, b: pool(a, b, o), (x, l) if field == 'primal' else (v, l),
                               (dv, dl) if field == 'primal' else (x, dl))[1]
-    with pytest.raises(REJECT):
+    with pytest.raises(RuntimeError, match='nested JVP|forward AD'):
         torch.func.jvp(inner, (varied.detach(),), (torch.ones_like(varied),))
+
+
+@pytest.mark.parametrize('n,width,boundaries', ((4096, 128, (0, 4096)), (5, 128, (0, 1, 1, 5)), (0, 128, (0,) * 129)))
+def test_maximum_width_item_group_envelopes_and_finite_endpoints(n, width, boundaries):
+    v = ((torch.arange(n * width, dtype=torch.float64, device='cuda:0') % 7) * 300 - 900).reshape(n, width)
+    l = (torch.arange(n, dtype=v.dtype, device=v.device) % 2) * 2000 - 1000
+    dv = ((torch.arange(n * width, dtype=v.dtype, device=v.device) % 5) * 400 - 800).reshape(n, width)
+    dl = (torch.arange(n, dtype=v.dtype, device=v.device) % 3) * 1000 - 1000
+    o = torch.tensor(boundaries, dtype=torch.int64, device=v.device)
+    expected = torch.func.jvp(lambda x, s: primitive(x, s, boundaries), (v, l), (dv, dl))[1]
+    actual = native(v, l, o, dv, dl)
+    torch.testing.assert_close(actual, expected, rtol=2e-10, atol=2e-9)
+    assert bool(torch.isfinite(actual).all())
 
 
 @pytest.mark.parametrize('case', ('nan', 'inf', 'bound', 'dtype', 'shape', 'cpu', 'primal_stride', 'bad_offsets'))
