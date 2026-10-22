@@ -223,7 +223,7 @@ def test_third_order_retains_dependency_and_explicitly_refuses():
     first = torch.autograd.grad(pool(v, l, o).square().sum(), (v, l), create_graph=True)
     second = torch.autograd.grad(sum(x.square().sum() for x in first), (v, l), create_graph=True)
     assert all(x.requires_grad for x in second)
-    with pytest.raises(RuntimeError, match='third|second.order'):
+    with pytest.raises(RuntimeError, match='third order is not supported'):
         torch.autograd.grad(sum(x.sum() for x in second), (v, l))
 
 
