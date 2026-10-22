@@ -1,0 +1,312 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "date_timezone": "America/Chicago",
+  "status": "qualified-for-declared-fixed-shape-route",
+  "source": {
+    "executed_commit": "cc5552fe3762cbb9b0da7102d243c7f5778f62e8",
+    "executed_tree": "189d927fcefd6c5d6c7ac1f370c8079807bdb50a",
+    "accepted_native_ancestor": "15db410f153e6bcac498baa175fedbbd19c34f7f",
+    "new_consumer_sha256": "1fa5620c1de2b8be5fe429957a04730831bbbcc284da48a1ee9ede3cb853e443",
+    "reused_helper_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+    "new_test_sha256": "8f1ad4f3c0a2eaa1b76414eb104f7eeff19851bdbd762111276f69e530f06c8e",
+    "updated_wrapper_sha256": "2a90130845500fc5eac678e6c75e30bb051befbd5b0146b83b2a4423f053348c",
+    "publication_followup": "Adds this sanitized record and its source-archive inclusion only; does not change executed package, native, consumer or test code."
+  },
+  "environment": {
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "cuda_runtime": "12.8",
+    "platform": "Windows x64",
+    "GPU": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "Torch_threads": 1,
+    "Torch_interop_threads": 1
+  },
+  "artifact": {
+    "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+    "wheel_sha256": "ec5a11405efb784b83b12667ac207fe3d2ccac06d8d97959cac1f7ea654e5def",
+    "native_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "checked_source_archive_sha256": "38dc59ae518aaa63e5d3f1c1f7fde7b65022b8fb69adb4eca5008b3e2b5896f2",
+    "packaging": "setuptools build_py followed by bdist_wheel --skip-build, updated Python wrapper with exact previously qualified native payload",
+    "unchanged_python_bytes": "Other package Python files retain accepted literal LF bytes, checked equal to unchanged Windows source after explicit CRLF-to-LF conversion",
+    "installation": "Ordinary wheel installation in a newly isolated task environment outside checkout; initial failed wheel replaced with verified corrected artifact",
+    "new_NVCC_build": false,
+    "new_native_diagnostics": false
+  },
+  "functional": {
+    "checks_passed": 7,
+    "tests_passed": 175,
+    "baseline_tests": 138,
+    "new_tests": 37,
+    "test_seconds": 12.42,
+    "test_log_sha256": "91798d232a1a46e30d0f0d4ee1963b5c53f0ef55630f713b5641faa5b3561155",
+    "report_sha256": "3964e2fbedc5a81acd5d01b23c1f22a2256285a58d97acaf7db29d3287c290a7",
+    "compile_options": {
+      "backend": "aot_eager",
+      "fullgraph": true,
+      "dynamic": false
+    },
+    "registration": "AOT dispatch opcheck for both custom operations and dtypes, separate from independent mathematical checks",
+    "graph_diagnostics": [
+      {
+        "dtype": "torch.float32",
+        "dynamo_submissions": 1,
+        "aot_forward_graphs": 1,
+        "aot_backward_graphs": 1,
+        "forward_native_target": "ragged_pool_cuda.pool.default",
+        "backward_native_target": "ragged_pool_cuda._backward.default",
+        "scope": "Separate version-pinned callback diagnostic, not the public backend-string consumer or a general graph-count promise"
+      },
+      {
+        "dtype": "torch.float64",
+        "dynamo_submissions": 1,
+        "aot_forward_graphs": 1,
+        "aot_backward_graphs": 1,
+        "forward_native_target": "ragged_pool_cuda.pool.default",
+        "backward_native_target": "ragged_pool_cuda._backward.default",
+        "scope": "Separate version-pinned callback diagnostic, not the public backend-string consumer or a general graph-count promise"
+      }
+    ],
+    "runtime_contracts": [
+      "changed partition contents at fixed shapes",
+      "invalid offset and nonfinite/range refusal after capture, then valid recovery",
+      "original saved-input mutation refusal",
+      "empty/singleton groups and zero gradients",
+      "transposed/stepped/zero-stride/negative upstream gradients",
+      "fresh output storage and unchanged inputs"
+    ],
+    "training": {
+      "float32": {
+        "receipt_sha256": "a15dacf3f4798c5853f863b7da8b93abd17160a6a1976613b3d8a8162835581a",
+        "fixture_sha256": "f0610a0ab696d803955c6895f9ff6412b2a829d51e480925f8ed7fcc68f9cbdb",
+        "optimizer_steps": {
+          "compiled": 2,
+          "eager": 2,
+          "primitive": 2
+        },
+        "parameter_tensors": 5,
+        "scalar_parameters": 25,
+        "comparison_tolerance": {
+          "rtol": 0.0002,
+          "atol": 2e-06
+        },
+        "compile_api_calls": 1,
+        "graph_count_claimed": false,
+        "steps": [
+          {
+            "update": 1,
+            "N": 9,
+            "B": 5,
+            "offsets": [
+              0,
+              2,
+              2,
+              5,
+              7,
+              9
+            ],
+            "losses": {
+              "compiled": 0.3642439544200897,
+              "eager": 0.3642439544200897,
+              "primitive": 0.3642439544200897
+            },
+            "output_gradient_nodes": {
+              "compiled": {
+                "predictions": "CompiledFunctionBackward",
+                "pooled": "CompiledFunctionBackward"
+              },
+              "eager": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "GeneratedBackwardFor_ragged_pool_cuda_pool_defaultBackward"
+              },
+              "primitive": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "StackBackward0"
+              }
+            },
+            "max_abs_errors": {
+              "output_and_input_gradient_max_abs_errors": 0.0,
+              "parameter_gradient_max_abs_errors": 0.0,
+              "updated_parameter_max_abs_errors": 0.0
+            },
+            "all_parameter_blocks_changed": true,
+            "inputs_unchanged": true,
+            "same_parameter_and_optimizer_objects": true
+          },
+          {
+            "update": 2,
+            "N": 9,
+            "B": 5,
+            "offsets": [
+              0,
+              1,
+              4,
+              4,
+              7,
+              9
+            ],
+            "losses": {
+              "compiled": 0.30857622623443604,
+              "eager": 0.30857622623443604,
+              "primitive": 0.30857622623443604
+            },
+            "output_gradient_nodes": {
+              "compiled": {
+                "predictions": "CompiledFunctionBackward",
+                "pooled": "CompiledFunctionBackward"
+              },
+              "eager": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "GeneratedBackwardFor_ragged_pool_cuda_pool_defaultBackward"
+              },
+              "primitive": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "StackBackward0"
+              }
+            },
+            "max_abs_errors": {
+              "output_and_input_gradient_max_abs_errors": 0.0,
+              "parameter_gradient_max_abs_errors": 0.0,
+              "updated_parameter_max_abs_errors": 0.0
+            },
+            "all_parameter_blocks_changed": true,
+            "inputs_unchanged": true,
+            "same_parameter_and_optimizer_objects": true
+          }
+        ]
+      },
+      "float64": {
+        "receipt_sha256": "a5ee66c962c6a69f12c2835465a7cf0e2b78457cb8c02f08dba14911a8258df2",
+        "fixture_sha256": "55ff70e81c1291f510c634d30e21a729573cc5db083f5fdbbe5f8c06ff022990",
+        "optimizer_steps": {
+          "compiled": 2,
+          "eager": 2,
+          "primitive": 2
+        },
+        "parameter_tensors": 5,
+        "scalar_parameters": 25,
+        "comparison_tolerance": {
+          "rtol": 2e-10,
+          "atol": 2e-12
+        },
+        "compile_api_calls": 1,
+        "graph_count_claimed": false,
+        "steps": [
+          {
+            "update": 1,
+            "N": 9,
+            "B": 5,
+            "offsets": [
+              0,
+              2,
+              2,
+              5,
+              7,
+              9
+            ],
+            "losses": {
+              "compiled": 0.1752760009969802,
+              "eager": 0.1752760009969802,
+              "primitive": 0.1752760009969802
+            },
+            "output_gradient_nodes": {
+              "compiled": {
+                "predictions": "CompiledFunctionBackward",
+                "pooled": "CompiledFunctionBackward"
+              },
+              "eager": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "GeneratedBackwardFor_ragged_pool_cuda_pool_defaultBackward"
+              },
+              "primitive": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "StackBackward0"
+              }
+            },
+            "max_abs_errors": {
+              "output_and_input_gradient_max_abs_errors": 4.336808689942018e-19,
+              "parameter_gradient_max_abs_errors": 1.734723475976807e-18,
+              "updated_parameter_max_abs_errors": 0.0
+            },
+            "all_parameter_blocks_changed": true,
+            "inputs_unchanged": true,
+            "same_parameter_and_optimizer_objects": true
+          },
+          {
+            "update": 2,
+            "N": 9,
+            "B": 5,
+            "offsets": [
+              0,
+              1,
+              4,
+              4,
+              7,
+              9
+            ],
+            "losses": {
+              "compiled": 0.11804187841113481,
+              "eager": 0.11804187841113481,
+              "primitive": 0.11804187841113481
+            },
+            "output_gradient_nodes": {
+              "compiled": {
+                "predictions": "CompiledFunctionBackward",
+                "pooled": "CompiledFunctionBackward"
+              },
+              "eager": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "GeneratedBackwardFor_ragged_pool_cuda_pool_defaultBackward"
+              },
+              "primitive": {
+                "predictions": "SqueezeBackward1",
+                "pooled": "StackBackward0"
+              }
+            },
+            "max_abs_errors": {
+              "output_and_input_gradient_max_abs_errors": 1.734723475976807e-18,
+              "parameter_gradient_max_abs_errors": 6.938893903907228e-18,
+              "updated_parameter_max_abs_errors": 0.0
+            },
+            "all_parameter_blocks_changed": true,
+            "inputs_unchanged": true,
+            "same_parameter_and_optimizer_objects": true
+          }
+        ]
+      }
+    }
+  },
+  "retained_adverse_results": [
+    {
+      "attempt": "initial public compiled route",
+      "result": "32 failed,143 passed; both consumers failed before custom pooling kernel execution",
+      "cause": "Dynamo could not proxy error-message lambdas in duplicate public Python metadata checks",
+      "correction": "Public wrapper dispatches directly. Native real-input admission and registered fake metadata checks remain intact."
+    },
+    {
+      "attempt": "first wrapper-wheel packaging inspection",
+      "result": "Rejected unchanged Python payload LF/CRLF mismatch; rejected wheel was not installed",
+      "correction": "Verified explicit line-ending equivalence and preserved accepted bytes."
+    }
+  ],
+  "native_evidence_boundary": {
+    "earlier_record": "windows-sm89-20261021.json",
+    "earlier_memcheck_racecheck_synccheck_runs": 6,
+    "earlier_consumer": "Eager two-update synthetic consumer in both dtypes",
+    "same_native_payload": true,
+    "compiled_consumer_instrumented": false,
+    "administrator_or_registry_action_in_this_increment": false
+  },
+  "limits": [
+    "First-order fixed-shape aot_eager integration only",
+    "aot_eager runs captured forward/backward with eager PyTorch, without optimizing backend code generation",
+    "No Inductor/Triton, dynamic CUDA shape, export, CUDA graph capture, higher derivative or broader transform claim",
+    "No fresh compiler result or compiled-path sanitizer result",
+    "No broader platform/device/ABI, performance, model-quality, production security or hiring/clearance eligibility claim",
+    "Existing CPU CI is a separate regression cohort, not CUDA CI"
+  ]
+}
