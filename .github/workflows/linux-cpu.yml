@@ -136,7 +136,7 @@ jobs:
           "$python" -m pip freeze --all > "$RAGGED_EVIDENCE/acceptance-environment.txt"
           mkdir "$consumer" "$consumer/scripts"
           cp -r "$source/tests" "$source/examples" "$consumer/"
-          cp "$source/scripts/check_installed.py" "$source/scripts/check_sdist.py" "$consumer/scripts/"
+          cp "$source/scripts/check_installed.py" "$source/scripts/check_sdist.py" "$source/scripts/check_stochastic_receipt.py" "$consumer/scripts/"
 
       - name: Verify installed bytes, licenses and ordinary native dependencies
         working-directory: ${{ runner.temp }}/ragged-linux-consumer
@@ -400,6 +400,12 @@ jobs:
           assert receipt["installed_package"] and receipt["native_library_loaded"] and receipt["threads"] == receipt["interop_threads"] == 1
           print("Training resume", sys.argv[2], "passed two producer updates and three fresh-process continuation updates")
           PY
+            cat "$receipt"
+          done
+          for dtype in float32 float64; do
+            receipt="$RAGGED_EVIDENCE/stochastic-$dtype.json"
+            "$python" -I examples/resume_stochastic.py --dtype "$dtype" --directory "$RAGGED_EVIDENCE/stochastic-$dtype" --output "$receipt" > "$RAGGED_EVIDENCE/stochastic-$dtype.stdout.log" 2>&1
+            "$python" -I "$GITHUB_WORKSPACE/scripts/check_stochastic_receipt.py" "$receipt" "$dtype"
             cat "$receipt"
           done
           mkdir "$RAGGED_EVIDENCE/padded-export"
