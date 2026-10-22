@@ -13,13 +13,17 @@ _NO_VMAP = "ragged_pool_functional does not support vmap or batched transforms"
 
 class _NativeBackward(torch.autograd.Function):
     @staticmethod
-    def forward(grad_output, values, logits, offsets):
+    def forward(grad_output, values, logits, offsets, versions):
+        # This plain Function boundary sees underlying tensors, unlike the
+        # transform wrappers saved in outer backward. _version is pin-specific.
+        if tuple(tensor._version for tensor in (values, logits, offsets)) != versions:
+            raise RuntimeError("ragged_pool_functional saved input version changed by an inplace operation")
         return torch.ops.ragged_pool_cuda._backward.default(grad_output, values, logits, offsets)
 
     @staticmethod
     def setup_context(ctx, inputs, output):
         # Keep all original arguments, including a differentiable cotangent.
-        ctx.save_for_backward(*inputs)
+        ctx.save_for_backward(*inputs[:4])
         ctx.set_materialize_grads(False)
 
     @staticmethod
@@ -38,20 +42,25 @@ class _NativeBackward(torch.autograd.Function):
 class _NativePool(torch.autograd.Function):
     @staticmethod
     def forward(values, logits, offsets):
-        return torch.ops.ragged_pool_cuda.pool.default(values, logits, offsets)
+        if any(torch.is_inference(tensor) for tensor in (values, logits, offsets)):
+            raise RuntimeError("ragged_pool_functional requires ordinary versioned primals, not inference tensors")
+        # Capture the real counters here. A torch.func wrapper's TensorImpl can
+        # have its own counter, so setup_context cannot supply this metadata.
+        versions = tuple(tensor._version for tensor in (values, logits, offsets))
+        return torch.ops.ragged_pool_cuda.pool.default(values, logits, offsets), versions
 
     @staticmethod
     def setup_context(ctx, inputs, output):
-        # Saving the caller's primals preserves ordinary version-counter checks.
         ctx.save_for_backward(*inputs)
+        ctx.versions = output[1]
         ctx.set_materialize_grads(False)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def backward(ctx, grad_output, ignored_versions):
         if grad_output is None:
             return None, None, None
         values, logits, offsets = ctx.saved_tensors
-        grad_values, grad_logits = _NativeBackward.apply(grad_output, values, logits, offsets)
+        grad_values, grad_logits = _NativeBackward.apply(grad_output, values, logits, offsets, ctx.versions)
         return grad_values, grad_logits, None
 
     @staticmethod
@@ -70,7 +79,10 @@ def ragged_pool_functional(values, logits, offsets):
     native operators. Inputs are neither copied nor coerced by this bridge.
     Offsets receive no gradient. Use the original API for its qualified compiled
     path. Nested differentiation, jvp and vmap are outside this API's contract.
+    Primals must have ordinary version counters. The mutation guard reads the
+    pinned PyTorch _version property at plain Function boundaries; this internal
+    property is not a cross-version or external-memory-write guarantee.
     """
     if torch.compiler.is_compiling():
         raise RuntimeError("ragged_pool_functional is eager-only and does not support compile or export")
-    return _NativePool.apply(values, logits, offsets)
+    return _NativePool.apply(values, logits, offsets)[0]

@@ -175,6 +175,30 @@ def test_vjp_retains_original_saved_input_version_checks(field):
     valid_after_refusal()
 
 
+@pytest.mark.parametrize("dtype", DTYPES)
+def test_valid_nonzero_primal_versions_are_captured_from_plain_forward(dtype):
+    v, l, o = inputs(dtype)
+    v.add_(0.01)
+    l.add_(0.02)
+    o.copy_(o.clone())
+    assert all(tensor._version > 0 for tensor in (v, l, o))
+    before = snapshot((v, l, o))
+    _, pullback = torch.func.vjp(lambda x, s: pool(x, s, o), v, l)
+    upstream = cotangent(dtype, "contiguous")
+    for actual, expected in zip(pullback(upstream), reference_grad(v, l, o, upstream)[1]):
+        torch.testing.assert_close(actual, expected, **tolerance(dtype))
+    torch.func.grad(lambda x, s: nonlinear(pool(x, s, o)), argnums=(0, 1))(v, l)
+    unchanged((v, l, o), before)
+
+
+def test_inference_primals_are_outside_versioned_bridge_admission():
+    with torch.inference_mode():
+        v, l, o = inputs()
+    with pytest.raises(RuntimeError, match="versioned primals|inference"):
+        pool(v, l, o)
+    valid_after_refusal()
+
+
 @pytest.mark.parametrize("fault", ("values_cpu", "offsets_cpu", "half", "dtype_mismatch", "values_stride",
     "logits_stride", "offsets_stride", "negative_primal", "nan_values", "inf_logits", "large_values",
     "start", "end", "descending", "outside", "zero_width", "large_n", "large_b"))
