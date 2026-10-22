@@ -245,13 +245,13 @@ def test_invalid_pullback_cotangent_refuses_then_same_pullback_recovers(fault):
         torch.testing.assert_close(got, wanted, **tolerance(v.dtype))
 
 
-@pytest.mark.parametrize("route", ("ordinary_second", "nested_grad", "cotangent_grad", "jvp", "vmap", "compile", "export"))
+@pytest.mark.parametrize("route", ("ordinary_second", "nested_grad", "cotangent_grad", "jvp", "nested_vmap", "compile", "export"))
 def test_unsupported_derivative_or_capture_fails_without_poisoning_first_order(route):
     v, l, o = inputs(requires_grad=True)
     function = lambda x, s: pool(x, s, o)
     loss = lambda x, s: nonlinear(function(x, s))
     message = {"ordinary_second": "first-order", "nested_grad": "first-order",
-               "cotangent_grad": "first-order", "jvp": "jvp|forward-mode", "vmap": "vmap",
+               "cotangent_grad": "first-order", "jvp": "jvp|forward-mode", "nested_vmap": "nested.*vmap|vmap.*nested",
                "compile": "eager-only|Observed exception", "export": "eager-only|Observed exception"}[route]
     with pytest.raises(REJECT, match=message):
         if route == "ordinary_second":
@@ -264,7 +264,7 @@ def test_unsupported_derivative_or_capture_fails_without_poisoning_first_order(r
             _, pullback = torch.func.vjp(lambda x, s: pool(x, s, o), fixed_v, fixed_l)
             torch.func.grad(lambda g: pullback(g)[0].sum())(torch.ones(4, 3, dtype=v.dtype, device=v.device))
         elif route == "jvp": torch.func.jvp(function, (v, l), (torch.ones_like(v), torch.ones_like(l)))
-        elif route == "vmap": torch.vmap(function)(v[None], l[None])
+        elif route == "nested_vmap": torch.vmap(torch.vmap(function))(v[None, None], l[None, None])
         elif route == "compile": torch.compile(function, backend="aot_eager", fullgraph=True)(v, l)
         else:
             class Layer(torch.nn.Module):
