@@ -5,6 +5,10 @@ The existing eager consumer supplies the model, independent primitive reference,
 comparison helpers and installed-package checks. This route captures first-order
 forward and backward graphs with aot_eager. It makes no optimized-code, speed,
 model-quality, portability or security claim.
+
+The default retains two fixed-shape updates. Add --dynamic for five updates
+with changing packed item/group counts and one dynamic=True compile API call.
+The compiler may specialize additional graphs. This is not a graph-count claim.
 """
 import argparse
 import copy
@@ -27,6 +31,8 @@ eager = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(eager)
 
 BOUNDARIES = ((0, 2, 2, 5, 7, 9), (0, 1, 4, 4, 7, 9))
+DYNAMIC_BOUNDARIES = ((0, 2, 2, 5, 7, 9), (0, 3, 5, 5, 8, 10, 12),
+                      (0, 1, 5, 7, 12), (0, 3, 3, 8, 11), (0, 1, 4, 6, 6, 9))
 COMPILE_OPTIONS = {"backend": "aot_eager", "fullgraph": True, "dynamic": False}
 ROUTES = ("compiled", "eager", "primitive")
 PAIRS = (("compiled", "eager"), ("compiled", "primitive"), ("eager", "primitive"))
@@ -66,16 +72,17 @@ def parameter_ownership(models, optimizers, expected):
             raise AssertionError("Training changed model, parameter or optimizer ownership")
 
 
-def fixture(dtype_name, device):
+def fixture(dtype_name, device, dynamic=False):
     dtype = eager.DTYPES[dtype_name]
     torch.manual_seed(eager.SEED)
     initial = eager.SetRegressor().to(device=device, dtype=dtype)
     generator = torch.Generator(device="cpu").manual_seed(eager.SEED + 100)
     batches = []
-    for boundaries in BOUNDARIES:
-        raw = 0.25 * torch.randn(9, 3, dtype=dtype, generator=generator)
-        targets = (0.4 * torch.randn(5, dtype=dtype, generator=generator)
-                   + torch.linspace(-0.3, 0.5, 5, dtype=dtype))
+    for boundaries in (DYNAMIC_BOUNDARIES if dynamic else BOUNDARIES):
+        groups = len(boundaries) - 1
+        raw = 0.25 * torch.randn(boundaries[-1], 3, dtype=dtype, generator=generator)
+        targets = (0.4 * torch.randn(groups, dtype=dtype, generator=generator)
+                   + torch.linspace(-0.3, 0.5, groups, dtype=dtype))
         batches.append({"raw": raw.to(device), "targets": targets.to(device),
                         "offsets": torch.tensor(boundaries, dtype=torch.int64, device=device),
                         "boundaries": boundaries})
@@ -113,7 +120,9 @@ def compare_routes(results, tolerance):
             for first, second in PAIRS}
 
 
-def run(dtype_name, device_index, source_revision=None, source_tree=None):
+def run(dtype_name, device_index, source_revision=None, source_tree=None, dynamic=False):
+    if type(dynamic) is not bool:
+        raise ValueError("dynamic must be a bool")
     torch.set_num_threads(1)
     if torch.get_num_interop_threads() != 1:
         torch.set_num_interop_threads(1)
@@ -128,9 +137,14 @@ def run(dtype_name, device_index, source_revision=None, source_tree=None):
     identity = eager.installed_identity()
     helper_hash = sha256(HELPER.read_bytes()).hexdigest()
     script_hash = sha256(SCRIPT.read_bytes()).hexdigest()
+    if identity.pop("script_sha256") != helper_hash:
+        raise AssertionError("The installed-identity helper must identify the adjacent training script")
     identity.update({"script_sha256": script_hash, "helper_script_sha256": helper_hash,
                      "helper_script_name": HELPER.name})
-    initial, batches = fixture(dtype_name, device)
+    package_directory = Path(identity["package_path"]).parent
+    package_files = ("__init__.py", "_registration.py", "_validation.py", "padded.py", "reference.py")
+    package_hashes = {name: sha256((package_directory / name).read_bytes()).hexdigest() for name in package_files}
+    initial, batches = fixture(dtype_name, device, dynamic=dynamic)
     initial_parameters = dict(initial.named_parameters())
     initial_before = snapshot(initial_parameters)
     initial_hashes = hashes(initial_parameters)
@@ -141,7 +155,7 @@ def run(dtype_name, device_index, source_revision=None, source_tree=None):
     if (input_hashes["batch1.raw"] == input_hashes["batch2.raw"]
             or input_hashes["batch1.targets"] == input_hashes["batch2.targets"]
             or input_hashes["batch1.offsets"] == input_hashes["batch2.offsets"]):
-        raise AssertionError("The second fixed-shape batch must change data, targets and partitions")
+        raise AssertionError("The second batch must change data, targets and partitions")
     models = {route: copy.deepcopy(initial) for route in ROUTES}
     optimizers = {route: torch.optim.SGD(model.parameters(), lr=0.03, foreach=False, fused=False)
                   for route, model in models.items()}
@@ -153,7 +167,8 @@ def run(dtype_name, device_index, source_revision=None, source_tree=None):
     if len({value.data_ptr() for value in all_parameters}) != len(all_parameters):
         raise AssertionError("Initial and training models must own separate parameter storage")
     calls = dict(models)
-    calls["compiled"] = torch.compile(models["compiled"], backend="aot_eager", fullgraph=True, dynamic=False)
+    options = {**COMPILE_OPTIONS, "dynamic": dynamic}
+    calls["compiled"] = torch.compile(models["compiled"], **options)
     if tuple(id(value) for value in calls["compiled"].parameters()) != ownership["compiled"][2]:
         raise AssertionError("The compiled wrapper must use the original model parameters")
     tolerance = ({"rtol": 2e-4, "atol": 2e-6} if dtype_name == "float32"
@@ -186,7 +201,8 @@ def run(dtype_name, device_index, source_revision=None, source_tree=None):
             raise AssertionError("The compiled wrapper changed parameter ownership")
         unchanged(source_inputs, source_before)
         unchanged(initial_parameters, initial_before)
-        steps.append({"update": index, "N": 9, "B": 5, "raw_width": 3, "pooled_width": 4,
+        steps.append({"update": index, "N": batch["raw"].shape[0], "B": batch["offsets"].numel() - 1,
+                      "raw_width": batch["raw"].shape[1], "pooled_width": results["compiled"][0]["pooled"].shape[1],
                       "offsets": list(batch["boundaries"]),
                       "output_gradient_nodes": {route: result[2] for route, result in results.items()},
                       "losses": {route: float(result[0]["loss"]) for route, result in results.items()},
@@ -199,19 +215,23 @@ def run(dtype_name, device_index, source_revision=None, source_tree=None):
                       "all_parameter_blocks_changed": True, "same_parameter_and_optimizer_objects": True})
     if sha256(HELPER.read_bytes()).hexdigest() != helper_hash or sha256(SCRIPT.read_bytes()).hexdigest() != script_hash:
         raise AssertionError("Consumer source changed during execution")
+    if {name: sha256((package_directory / name).read_bytes()).hexdigest() for name in package_files} != package_hashes:
+        raise AssertionError("Installed Python package source changed during execution")
     torch.cuda.synchronize(device)
     properties = torch.cuda.get_device_properties(device)
-    return {"status": "passed", "method": "aot_eager.packed_cuda_training", "dtype": dtype_name,
-            "scope": "Synthetic fixed-shape first-order graph integration, without optimized-code or native-diagnostic claims.",
+    return {"status": "passed", "method": ("aot_eager.packed_cuda_dynamic_training" if dynamic
+                                           else "aot_eager.packed_cuda_training"), "dtype": dtype_name,
+            "scope": ("Synthetic changing-shape first-order graph integration, without graph-count, optimized-code or native-diagnostic claims."
+                      if dynamic else "Synthetic fixed-shape first-order graph integration, without optimized-code or native-diagnostic claims."),
             "seed": eager.SEED, "device": str(device), "device_name": properties.name,
             "compute_capability": [properties.major, properties.minor],
             "python_version": sys.version.split()[0], "torch_version": str(torch.__version__),
             "cuda_runtime_version": torch.version.cuda, "python_executable": sys.executable,
             "working_directory": str(Path.cwd()), "source_revision": source_revision,
-            "source_tree": source_tree, "source_identity_basis": "Caller labels plus hashed consumer/helper/native bytes",
-            "compile_options": COMPILE_OPTIONS, "compile_api_calls": 1,
+            "source_tree": source_tree, "source_identity_basis": "Caller labels plus hashed consumer/helper/package/native bytes",
+            "package_python_sha256": package_hashes, "compile_options": options, "compile_api_calls": 1,
             "graph_count_claimed": False, "optimizer": "SGD", "learning_rate": 0.03,
-            "optimizer_steps": {route: 2 for route in ROUTES}, "parameter_tensors": 5,
+            "optimizer_steps": {route: len(batches) for route in ROUTES}, "parameter_tensors": 5,
             "scalar_parameters": 25, "comparison_tolerance": tolerance, "steps": steps,
             "initial_parameter_sha256": initial_hashes, "input_sha256": input_hashes,
             "fixture_sha256": sha256(json.dumps(input_hashes, sort_keys=True).encode()).hexdigest(),
@@ -224,6 +244,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dtype", choices=tuple(eager.DTYPES), default="float32")
     parser.add_argument("--device", type=int, default=0, help="Selected CUDA device ordinal")
+    parser.add_argument("--dynamic", action="store_true", help="Five updates with changing packed N/B counts")
     parser.add_argument("--source-revision", help="Optional independently established source revision")
     parser.add_argument("--source-tree", help="Optional independently established source tree")
     parser.add_argument("--output", type=Path, help="Optional new JSON receipt path")
@@ -235,7 +256,8 @@ def main():
         parser.error("The CUDA device ordinal must be nonnegative")
     if arguments.output is not None and (arguments.output.exists() or arguments.output.is_symlink()):
         parser.error("The output receipt must be new")
-    result = run(arguments.dtype, arguments.device, arguments.source_revision, arguments.source_tree)
+    result = run(arguments.dtype, arguments.device, arguments.source_revision, arguments.source_tree,
+                 dynamic=arguments.dynamic)
     text = json.dumps(result, indent=2, allow_nan=False) + "\n"
     if arguments.output is not None:
         arguments.output.parent.mkdir(parents=True, exist_ok=True)
