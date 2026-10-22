@@ -1,8 +1,10 @@
 include pyproject.toml setup.py README.md LICENSE NOTICE
+include EXPORT.md
 include third_party/PYTORCH-LICENSE
 include csrc/pool.cu
 include evidence/windows-sm89-20261021.json
 include evidence/compiled-windows-sm89-20261021.json
+include evidence/export-windows-sm89-20261021.json
 recursive-include src *.py
 recursive-include examples *.py
 recursive-include tests *.py

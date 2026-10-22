@@ -1,0 +1,481 @@
+{
+  "status": "passed",
+  "scope": "Local ordinary installed fixed-shape strict CUDA inference export and fresh-process consumption",
+  "executed_source_revision": "cb5c8b565b1eb7603a4dfbb2093b624692866803",
+  "executed_source_tree": "f28280a6a49d9ad0f4279129b755241776867565",
+  "source_archive_sha256": "cb4cfc117c8179f2690eafa28d22f537a318f7b583515c9a0556cdea9cf3df4e",
+  "source_archive_tracked_members": 22,
+  "script_sha256": {
+    "examples/export_cuda.py": "62af1a28488d5de0ae0a0d46b8ff755f6be15f54d492d8930277e98bb741bf9b",
+    "examples/predict_cuda.py": "f067811338c88176c3b24df315ea53463e4d60f4ac01f327dd71ae8ded106454",
+    "examples/train_compiled.py": "80490aa966783f062ef83902c921c5fc65f47c1e7d66b2fe0217b82b357cba7a",
+    "examples/train_cuda.py": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+    "tests/test_compiled.py": "dfecabd46cecf54623c676dd75cf2f11eb2bb309fe7d8398dea5d8c92e36f312",
+    "tests/test_cuda.py": "ba2f2c7d503a59d6e7c0eaa921ab7fa870084a4fa30cbab5927ab88c63bcbf89",
+    "tests/test_exported.py": "bce3909d7e791f4027384ce794226f6e5e457a72a57d28e2990e1553cb9651d7"
+  },
+  "environment": {
+    "os": "Windows x64",
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "cuda_runtime": "12.8",
+    "device": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "torch_threads": 1,
+    "torch_interop_threads": 1
+  },
+  "installation": {
+    "fresh_isolated_environment_outside_checkout": true,
+    "ordinary_wheel": true,
+    "wheel_sha256": "ec5a11405efb784b83b12667ac207fe3d2ccac06d8d97959cac1f7ea654e5def",
+    "native_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "new_native_compilation": false,
+    "runtime_package_changed": false,
+    "original_compiler_provenance": {
+      "nvcc": "12.8.93",
+      "msvc": "19.44.35228",
+      "cpp_standard": 17,
+      "architecture": "sm_89"
+    }
+  },
+  "checks": {
+    "manifest_commands_passed": 7,
+    "pytest_passed": 256,
+    "pytest_skipped": 4,
+    "pytest_warnings": 1,
+    "pytest_seconds": 8.04,
+    "included_previous_cuda_tests": 175,
+    "skips": "Four file/directory symlink fixtures could not be created with ordinary Windows privilege",
+    "warning": "PyTorch PT2 loader reported a nonwritable tensor buffer. Kept visible. Inference state byte/version preservation passed.",
+    "scope": "Registration, mathematical comparisons, graph inspection and file admission remain separate tests"
+  },
+  "dtypes": {
+    "float32": {
+      "producer_receipt_sha256": "8674e54c624206942404455efd41c8af452d91f68cdf2e96f116a66e37aa0be8",
+      "consumer_receipt_sha256": "5f4676d52e312398cbe0d0562094c05f8b7697c00a3f6a98f2e5daa805fa59ae",
+      "manifest_sha256": "0290165d06c5e2a6043b2557dd634cd221caa6b783222bb06b2eeb9c9528f1b4",
+      "program": {
+        "sha256": "1c0d5304644e7be70f834ce55183a10d0d3d6680748262f4e87f705d855565f7",
+        "size_bytes": 17056
+      },
+      "fresh_process": true,
+      "producer_imports": [],
+      "cases": [
+        {
+          "name": "mixed_empty",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "singletons",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "one_nonempty",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        }
+      ],
+      "training": {
+        "optimizer": "SGD",
+        "learning_rate": 0.03,
+        "optimizer_steps": 2,
+        "reference_optimizer_steps": 2,
+        "all_parameter_blocks_changed": true,
+        "steps": [
+          {
+            "step": 1,
+            "native_loss": 0.3642439544200897,
+            "reference_loss": 0.3642439544200897,
+            "output_max_abs_difference": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "loss": 0.0,
+              "input_gradient": 0.0
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          {
+            "step": 2,
+            "native_loss": 0.15170782804489136,
+            "reference_loss": 0.15170782804489136,
+            "output_max_abs_difference": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "loss": 0.0,
+              "input_gradient": 0.0
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          }
+        ]
+      },
+      "graph": {
+        "pool_operator": "ragged_pool_cuda::pool",
+        "pool_count": 1,
+        "backward_count": 0
+      },
+      "eager_captured_reloaded_comparisons": [
+        {
+          "name": "mixed_empty",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "singletons",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "one_nonempty",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        }
+      ],
+      "loaded_parameters_exact": true,
+      "input_and_model_bytes_versions_unchanged": true
+    },
+    "float64": {
+      "producer_receipt_sha256": "b7682ae73fc8ca5864360bb64514975793b1808b70891f6b2a6a8f17e9c8d5fa",
+      "consumer_receipt_sha256": "7bf96f322391a88f7f3b4e67489c8c21f8c154202341f8f0c73ec2084de2cd09",
+      "manifest_sha256": "2be56f4a24f147369270a4f1191366e711d5bf639eac95afc45e6e112b7fd20e",
+      "program": {
+        "sha256": "a12c2367281f605159162fb3bf9223f4ca5bd6e1a5d7a605de05b7e232a2269f",
+        "size_bytes": 17248
+      },
+      "fresh_process": true,
+      "producer_imports": [],
+      "cases": [
+        {
+          "name": "mixed_empty",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 1.1102230246251565e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "predictions_reference_max_abs": 8.326672684688674e-17,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 2.220446049250313e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "singletons",
+          "predictions_reference_max_abs": 5.551115123125783e-17,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 1.1102230246251565e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "one_nonempty",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 8.326672684688674e-17,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        }
+      ],
+      "training": {
+        "optimizer": "SGD",
+        "learning_rate": 0.03,
+        "optimizer_steps": 2,
+        "reference_optimizer_steps": 2,
+        "all_parameter_blocks_changed": true,
+        "steps": [
+          {
+            "step": 1,
+            "native_loss": 0.1752760009969802,
+            "reference_loss": 0.1752760009969802,
+            "output_max_abs_difference": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "loss": 0.0,
+              "input_gradient": 4.336808689942018e-19
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 0.0,
+              "scorer.weight": 1.3010426069826053e-18,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          {
+            "step": 2,
+            "native_loss": 0.4396604293856726,
+            "reference_loss": 0.4396604293856726,
+            "output_max_abs_difference": {
+              "predictions": 5.551115123125783e-17,
+              "pooled": 1.1102230246251565e-16,
+              "loss": 0.0,
+              "input_gradient": 1.734723475976807e-18
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 0.0,
+              "scorer.weight": 2.6020852139652106e-18,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 2.220446049250313e-16
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.02764653429481996
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.027646534294819974
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 1.3877787807814457e-17
+            }
+          }
+        ]
+      },
+      "graph": {
+        "pool_operator": "ragged_pool_cuda::pool",
+        "pool_count": 1,
+        "backward_count": 0
+      },
+      "eager_captured_reloaded_comparisons": [
+        {
+          "name": "mixed_empty",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 1.1102230246251565e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "reference_prediction_max_abs": 8.326672684688674e-17,
+          "reference_pooled_max_abs": 2.220446049250313e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "singletons",
+          "reference_prediction_max_abs": 5.551115123125783e-17,
+          "reference_pooled_max_abs": 1.1102230246251565e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "one_nonempty",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 8.326672684688674e-17,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        }
+      ],
+      "loaded_parameters_exact": true,
+      "input_and_model_bytes_versions_unchanged": true
+    }
+  },
+  "adverse_results": [
+    "Draft dtype-variable shadowing corrected before execution",
+    "First passing cohort had an overwritten top-level producer-script hash. Correct manifest/consumer identities retained; source fixed and rerun",
+    "A failed archive preparation was incorrectly followed by checks using old copies. That failed orchestration cohort is excluded and retained",
+    "Literal-byte immutability strengthened with a signed-zero control that bypasses the tensor version counter"
+  ],
+  "limits": [
+    "Trusted local artifacts only. SHA256 is identity rather than publisher authentication or a sandbox",
+    "Fixed raw[9,3], offsets[6], CUDA0 and one dtype per artifact",
+    "Inference only. Same installed native custom operator and pinned framework required",
+    "No new Compute Sanitizer execution. Earlier eager diagnostic cohort keeps its original scope",
+    "No dynamic shape, exported backward, CUDA graph capture, optimization, performance, broad ABI/platform/device or security certification claim",
+    "CPU remote CI does not establish CUDA execution"
+  ]
+}
