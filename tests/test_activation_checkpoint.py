@@ -171,6 +171,78 @@ def test_original_native_admission_failure_propagates_and_clean_retry_works():
     assert torch.equal(results[0][4], results[1][4])
 
 
+def test_retained_forward_exception_leaves_direct_checkpointed_and_batched_gradients_clean():
+    module = example()
+    initial, batches, _ = module.dynamic.fixture("float64")
+    marker, events = RuntimeError("controlled initial-forward pool failure"), []
+
+    def marker_pool(values, logits, offsets):
+        raise marker
+
+    with pytest.raises(RuntimeError) as retained:
+        module.forward(copy.deepcopy(initial), batches[0]["raw"], batches[0]["offsets"],
+                       checkpointed=True, pool=marker_pool, events=events)
+    assert retained.value is marker and marker.__traceback__ is not None
+    retained_traceback = marker.__traceback__
+    assert events == ["forward_enter", "forward_exit"]
+    results = []
+    for checkpointed in (False, True):
+        torch.manual_seed(5111)
+        results.append(evaluate(module, copy.deepcopy(initial), batches[0]["raw"].clone().requires_grad_(),
+                                batches[0]["offsets"], batches[0]["targets"], checkpointed=checkpointed))
+    for expected, actual in zip(results[0][2], results[1][2]):
+        torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+    # Exercise the actual batched-gradient consumer affected by a leaked hook,
+    # while both the original exception and its traceback remain retained.
+    path = SOURCE.with_name("train_clipped.py")
+    spec = importlib.util.spec_from_file_location("checkpoint_retry_clipped_consumer", path)
+    clipped = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(clipped)
+    torch.manual_seed(731)
+    model = clipped.PaddedRegressor().double()
+    layout = clipped.make_layouts("float64")["fixed_holes"]
+    targets = layout["raw"].new_tensor([-0.3, 8.0, -0.5, 0.25, -4.0])
+    batched = clipped.per_example_gradients(model, layout["raw"], layout["mask"], targets,
+                                           clipped.ragged_pool_padded)
+    reference = clipped.per_example_gradients(model, layout["raw"], layout["mask"], targets,
+                                             clipped.ragged_pool_padded_reference, method="serial")
+    for name in batched:
+        torch.testing.assert_close(batched[name], reference[name], rtol=1e-10, atol=1e-12)
+    assert retained.value is marker and marker.__traceback__ is retained_traceback
+    assert events == ["forward_enter", "forward_exit"]
+
+
+def test_recompute_exception_keeps_original_identity_and_allows_valid_retry():
+    module = example()
+    initial, batches, _ = module.dynamic.fixture("float64")
+    marker, calls, events = RuntimeError("controlled recomputation pool failure"), [], []
+
+    def fail_on_recompute(values, logits, offsets):
+        calls.append("pool")
+        if len(calls) == 2:
+            raise marker
+        return module.dynamic.ragged_pool(values, logits, offsets)
+
+    model, raw = copy.deepcopy(initial), batches[0]["raw"].clone().requires_grad_()
+    predictions, _ = module.forward(model, raw, batches[0]["offsets"], checkpointed=True,
+                                    pool=fail_on_recompute, events=events)
+    with pytest.raises(RuntimeError) as retained:
+        torch.autograd.grad(predictions.square().mean(), (raw, *model.parameters()))
+    assert retained.value is marker and marker.__traceback__ is not None
+    retained_traceback = marker.__traceback__
+    assert calls == ["pool", "pool"]
+    assert events == ["forward_enter", "forward_exit", "recompute_enter", "recompute_exit"]
+    results = []
+    for checkpointed in (False, True):
+        torch.manual_seed(5111)
+        results.append(evaluate(module, copy.deepcopy(initial), batches[0]["raw"].clone().requires_grad_(),
+                                batches[0]["offsets"], batches[0]["targets"], checkpointed=checkpointed))
+    for expected, actual in zip(results[0][2], results[1][2]):
+        torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    assert retained.value is marker and marker.__traceback__ is retained_traceback
+
+
 @pytest.mark.parametrize("dtype_name", ["float32", "float64"])
 def test_each_update_matches_independent_momentum_math_and_preserves_sources(dtype_name):
     module = example()

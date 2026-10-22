@@ -29,9 +29,17 @@ Two controls distinguish the mechanism:
 
 The default checkpoint determinism check compares saved/recomputed tensor shape, dtype and device. It does not compare their numerical values or prove semantic equivalence. The explicit output, derivative, update and RNG checks remain necessary.
 
+## Retire a failed forward before retry
+
+The pinned public non-reentrant wrapper advances a generator before and after calling its segment. A retained exception from that initial call can otherwise leave the saved-tensor hook scope suspended. The example uses a small first-invocation adapter: it captures an ordinary exception, returns control so the public checkpoint call finishes its scope, then re-raises the same exception with its original traceback before using the absent result. The arithmetic segment remains unchanged. Errors during later backward recomputation propagate directly through the framework's recomputation scopes.
+
+The failure controls retain exception objects and tracebacks while executing valid direct, checkpointed and batched-gradient work afterward. Failed forwards can consume random draws. Retry alignment uses an explicit RNG reset, without claiming rollback of the failed call. This adapter is limited to ordinary exceptions in the pinned eager route. It supplies no cleanup guarantee for `KeyboardInterrupt`, `SystemExit` or arbitrary stateful functions.
+
 ## Observe saved tensors precisely
 
-A separate observation records `original_forward_pack_hook_events` and their logical payload: `numel * element_size` for each original-forward pack event. A tensor or alias saved several times contributes several events. Recomputed backward saves are outside that original-forward total.
+The standalone numerical trajectories run under original-forward observation hooks. Separate unhooked tests check ordinary autograd, RNG controls and admission behavior, rather than supplying another complete unhooked two-update receipt.
+
+The observation records `original_forward_pack_hook_events` and their logical payload: `numel * element_size` for each original-forward pack event. A tensor or alias saved several times contributes several events. Recomputed backward saves are outside that original-forward total.
 
 These are hook-event and logical-payload observations. They do not measure unique allocations, bytes freed, allocator peak, process RSS or elapsed-time savings. Hooks can also affect tensor-object packing. The small model qualifies this declared integration rather than demonstrating a useful memory or speed advantage.
 

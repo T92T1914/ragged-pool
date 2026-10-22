@@ -70,12 +70,31 @@ def forward(model, raw, offsets, *, checkpointed, preserve_rng_state=True,
         return pool(values, logits, boundaries)
 
     if checkpointed:
+        first_call, initial_failure = True, None
+
+        def guarded_segment(features, boundaries):
+            nonlocal first_call, initial_failure
+            initial_invocation, first_call = first_call, False
+            if not initial_invocation:
+                return segment(features, boundaries)
+            try:
+                return segment(features, boundaries)
+            except Exception as error:
+                # In pinned Torch, an ordinary initial-forward exception can
+                # retain its suspended checkpoint scope through its traceback.
+                # Complete the public wrapper before propagating that error.
+                initial_failure = error, error.__traceback__
+                return None
+
         # Full replay is requested for this witness. It is not the default
         # early-stop behavior, and no global setting persists after this scope.
         with set_checkpoint_early_stop(False):
-            pooled = checkpoint(segment, raw, offsets, use_reentrant=False,
+            pooled = checkpoint(guarded_segment, raw, offsets, use_reentrant=False,
                                 preserve_rng_state=preserve_rng_state, determinism_check="default",
                                 context_fn=lambda: (_scope(events, "forward"), _scope(events, "recompute")))
+        if initial_failure is not None:
+            error, traceback = initial_failure
+            raise error.with_traceback(traceback)
     else:
         pooled = segment(raw, offsets)
     return model.head(pooled).squeeze(-1), pooled
