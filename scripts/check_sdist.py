@@ -39,6 +39,8 @@ FIXED_FILES = (
     'examples/resume_training.py',
     'docs/stochastic-resume.md',
     'scripts/check_stochastic_receipt.py',
+    'docs/activation-checkpointing.md',
+    'scripts/check_activation_receipt.py',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',
