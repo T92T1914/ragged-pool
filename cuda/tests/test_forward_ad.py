@@ -192,9 +192,25 @@ def test_current_nondefault_stream_and_first_order_primal_reverse():
         gradients = torch.autograd.grad(output.square().sum(), (v, l))
         expected = torch.autograd.grad(ragged_pool(v, l, o).square().sum(), (v, l))
         for a, b in zip(gradients, expected): torch.testing.assert_close(a, b, **tol(v.dtype))
-        native(v, l, o, dv, dl)
+        actual = native(v, l, o, dv, dl)
+        expected_t = torch.func.jvp(lambda x, s: primitive(x, s, BOUNDARIES), (v, l), (dv, dl))[1]
+        torch.testing.assert_close(actual, expected_t, **tol(v.dtype))
         unchanged((v, l, o, dv, dl, v.grad, l.grad), before)
     stream.synchronize()
+
+
+def test_jvp_accepts_existing_nonzero_versions_and_keeps_gradient_sentinels():
+    v, l, o, dv, dl = fixture()
+    for value in (v, l, o, dv, dl): value.add_(0)
+    v.requires_grad_(); l.requires_grad_()
+    v.grad, l.grad = torch.full_like(v, 0.7), torch.full_like(l, -0.2)
+    original = (v.grad, l.grad)
+    before = stamp((v, l, o, dv, dl, *original))
+    actual = torch.func.jvp(lambda x, s: pool(x, s, o), (v, l), (dv, dl))[1]
+    expected = torch.func.jvp(lambda x, s: primitive(x, s, BOUNDARIES), (v, l), (dv, dl))[1]
+    torch.testing.assert_close(actual, expected, **tol(v.dtype))
+    assert v.grad is original[0] and l.grad is original[1]
+    unchanged((v, l, o, dv, dl, *original), before)
 
 
 @pytest.mark.parametrize('case', ('map', 'compile', 'inference', 'second_reverse'))
