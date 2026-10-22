@@ -70,6 +70,10 @@ The first installed compile attempt failed at the public wrapper's duplicate met
 
 The [compiled validation record](evidence/compiled-windows-sm89-20261021.json) separates this new installed functional cohort from the earlier native diagnostics. All175 functional tests passed on the declared Windows RTX4090 environment, including the original138 tests. The new Python wrapper was installed in an ordinary wheel with the exact prior native payload. No new compiled-consumer sanitizer execution is claimed, and no administrator or debugger-setting action is required by these ordinary checks.
 
+## Trusted inference export
+
+`examples/export_cuda.py` saves a trained fixed-shape inference graph with `torch.export.export(..., strict=True)`. `examples/predict_cuda.py` loads the owned artifact in a separate process without importing the producer or model class. It retains the native CUDA pool and compares changed inputs/partitions against independent primitive math. The [model handoff guide](EXPORT.md) gives the CUDA0 `[9,3]`/`[6]` contract, float32/float64 commands, trusted-file boundary and limitations. It requires the same installed native package and pinned environment. A file digest identifies bytes rather than authenticating a publisher or making arbitrary serialized models safe.
+
 ## Validation and limits
 
 On 2026-10-21, an uncached build from source commit `15db410f153e6bcac498baa175fedbbd19c34f7f` produced the wheel tested in a fresh acceptance environment outside the checkout. All 138 installed functional tests passed. The float32 and float64 training consumers each completed two SGD updates and passed their independent GPU-reference comparisons. These are small synthetic fixtures, not evidence of training convergence or model quality.
@@ -80,6 +84,6 @@ The first Windows WDDM prerequisite probe could not initialize the debugging int
 
 The original eager GPU evidence remains tied to the source commit above and the hashes in its validation record. That publication added documentation, the sanitized evidence summary and its source-archive inclusion. The later compiled cohort changes the public Python dispatcher wrapper and adds consumer/tests. Its native source, exact native binary, operator registrations and compiler settings remain unchanged. Each cohort retains its own source and artifact identities.
 
-The companion does not inherit CPU padded pooling, second derivatives, HVPs, JVPs, vmap, dynamic-shape compilation, export, CUDA graph capture, stochastic recovery or other CPU example capabilities. Only the fixed-shape first-order `aot_eager` route above is declared. No Inductor/Triton optimization, mixed precision, distributed training, other GPU backend or architecture, cross-version/platform/ABI, coinstallation matrix, performance or operational security result is claimed.
+The companion does not inherit CPU padded pooling, second derivatives, HVPs, JVPs, vmap, dynamic-shape compilation, CUDA graph capture, stochastic recovery or other CPU example capabilities. The fixed-shape first-order `aot_eager` training and separate strict inference-export examples above retain their own contracts. No Inductor/Triton optimization, mixed precision, distributed training, other GPU backend or architecture, cross-version/platform/ABI, coinstallation matrix, performance or operational security result is claimed.
 
 Source is MIT licensed. [NOTICE](NOTICE) and the included [PyTorch license](third_party/PYTORCH-LICENSE) preserve attribution and the truthful assistance statement. Documentation informs API choices. Research rationale is not measured implementation evidence. CPU studies and earlier adverse results retain their separate identities.
