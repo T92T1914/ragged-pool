@@ -46,3 +46,6 @@ include examples/resume_training.py
 include docs/stochastic-resume.md
 include examples/resume_stochastic.py
 include scripts/check_stochastic_receipt.py
+include docs/activation-checkpointing.md
+include examples/train_checkpointed.py
+include scripts/check_activation_receipt.py
