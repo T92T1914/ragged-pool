@@ -65,7 +65,7 @@ jobs:
           cp -r examples "$RUNNER_TEMP/ragged-asan-consumer/examples"
           cp scripts/native_campaign.py scripts/check_asan_control.py examples/train_sets.py "$RUNNER_TEMP/ragged-asan-consumer/"
           mkdir "$RUNNER_TEMP/ragged-asan-consumer/scripts"
-          cp scripts/check_installed.py scripts/check_sdist.py "$RUNNER_TEMP/ragged-asan-consumer/scripts/"
+          cp scripts/check_installed.py scripts/check_sdist.py scripts/check_stochastic_receipt.py "$RUNNER_TEMP/ragged-asan-consumer/scripts/"
           mkdir "$RUNNER_TEMP/asan-evidence"
       - name: Qualify the tool with an injected negative control
         working-directory: ${{ runner.temp }}/ragged-asan-consumer
@@ -285,6 +285,12 @@ jobs:
           assert receipt["installed_package"] and receipt["native_library_loaded"] and receipt["threads"] == receipt["interop_threads"] == 1
           print("Training resume", sys.argv[2], "passed two producer updates and three fresh-process continuation updates")
           PY
+            cat "$receipt"
+          done
+          for dtype in float32 float64; do
+            receipt="$RUNNER_TEMP/asan-evidence/stochastic-$dtype.json"
+            "$python" -I -u -X faulthandler examples/resume_stochastic.py --dtype "$dtype" --directory "$RUNNER_TEMP/asan-evidence/stochastic-$dtype" --output "$receipt" > "$RUNNER_TEMP/asan-evidence/stochastic-$dtype.stdout.log" 2>&1
+            "$python" -I "$GITHUB_WORKSPACE/scripts/check_stochastic_receipt.py" "$receipt" "$dtype"
             cat "$receipt"
           done
           wheels=("$RUNNER_TEMP"/asan-wheel/*.whl)

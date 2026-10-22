@@ -92,7 +92,7 @@ jobs:
           Copy-Item -LiteralPath examples\train_sets.py -Destination $work
           Copy-Item -LiteralPath scripts\check_installed.py -Destination $work
           New-Item -ItemType Directory -Path (Join-Path $work 'scripts') | Out-Null
-          Copy-Item -LiteralPath scripts\check_installed.py,scripts\check_sdist.py -Destination (Join-Path $work 'scripts')
+          Copy-Item -LiteralPath scripts\check_installed.py,scripts\check_sdist.py,scripts\check_stochastic_receipt.py -Destination (Join-Path $work 'scripts')
           "RAGGED_WHEEL=$($wheels[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Check installed identity, mathematics, registration and training
@@ -261,6 +261,14 @@ jobs:
             }
             Get-Content -LiteralPath $receiptPath
           }
+          foreach ($dtype in @('float32', 'float64')) {
+            $receiptPath = "stochastic-$dtype.json"
+            & $python -I examples\resume_stochastic.py --dtype $dtype --directory "stochastic-$dtype" --output $receiptPath *> "stochastic-$dtype.stdout.log"
+            if ($LASTEXITCODE -ne 0) { throw "Installed stochastic resume $dtype consumer failed" }
+            & $python -I "$env:GITHUB_WORKSPACE/scripts/check_stochastic_receipt.py" $receiptPath $dtype
+            if ($LASTEXITCODE -ne 0) { throw "Installed stochastic resume $dtype receipt failed" }
+            Get-Content -LiteralPath $receiptPath
+          }
           $revision = git -C $env:GITHUB_WORKSPACE rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the smoke test source revision' }
           $paddedExportRoot = Join-Path $env:RUNNER_TEMP 'ragged-padded-export'
@@ -363,6 +371,19 @@ jobs:
             ${{ runner.temp }}/ragged-consumer/resume-*.stdout.log
             ${{ runner.temp }}/ragged-consumer/resume-float32
             ${{ runner.temp }}/ragged-consumer/resume-float64
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Retain stochastic resume checkpoints, child logs and receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stochastic-resume-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/ragged-consumer/stochastic-*.json
+            ${{ runner.temp }}/ragged-consumer/stochastic-*.stdout.log
+            ${{ runner.temp }}/ragged-consumer/stochastic-float32
+            ${{ runner.temp }}/ragged-consumer/stochastic-float64
           if-no-files-found: warn
           retention-days: 14
 
