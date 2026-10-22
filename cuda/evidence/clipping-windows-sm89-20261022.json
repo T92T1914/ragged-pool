@@ -1,0 +1,743 @@
+{
+  "format": "ragged-pool-cuda-functional-per-group-clipping-execution",
+  "schema": 1,
+  "executed_revision": "67562cda77bc1fb378774e2f467f43a4e1bc3a0e",
+  "executed_tree": "4c4561f7e2a868352c852022516755151ba19456",
+  "source_archive_sha256": "e5e95decc2f42b3e6b26a5b49eb0db7a05135e0104016496d99af8435774ab50",
+  "tracked_archive_members": 44,
+  "external_consumer_test_files": 17,
+  "source_format_basis": "Git archive applied CRLF to all 44 CUDA text files. Every member equals the executed Git blob after only CRLF-to-LF conversion. Literal archive, copied consumer/test and receipt hashes remain separate from Git/public LF hashes.",
+  "executed_consumer_sha256": "b362d62a98511bef283695b2db211c5d789bae1753d1b0b3d9b8e8f9cdd470f9",
+  "executed_test_sha256": "aa9ad64777bf834f93ce5d0cf32dd6c48c12d5dd724cc29fc2fffc6b645cecce",
+  "environment": "Reused preceding goal's isolated external Python3.11.8/Torch2.9.1+cu128 Windows CUDA0 environment without dependency change; no new installation claimed",
+  "wheel_sha256": "5bc7f5e36d5697fdb35185835f57e2c1a1b03d3a6ab5657696e71b0c7755f220",
+  "runtime_payload": {
+    "ragged_pool_cuda/_C.cp311-win_amd64.pyd": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "ragged_pool_cuda/__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+    "ragged_pool_cuda/_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+    "ragged_pool_cuda/_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+    "ragged_pool_cuda/functional.py": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+    "ragged_pool_cuda/padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+    "ragged_pool_cuda/reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+  },
+  "new_wheel": false,
+  "new_native_compilation": false,
+  "new_cuda_instrumentation": false,
+  "local_acceptance": {
+    "commands_passed": 6,
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tests_passed": 580,
+    "new_clipping_cases": 28,
+    "tests_skipped": 4,
+    "warnings": 1,
+    "skip_scope": "Existing unavailable Windows symlink privileges",
+    "warning_scope": "Existing PT2 non-writable-buffer warning",
+    "retained_cohort_sha256": "bb5d3fad03ba20c1c2eaa74e316008711ddca06a4c80942a680c2b0f0b60b498",
+    "existing_functional_model_consumers": "Both dtypes passed separately"
+  },
+  "adverse": {
+    "archive_attempt1": "Failed source equality assertion on Windows Git CRLF conversion; corrected with explicit complete text join",
+    "checks_attempt1": "Six wrapper startup failures because archive preparation had not created source-state.json. No project check or GPU consumer ran in that failed cohort.",
+    "source_review_corrections": "Functional test-model wiring and explicit nonzero squared-norm-underflow refusal corrected before execution"
+  },
+  "consumers": {
+    "float32": {
+      "status": "passed",
+      "method": "eager.serial_torch.func.grad.per_group_joint_clip.cuda_training",
+      "dtype": "float32",
+      "scope": "Fixed first-order CUDA clipping consumer. No noise, privacy accountant, performance, peak-memory, higher-order, vmap or capture claim.",
+      "seed": 1811,
+      "fixture_sha256": "d5f705cde9da3875aa24922f36f913950bff0ab2eb3efabc6cc09d8c7e3caf3e",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "source_revision": "67562cda77bc1fb378774e2f467f43a4e1bc3a0e",
+      "source_tree": "4c4561f7e2a868352c852022516755151ba19456",
+      "source_identity_basis": "Caller labels plus separate consumer/helper/module/native byte hashes",
+      "clip_norm": 1.0,
+      "normalization": "global group count including empty groups",
+      "norm": "joint L2 over all five named parameter blocks",
+      "arithmetic": "float64 joint norms, clipping and sums; divide once by B and cast once",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps": 2,
+      "native_optimizer_steps": 2,
+      "reference_optimizer_steps": 2,
+      "parameter_tensors": 5,
+      "scalar_parameters": 25,
+      "steps": [
+        {
+          "update": 1,
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            1,
+            1,
+            4,
+            6,
+            9
+          ],
+          "joint_norms": [
+            0.024816600061197215,
+            4.800000190734863,
+            4.220317520381964,
+            0.2105406680947723,
+            0.3188390190344536
+          ],
+          "scales": [
+            1.0,
+            0.20833332505491078,
+            0.23694899617635737,
+            1.0,
+            1.0
+          ],
+          "per_group_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 2.6775524020195007e-09,
+              "encoder.bias": 9.778887033462524e-09,
+              "scorer.weight": 2.0372681319713593e-10,
+              "head.weight": 1.1641532182693481e-08,
+              "head.bias": 2.9802322387695312e-08
+            },
+            "primitive": {
+              "encoder.weight": 2.6775524020195007e-09,
+              "encoder.bias": 9.778887033462524e-09,
+              "scorer.weight": 2.0372681319713593e-10,
+              "head.weight": 1.1641532182693481e-08,
+              "head.bias": 2.9802322387695312e-08
+            }
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "predictions": 1.4901161193847656e-08,
+              "pooled": 1.4901161193847656e-08,
+              "losses": 2.9831426218152046e-10
+            },
+            "primitive": {
+              "predictions": 1.4901161193847656e-08,
+              "pooled": 1.4901161193847656e-08,
+              "losses": 2.9831426218152046e-10
+            }
+          },
+          "clipped_mean_max_abs_errors": {
+            "native": {
+              "encoder.weight": 9.313225746154785e-10,
+              "encoder.bias": 3.725290298461914e-09,
+              "scorer.weight": 4.001776687800884e-11,
+              "head.weight": 3.725290298461914e-09,
+              "head.bias": 7.450580596923828e-09
+            },
+            "primitive": {
+              "encoder.weight": 9.313225746154785e-10,
+              "encoder.bias": 3.725290298461914e-09,
+              "scorer.weight": 4.001776687800884e-11,
+              "head.weight": 3.725290298461914e-09,
+              "head.bias": 7.450580596923828e-09
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.0005106329917907715,
+              "encoder.bias": 0.0016469955444335938,
+              "scorer.weight": 1.6957521438598633e-05,
+              "head.weight": 0.0016104280948638916,
+              "head.bias": 0.0008062422275543213
+            },
+            "primitive": {
+              "encoder.weight": 0.0005106329917907715,
+              "encoder.bias": 0.0016469955444335938,
+              "scorer.weight": 1.6957521438598633e-05,
+              "head.weight": 0.0016104280948638916,
+              "head.bias": 0.0008062422275543213
+            },
+            "functional": {
+              "encoder.weight": 0.0005106329917907715,
+              "encoder.bias": 0.0016469955444335938,
+              "scorer.weight": 1.6957521438598633e-05,
+              "head.weight": 0.0016104280948638916,
+              "head.bias": 0.0008062422275543213
+            }
+          },
+          "controls": {
+            "mean_loss_parameter_gradient_max_abs_errors": {
+              "encoder.weight": 7.450580596923828e-09,
+              "encoder.bias": 1.4901161193847656e-08,
+              "scorer.weight": 2.764863893389702e-10,
+              "head.weight": 1.4901161193847656e-08,
+              "head.bias": 0.0
+            },
+            "max_abs_differences": {
+              "from_unclipped": 0.24112533032894135,
+              "from_clip_after_mean": 0.2411253359168768,
+              "from_blockwise_clip": 0.07549676299095154
+            },
+            "empty_groups": [
+              1
+            ],
+            "singleton_groups": [
+              0
+            ],
+            "empty_head_bias_gradients": [
+              4.800000190734863
+            ]
+          },
+          "sentinel_grad_fields_preserved_before_handoff": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        },
+        {
+          "update": 2,
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            2,
+            3,
+            3,
+            7,
+            9,
+            12
+          ],
+          "joint_norms": [
+            0.10661432058033035,
+            3.721686670053459,
+            4.198387622833252,
+            2.1628411231200584,
+            0.0701005895233436,
+            0.13665092811274943
+          ],
+          "scales": [
+            1.0,
+            0.268695376224575,
+            0.2381866778001687,
+            0.46235481159958064,
+            1.0,
+            1.0
+          ],
+          "per_group_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 5.960464477539063e-08,
+              "encoder.bias": 1.1920928955078125e-07,
+              "scorer.weight": 9.313225746154785e-10,
+              "head.weight": 2.384185791015625e-07,
+              "head.bias": 2.384185791015625e-07
+            },
+            "primitive": {
+              "encoder.weight": 5.960464477539063e-08,
+              "encoder.bias": 1.1920928955078125e-07,
+              "scorer.weight": 9.313225746154785e-10,
+              "head.weight": 2.384185791015625e-07,
+              "head.bias": 2.384185791015625e-07
+            }
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "predictions": 2.9802322387695312e-08,
+              "pooled": 2.9802322387695312e-08,
+              "losses": 3.5762786865234375e-07
+            },
+            "primitive": {
+              "predictions": 2.9802322387695312e-08,
+              "pooled": 2.9802322387695312e-08,
+              "losses": 3.5762786865234375e-07
+            }
+          },
+          "clipped_mean_max_abs_errors": {
+            "native": {
+              "encoder.weight": 9.313225746154785e-10,
+              "encoder.bias": 3.725290298461914e-09,
+              "scorer.weight": 7.275957614183426e-11,
+              "head.weight": 7.450580596923828e-09,
+              "head.bias": 3.725290298461914e-09
+            },
+            "primitive": {
+              "encoder.weight": 9.313225746154785e-10,
+              "encoder.bias": 3.725290298461914e-09,
+              "scorer.weight": 7.275957614183426e-11,
+              "head.weight": 7.450580596923828e-09,
+              "head.bias": 3.725290298461914e-09
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 2.9802322387695312e-08,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 2.9802322387695312e-08,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.0007226914167404175,
+              "encoder.bias": 0.0019945502281188965,
+              "scorer.weight": 1.1444091796875e-05,
+              "head.weight": 0.0033906102180480957,
+              "head.bias": 0.0017814785242080688
+            },
+            "primitive": {
+              "encoder.weight": 0.0007226914167404175,
+              "encoder.bias": 0.0019945502281188965,
+              "scorer.weight": 1.1444091796875e-05,
+              "head.weight": 0.0033906102180480957,
+              "head.bias": 0.0017814785242080688
+            },
+            "functional": {
+              "encoder.weight": 0.0007226914167404175,
+              "encoder.bias": 0.0019945502281188965,
+              "scorer.weight": 1.1444091796875e-05,
+              "head.weight": 0.0033906102180480957,
+              "head.bias": 0.0017814785242080688
+            }
+          },
+          "controls": {
+            "mean_loss_parameter_gradient_max_abs_errors": {
+              "encoder.weight": 3.725290298461914e-09,
+              "encoder.bias": 7.450580596923828e-09,
+              "scorer.weight": 2.3283064365386963e-10,
+              "head.weight": 1.4901161193847656e-08,
+              "head.bias": 2.514570951461792e-08
+            },
+            "max_abs_differences": {
+              "from_unclipped": 0.2313285768032074,
+              "from_clip_after_mean": 0.2313285693526268,
+              "from_blockwise_clip": 0.10417398810386658
+            },
+            "empty_groups": [
+              2
+            ],
+            "singleton_groups": [
+              1
+            ],
+            "empty_head_bias_gradients": [
+              4.198387622833252
+            ]
+          },
+          "sentinel_grad_fields_preserved_before_handoff": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        }
+      ],
+      "analytical_controls": {
+        "joint_norm": 5.0,
+        "scale": 0.2,
+        "zero_norm": 0.0,
+        "zero_scale": 1.0,
+        "cancellation_clipped_means": {
+          "a": 0.15000000000000002,
+          "b": 0.2
+        },
+        "cancellation_clip_after_mean_max_abs_difference": 0.5999999999999999
+      },
+      "comparison_tolerance": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "package_identity_unchanged": true,
+      "threads": 1,
+      "interop_threads": 1,
+      "package_version": "0.1.0",
+      "native_library_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+      "functional_module_sha256": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+        "_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+        "padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+        "reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+      },
+      "functional_helper_script_sha256": "55d62d32cc851c12d1bdc2dbf551bd55f6e2bd1b073ef0ae66473a7fa649a1aa",
+      "cuda_helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "script_sha256": "b362d62a98511bef283695b2db211c5d789bae1753d1b0b3d9b8e8f9cdd470f9",
+      "private_raw_receipt_sha256": "d640ab4472de94031c4cd250083df05683c329fb171aa128b329da4c4dcd76ee"
+    },
+    "float64": {
+      "status": "passed",
+      "method": "eager.serial_torch.func.grad.per_group_joint_clip.cuda_training",
+      "dtype": "float64",
+      "scope": "Fixed first-order CUDA clipping consumer. No noise, privacy accountant, performance, peak-memory, higher-order, vmap or capture claim.",
+      "seed": 1811,
+      "fixture_sha256": "d14dbdf032c191df02eb903657ea0bacb3277b5af4e4371041ee1240ba3a6b45",
+      "device": "cuda:0",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "source_revision": "67562cda77bc1fb378774e2f467f43a4e1bc3a0e",
+      "source_tree": "4c4561f7e2a868352c852022516755151ba19456",
+      "source_identity_basis": "Caller labels plus separate consumer/helper/module/native byte hashes",
+      "clip_norm": 1.0,
+      "normalization": "global group count including empty groups",
+      "norm": "joint L2 over all five named parameter blocks",
+      "arithmetic": "float64 joint norms, clipping and sums; divide once by B and cast once",
+      "optimizer": "SGD",
+      "learning_rate": 0.03,
+      "momentum": 0,
+      "foreach": false,
+      "fused": false,
+      "optimizer_steps": 2,
+      "native_optimizer_steps": 2,
+      "reference_optimizer_steps": 2,
+      "parameter_tensors": 5,
+      "scalar_parameters": 25,
+      "steps": [
+        {
+          "update": 1,
+          "N": 9,
+          "B": 5,
+          "offsets": [
+            0,
+            1,
+            1,
+            4,
+            6,
+            9
+          ],
+          "joint_norms": [
+            0.02505572551861466,
+            4.8,
+            4.254659328117423,
+            0.2053056639102264,
+            0.3080607843119314
+          ],
+          "scales": [
+            1.0,
+            0.20833333333333334,
+            0.2350364442556848,
+            1.0,
+            1.0
+          ],
+          "per_group_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 1.3877787807814457e-17,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 2.7755575615628914e-17,
+              "encoder.bias": 1.3877787807814457e-17,
+              "scorer.weight": 6.938893903907228e-18,
+              "head.weight": 1.3877787807814457e-17,
+              "head.bias": 5.551115123125783e-17
+            }
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "losses": 0.0
+            },
+            "primitive": {
+              "predictions": 2.7755575615628914e-17,
+              "pooled": 1.6653345369377348e-16,
+              "losses": 5.204170427930421e-18
+            }
+          },
+          "clipped_mean_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 6.938893903907228e-18,
+              "scorer.weight": 8.673617379884035e-19,
+              "head.weight": 0.0,
+              "head.bias": 1.3877787807814457e-17
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.00024474892140680105,
+              "encoder.bias": 0.0014966728201971646,
+              "scorer.weight": 6.284015029187073e-05,
+              "head.weight": 0.0021174073950596117,
+              "head.bias": 0.0008452565371840359
+            },
+            "primitive": {
+              "encoder.weight": 0.00024474892140680105,
+              "encoder.bias": 0.0014966728201971646,
+              "scorer.weight": 6.284015029187073e-05,
+              "head.weight": 0.0021174073950596117,
+              "head.bias": 0.0008452565371840359
+            },
+            "functional": {
+              "encoder.weight": 0.00024474892140680105,
+              "encoder.bias": 0.0014966728201971646,
+              "scorer.weight": 6.284015029187073e-05,
+              "head.weight": 0.0021174073950596117,
+              "head.bias": 0.0008452565371840359
+            }
+          },
+          "controls": {
+            "mean_loss_parameter_gradient_max_abs_errors": {
+              "encoder.weight": 6.938893903907228e-18,
+              "encoder.bias": 2.7755575615628914e-17,
+              "scorer.weight": 3.469446951953614e-18,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 1.6653345369377348e-16
+            },
+            "max_abs_differences": {
+              "from_unclipped": 0.23982478209386565,
+              "from_clip_after_mean": 0.23982478209386565,
+              "from_blockwise_clip": 0.08176902759612847
+            },
+            "empty_groups": [
+              1
+            ],
+            "singleton_groups": [
+              0
+            ],
+            "empty_head_bias_gradients": [
+              4.8
+            ]
+          },
+          "sentinel_grad_fields_preserved_before_handoff": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        },
+        {
+          "update": 2,
+          "N": 12,
+          "B": 6,
+          "offsets": [
+            0,
+            2,
+            3,
+            3,
+            7,
+            9,
+            12
+          ],
+          "joint_norms": [
+            0.1078702548010728,
+            3.6120175805754573,
+            4.198309486925632,
+            2.1113591496704434,
+            0.0700113775835838,
+            0.1398715707336576
+          ],
+          "scales": [
+            1.0,
+            0.2768535804968819,
+            0.23819111075879426,
+            0.47362856298327427,
+            1.0,
+            1.0
+          ],
+          "per_group_parameter_gradient_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 5.551115123125783e-17,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 3.469446951953614e-18,
+              "encoder.bias": 5.551115123125783e-17,
+              "scorer.weight": 2.168404344971009e-18,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "output_max_abs_errors": {
+            "native": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "losses": 0.0
+            },
+            "primitive": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "losses": 0.0
+            }
+          },
+          "clipped_mean_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 6.938893903907228e-18,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 8.673617379884035e-19,
+              "encoder.bias": 6.938893903907228e-18,
+              "scorer.weight": 1.6263032587282567e-19,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "updated_parameter_max_abs_errors": {
+            "native": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "primitive": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          "parameter_update_max_abs": {
+            "native": {
+              "encoder.weight": 0.00020345182407219276,
+              "encoder.bias": 0.0018777976992060408,
+              "scorer.weight": 3.146776058526868e-05,
+              "head.weight": 0.00332792831922335,
+              "head.bias": 0.0019802276278836906
+            },
+            "primitive": {
+              "encoder.weight": 0.00020345182407219276,
+              "encoder.bias": 0.0018777976992060408,
+              "scorer.weight": 3.146776058526868e-05,
+              "head.weight": 0.00332792831922335,
+              "head.bias": 0.0019802276278836906
+            },
+            "functional": {
+              "encoder.weight": 0.00020345182407219276,
+              "encoder.bias": 0.0018777976992060408,
+              "scorer.weight": 3.146776058526868e-05,
+              "head.weight": 0.00332792831922335,
+              "head.bias": 0.0019802276278836906
+            }
+          },
+          "controls": {
+            "mean_loss_parameter_gradient_max_abs_errors": {
+              "encoder.weight": 6.938893903907228e-18,
+              "encoder.bias": 2.7755575615628914e-17,
+              "scorer.weight": 5.421010862427522e-19,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 0.0
+            },
+            "max_abs_differences": {
+              "from_unclipped": 0.2181611684154122,
+              "from_clip_after_mean": 0.2181611684154122,
+              "from_blockwise_clip": 0.11012878461322875
+            },
+            "empty_groups": [
+              2
+            ],
+            "singleton_groups": [
+              1
+            ],
+            "empty_head_bias_gradients": [
+              4.198309486925632
+            ]
+          },
+          "sentinel_grad_fields_preserved_before_handoff": true,
+          "all_parameter_blocks_changed": true,
+          "same_model_parameter_optimizer_objects_and_storage": true
+        }
+      ],
+      "analytical_controls": {
+        "joint_norm": 5.0,
+        "scale": 0.2,
+        "zero_norm": 0.0,
+        "zero_scale": 1.0,
+        "cancellation_clipped_means": {
+          "a": 0.15000000000000002,
+          "b": 0.2
+        },
+        "cancellation_clip_after_mean_max_abs_difference": 0.5999999999999999
+      },
+      "comparison_tolerance": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      },
+      "inputs_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "package_identity_unchanged": true,
+      "threads": 1,
+      "interop_threads": 1,
+      "package_version": "0.1.0",
+      "native_library_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+      "functional_module_sha256": "cc8d82f26b964d9bde5bd266460a2507b5680947ebfa6ce680545549b62cd57f",
+      "package_python_sha256": {
+        "__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+        "_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+        "_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+        "padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+        "reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+      },
+      "functional_helper_script_sha256": "55d62d32cc851c12d1bdc2dbf551bd55f6e2bd1b073ef0ae66473a7fa649a1aa",
+      "cuda_helper_script_sha256": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+      "script_sha256": "b362d62a98511bef283695b2db211c5d789bae1753d1b0b3d9b8e8f9cdd470f9",
+      "private_raw_receipt_sha256": "2c88c4f36354fc6ef9430a0c835b369d6d87ea2d5d1ef870735e7128c5cd6edc"
+    }
+  },
+  "limits": "Fixed deterministic independent-group first-order caller and C=1 training fixture. No noise/accountant/differential privacy, adversarial defense, model quality, performance, measured peak memory, arbitrary-model independence, vmap, higher derivatives, compile/export or portability claim. Runtime/native unchanged; existing bridge's pinned internal Tensor._version dependency remains."
+}
