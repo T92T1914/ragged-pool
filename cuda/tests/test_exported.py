@@ -276,3 +276,16 @@ def test_graph_admission_is_separate_from_mathematical_comparisons():
         exported = SimpleNamespace(graph_module=SimpleNamespace(graph=SimpleNamespace(nodes=nodes)))
         with pytest.raises(ValueError):
             consumer.graph_metadata(exported)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_ownership_check_detects_signed_zero_bytes_without_version_change(dtype):
+    raw = torch.zeros(9, 3, dtype=dtype, device="cuda:0")
+    before = consumer.snapshot({"raw": raw})
+    version = raw._version
+    # Simulate a native data write that bypasses PyTorch's version counter.
+    raw.data[0, 0] = -0.0
+    assert raw._version == version
+    assert torch.equal(raw, torch.zeros_like(raw))
+    with pytest.raises(AssertionError, match="bytes"):
+        consumer.unchanged({"raw": raw}, before)

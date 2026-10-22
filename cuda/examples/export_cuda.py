@@ -39,13 +39,13 @@ def train_model(dtype_name):
     """Retain complete two-update comparisons with independently derived math."""
     initial, batches, _ = train.fixture(dtype_name, torch.device("cuda", 0))
     models = {name: copy.deepcopy(initial) for name in ("native", "primitive")}
-    initial_before = train.snapshot(dict(initial.named_parameters()))
+    initial_before = predict.snapshot(dict(initial.named_parameters()))
     optimizers = {name: torch.optim.SGD(model.parameters(), lr=0.03, foreach=False, fused=False)
                   for name, model in models.items()}
     steps = []
     for index, batch in enumerate(batches, 1):
         inputs = {key: batch[key] for key in ("raw", "targets", "offsets")}
-        inputs_before = train.snapshot(inputs)
+        inputs_before = predict.snapshot(inputs)
         before = {name: {key: value.detach().clone() for key, value in model.named_parameters()}
                   for name, model in models.items()}
         for optimizer in optimizers.values():
@@ -65,7 +65,7 @@ def train_model(dtype_name):
                           for key, value in parameters.items()} for name, parameters in updated.items()}
         if any(value <= 0 for route in changes.values() for value in route.values()):
             raise AssertionError("Both routes must update every parameter block at each step")
-        train.unchanged(inputs, inputs_before)
+        predict.unchanged(inputs, inputs_before)
         steps.append({"step": index, "native_loss": float(results["native"][0]["loss"]),
             "reference_loss": float(results["primitive"][0]["loss"]),
             "output_max_abs_difference": output_errors,
@@ -73,7 +73,7 @@ def train_model(dtype_name):
             "native_parameter_update_max_abs": changes["native"],
             "reference_parameter_update_max_abs": changes["primitive"],
             "updated_parameter_max_abs_difference": parameter_errors})
-    train.unchanged(dict(initial.named_parameters()), initial_before)
+    predict.unchanged(dict(initial.named_parameters()), initial_before)
     return models["native"], {"optimizer": "SGD", "learning_rate": 0.03,
         "optimizer_steps": 2, "reference_optimizer_steps": 2,
         "all_parameter_blocks_changed": True, "steps": steps}
@@ -87,7 +87,7 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
     identity = predict.environment_identity()
     weights = {name: value.detach().cpu().tolist() for name, value in model.state_dict().items()}
     predict.validate_state(weights, dtype_name)
-    native_before = train.snapshot(dict(model.named_parameters()))
+    native_before = predict.snapshot(dict(model.named_parameters()))
     frozen = copy.deepcopy(model).eval()
     cases = predict.make_cases(dtype_name)
     capture = cases[0]
@@ -101,7 +101,7 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
             raw, offsets = case["raw"], case["offsets"]
             predict.validate_inputs(raw, offsets, dtype_name)
             inputs = {"raw": raw, "offsets": offsets}
-            before = train.snapshot(inputs)
+            before = predict.snapshot(inputs)
             eager = model(raw, offsets)
             reference = predict.reference(raw, case["boundaries"], functional_state)
             captured = exported.module()(raw, offsets)
@@ -115,7 +115,7 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
                 errors[name + "_pooled_max_abs"] = train.difference(output[1], eager[1])
             empty = [i for i, (a, b) in enumerate(zip(case["boundaries"], case["boundaries"][1:])) if a == b]
             torch.testing.assert_close(eager[1][empty], torch.zeros_like(eager[1][empty]), rtol=0, atol=0)
-            train.unchanged(inputs, before)
+            predict.unchanged(inputs, before)
             expected.append({"name": case["name"], "predictions": eager[0].tolist(), "pooled": eager[1].tolist()})
             comparisons.append(errors)
     directory = Path(directory)
@@ -144,7 +144,7 @@ def create_artifact(model, directory, *, dtype_name, source_revision, source_tre
             torch.testing.assert_close(value, target, **predict.tolerance(dtype_name))
         errors["reloaded_prediction_max_abs"] = train.difference(actual[0], eager[0])
         errors["reloaded_pooled_max_abs"] = train.difference(actual[1], eager[1])
-    train.unchanged(dict(model.named_parameters()), native_before)
+    predict.unchanged(dict(model.named_parameters()), native_before)
     torch.cuda.synchronize(0)
     return {"manifest_sha256": digest, "files": manifest["files"], "graph": graph,
         "case_comparisons": comparisons, "parameters_unchanged_by_export": True,
@@ -184,6 +184,8 @@ def main():
                 if name.startswith("ragged_pool_cuda/") and not name.endswith("/"):
                     if Path(distribution_.locate_file(name)).read_bytes() != archive.read(name):
                         raise ValueError("Declared wheel payload differs from the ordinary installed package")
+        if installed.pop("script_sha256") != receipt["training_script_sha256"]:
+            raise AssertionError("Installed-identity helper must identify the adjacent training script")
         receipt.update(installed)
         receipt["wheel_sha256"] = sha256(arguments.wheel.read_bytes()).hexdigest()
         model, training = train_model(arguments.dtype)

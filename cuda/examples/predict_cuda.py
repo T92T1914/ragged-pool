@@ -153,6 +153,18 @@ def graph_metadata(exported):
     return {"pool_operator": "ragged_pool_cuda::pool", "pool_count": 1, "backward_count": 0}
 
 
+def snapshot(tensors):
+    return {name: (value.detach().view(torch.uint8).clone(), value._version)
+            for name, value in tensors.items()}
+
+
+def unchanged(tensors, before):
+    for name, value in tensors.items():
+        data, version = before[name]
+        if not torch.equal(value.detach().view(torch.uint8), data) or value._version != version:
+            raise AssertionError(f"Inference changed {name} bytes or its version counter")
+
+
 def _exact(actual, expected, label):
     if type(actual) is not type(expected):
         raise ValueError(f"{label} has an unexpected type")
@@ -320,13 +332,13 @@ def exercise(predictor):
     """Compare independent math, saved canaries and unchanged inference state."""
     errors, previous = [], None
     state_groups = {"loaded": predictor.module.state_dict(), "reference": predictor.state}
-    state = {group: {name: (value.detach().clone(), value._version) for name, value in values.items()}
-             for group, values in state_groups.items()}
+    state = {group: snapshot(values) for group, values in state_groups.items()}
     cases = make_cases(predictor.manifest["dtype"])
     with torch.inference_mode():
         for case, canary in zip(cases, predictor.manifest["expected"]):
             raw, offsets = case["raw"], case["offsets"]
-            before = [(value.clone(), value._version) for value in (raw, offsets)]
+            inputs = {"raw": raw, "offsets": offsets}
+            before = snapshot(inputs)
             result = predictor(raw, offsets)
             oracle = reference(raw, case["boundaries"], predictor.state)
             expected = tuple(torch.tensor(canary[name], dtype=raw.dtype, device=raw.device)
@@ -344,16 +356,9 @@ def exercise(predictor):
                                             for a in result for b in previous):
                 raise AssertionError("Successive inference outputs must own fresh storage")
             previous = result
-            for value, (saved, version) in zip((raw, offsets), before):
-                torch.testing.assert_close(value, saved, rtol=0, atol=0)
-                if value._version != version:
-                    raise AssertionError("Inference mutated its original input")
+            unchanged(inputs, before)
         for group, parameters in state.items():
-            for name, (saved, version) in parameters.items():
-                value = state_groups[group][name]
-                torch.testing.assert_close(value, saved, rtol=0, atol=0)
-                if value._version != version:
-                    raise AssertionError("Inference mutated loaded or reference model state")
+            unchanged(state_groups[group], parameters)
         valid = make_cases(predictor.manifest["dtype"])[0]
         for bounds in ((0, 2, 1, 5, 7, 9), (0, 2, 2, 5, 7, 8)):
             try:
