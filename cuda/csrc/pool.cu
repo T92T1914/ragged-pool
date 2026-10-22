@@ -44,6 +44,15 @@ void check_grad_metadata(const at::Tensor& grad, const at::Tensor& values,
               grad.size(1) == values.size(1), "grad_output must have shape [B,D]");
 }
 
+void check_tangent_metadata(const at::Tensor& tangent, const at::Tensor& primal) {
+  TORCH_CHECK(tangent.device() == primal.device() && tangent.layout() == at::kStrided,
+              "tangents must be strided on the primal CUDA device");
+  TORCH_CHECK(tangent.scalar_type() == primal.scalar_type(),
+              "tangent dtype must match its primal");
+  TORCH_CHECK(tangent.sizes() == primal.sizes(), "tangent shape must match its primal");
+  TORCH_CHECK(!tangent.is_conj(), "conjugate tangent views are not supported");
+}
+
 template <typename scalar_t>
 __global__ void validate_contents(const scalar_t* values, const scalar_t* logits,
                                   const int64_t* offsets, const scalar_t* grad,
@@ -94,6 +103,38 @@ void admit_contents(const at::Tensor& values, const at::Tensor& logits,
   TORCH_CHECK(!(invalid & 1), "offsets must start at zero, end at N, stay in [0,N] and be nondecreasing");
   TORCH_CHECK(!(invalid & 6), "values/logits must be finite and within [-1000,1000]");
   TORCH_CHECK(!(invalid & 8), "grad_output must be finite and within [-1000,1000]");
+}
+
+template <typename scalar_t>
+__global__ void validate_tangents(const scalar_t* dvalues, const scalar_t* dlogits,
+                                  int64_t value_count, int64_t logit_count,
+                                  int* status) {
+  // Tensor lengths come from admitted metadata. Offsets are never addresses here.
+  int invalid = 0;
+  for (int64_t i = 0; i < value_count; ++i) {
+    const double value = static_cast<double>(dvalues[i]);
+    if (!isfinite(value) || fabs(value) > 1000.0) invalid = 1;
+  }
+  for (int64_t i = 0; i < logit_count; ++i) {
+    const double value = static_cast<double>(dlogits[i]);
+    if (!isfinite(value) || fabs(value) > 1000.0) invalid = 1;
+  }
+  *status = invalid;
+}
+
+void admit_tangents(const at::Tensor& dvalues, const at::Tensor& dlogits,
+                    cudaStream_t stream) {
+  auto status = at::empty({1}, dvalues.options().dtype(at::kInt));
+  AT_DISPATCH_FLOATING_TYPES(dvalues.scalar_type(), "ragged_cuda_tangent_admission", [&] {
+    validate_tangents<scalar_t><<<1, 1, 0, stream>>>(
+        dvalues.const_data_ptr<scalar_t>(), dlogits.const_data_ptr<scalar_t>(),
+        dvalues.numel(), dlogits.numel(), status.mutable_data_ptr<int>());
+  });
+  C10_CUDA_KERNEL_LAUNCH_CHECK();
+  int invalid = 0;
+  c10::cuda::memcpy_and_sync(&invalid, status.const_data_ptr<int>(), sizeof(invalid),
+                            cudaMemcpyDeviceToHost, stream);
+  TORCH_CHECK(!invalid, "tangents must be finite and within [-1000,1000]");
 }
 
 template <typename scalar_t>
@@ -166,6 +207,37 @@ __global__ void pool_backward(const scalar_t* grad, const scalar_t* values,
   }
 }
 
+template <typename scalar_t>
+__global__ void pool_jvp(const scalar_t* values, const scalar_t* logits,
+                         const int64_t* offsets, const scalar_t* dvalues,
+                         const scalar_t* dlogits, int64_t width,
+                         scalar_t* tangent_output) {
+  const int64_t group = blockIdx.x;
+  const int64_t start = offsets[group], end = offsets[group + 1];
+  if (start == end) return;
+  const double maximum = group_maximum(logits, start, end);
+  const double denominator = group_denominator(logits, start, end, maximum);
+  double pooled[128] = {};
+  for (int64_t i = start; i < end; ++i) {
+    const double weight = exp(static_cast<double>(logits[i]) - maximum) / denominator;
+    for (int64_t d = 0; d < width; ++d) {
+      pooled[d] += weight * static_cast<double>(values[i * width + d]);
+    }
+  }
+  double tangent[128] = {};
+  for (int64_t i = start; i < end; ++i) {
+    const double weight = exp(static_cast<double>(logits[i]) - maximum) / denominator;
+    const double dlogit = static_cast<double>(dlogits[i]);
+    for (int64_t d = 0; d < width; ++d) {
+      tangent[d] += weight * (static_cast<double>(dvalues[i * width + d]) +
+          (static_cast<double>(values[i * width + d]) - pooled[d]) * dlogit);
+    }
+  }
+  for (int64_t d = 0; d < width; ++d) {
+    tangent_output[group * width + d] = static_cast<scalar_t>(tangent[d]);
+  }
+}
+
 at::Tensor forward_cuda(const at::Tensor& values, const at::Tensor& logits,
                         const at::Tensor& offsets) {
   check_metadata(values, logits, offsets);
@@ -210,21 +282,51 @@ std::tuple<at::Tensor, at::Tensor> backward_cuda(
   return {grad_values, grad_logits};
 }
 
+at::Tensor jvp_cuda(const at::Tensor& values, const at::Tensor& logits,
+                    const at::Tensor& offsets, const at::Tensor& dvalues,
+                    const at::Tensor& dlogits) {
+  check_metadata(values, logits, offsets);
+  check_tangent_metadata(dvalues, values);
+  check_tangent_metadata(dlogits, logits);
+  const c10::cuda::CUDAGuard guard(values.device());
+  const auto stream = c10::cuda::getCurrentCUDAStream(values.get_device()).stream();
+  const auto contiguous_dvalues = dvalues.resolve_neg().contiguous();
+  const auto contiguous_dlogits = dlogits.resolve_neg().contiguous();
+  admit_contents(values, logits, offsets, nullptr, stream);
+  admit_tangents(contiguous_dvalues, contiguous_dlogits, stream);
+  const int64_t groups = offsets.numel() - 1;
+  auto output = at::zeros({groups, values.size(1)}, values.options());
+  if (groups > 0) {
+    AT_DISPATCH_FLOATING_TYPES(values.scalar_type(), "ragged_cuda_jvp", [&] {
+      pool_jvp<scalar_t><<<groups, 1, 0, stream>>>(
+          values.const_data_ptr<scalar_t>(), logits.const_data_ptr<scalar_t>(),
+          offsets.const_data_ptr<int64_t>(), contiguous_dvalues.const_data_ptr<scalar_t>(),
+          contiguous_dlogits.const_data_ptr<scalar_t>(), values.size(1),
+          output.mutable_data_ptr<scalar_t>());
+    });
+    C10_CUDA_KERNEL_LAUNCH_CHECK();
+  }
+  return output;
+}
+
 }  // namespace
 
 TORCH_LIBRARY(ragged_pool_cuda, library) {
   library.def("pool(Tensor values, Tensor logits, Tensor offsets) -> Tensor");
   library.def("_backward(Tensor grad_output, Tensor values, Tensor logits, Tensor offsets) -> (Tensor, Tensor)");
+  library.def("_jvp(Tensor values, Tensor logits, Tensor offsets, Tensor dvalues, Tensor dlogits) -> Tensor");
 }
 TORCH_LIBRARY_IMPL(ragged_pool_cuda, CUDA, library) {
   library.impl("pool", forward_cuda);
   library.impl("_backward", backward_cuda);
+  library.impl("_jvp", jvp_cuda);
 }
 // Inspect original primals before a generic Negative fallback could copy them.
 // Backward intentionally resolves only its admitted logical upstream gradient.
 TORCH_LIBRARY_IMPL(ragged_pool_cuda, Negative, library) {
   library.impl("pool", forward_cuda);
   library.impl("_backward", backward_cuda);
+  library.impl("_jvp", jvp_cuda);
 }
 
 // Setuptools exports this CPython symbol on Windows. Tensor calls use the
