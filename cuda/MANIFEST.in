@@ -6,6 +6,7 @@ include RESUME.md
 include FUNCTIONAL.md
 include CLIPPING.md
 include FORWARD_AD.md
+include SECOND_ORDER.md
 include third_party/PYTORCH-LICENSE
 include csrc/pool.cu
 include evidence/windows-sm89-20261021.json
@@ -18,6 +19,7 @@ include evidence/resume-windows-sm89-20261022.json
 include evidence/functional-windows-sm89-20261022.json
 include evidence/clipping-windows-sm89-20261022.json
 include evidence/forward-ad-windows-sm89-20261022.json
+include evidence/second-order-windows-sm89-20261022.json
 recursive-include src *.py
 recursive-include examples *.py
 recursive-include tests *.py
