@@ -6,9 +6,9 @@ This is a trusted-local model handoff. An expected manifest digest identifies by
 
 ## The finite contract
 
-Use Windows x64, Python3.11.8, PyTorch2.9.1+cu128/runtime12.8 and the qualified RTX4090 route. Each artifact has one dtype, float32 or float64. Inputs are ordinary contiguous CUDA0 tensors: raw features `[9,3]` and int64 offsets `[6]`. Raw entries are finite within `[-6,6]`. Offsets satisfy the native contract, with five groups covering all nine items. Predictions have shape `[5]` and pooled features `[5,4]`. Empty and singleton groups are included. The caller supplies the intended device and dtype. Prediction does not move or coerce inputs.
+Use Windows x64, Python3.11.8, PyTorch2.9.1+cu128/runtime12.8 and the qualified RTX4090 route. Each artifact has one dtype, float32 or float64. The default fixed artifact accepts ordinary contiguous CUDA0 tensors: raw features `[9,3]` and int64 offsets `[6]`. Raw entries are finite within `[-6,6]`. Offsets satisfy the native contract, with five groups covering all nine items. Predictions have shape `[5]` and pooled features `[5,4]`. Empty and singleton groups are included. The caller supplies the intended device and dtype. Prediction does not move or coerce inputs.
 
-The producer performs two real SGD updates at learning rate0.03, comparing the native model with independently differentiated GPU primitives. It then places a copy of the selected model in evaluation mode and calls `torch.export.export(..., strict=True)` under `no_grad`. Shapes remain static. The [PyTorch2.9 export API](https://docs.pytorch.org/docs/2.9/export/api_reference.html) documents this route and warns that saved artifacts may not work in newer versions. Export here is separate from `torch.compile`, exported training, an optimizing backend or a standalone CUDA executable.
+The producer performs two real SGD updates at learning rate0.03, comparing the native model with independently differentiated GPU primitives. It then places a copy of the selected model in evaluation mode and calls `torch.export.export(..., strict=True)` under `no_grad`. The default keeps static shapes and schema1. The explicit dynamic mode below uses schema2. The [PyTorch2.9 export API](https://docs.pytorch.org/docs/2.9/export/api_reference.html) documents this route and warns that saved artifacts may not work in newer versions. Export here is separate from `torch.compile`, exported training, an optimizing backend or a standalone CUDA executable.
 
 The artifact directory contains exactly `manifest.json` and `model.pt2`. The manifest records the source labels, environment, trained weights as a small independent numerical oracle, expected outputs and the program's size/digest. The graph already stores its own parameters, so a second weights archive is unnecessary. The loader checks bounded regular files, exact names, manifest identity, schema and environment before deserializing the verified program bytes. It then checks the loaded graph and every parameter against the declared state. These checks define this example's owned-file contract rather than a general serialization service.
 
@@ -34,7 +34,28 @@ $produced = Get-Content -LiteralPath "$consumer\producer-float32.json" -Raw | Co
 
 The predictor compares changed raw data and offset partitions against primitive GPU math and saved native canaries. A within-group permutation must preserve both outputs. It checks original input bytes/versions, parameters and fresh output storage. Separate controls test native offset refusal and recovery, fixed-shape guards and rejected artifact changes before deserialization. Mathematical agreement, graph inspection and file admission are distinct checks.
 
-## Executed acceptance
+## One artifact for changing packed shapes
+
+Add `--dynamic` to the producer to export independent item and group counts. This inference subset accepts raw `[N,3]` with `2 <= N <= 32` and int64 offsets `[B+1]` with `2 <= B <= 8`. Device remains CUDA0 and dtype remains the artifact's float32 or float64. Inputs are ordinary contiguous tensors without gradients or logical negative/conjugate views. Raw features remain finite in `[-6,6]`. Predictions have shape `[B]` and pooled features `[B,4]`. Empty groups produce zero pooled vectors, while their predictions may equal the trained head bias.
+
+N and B are independent. Two items can occupy eight groups when six groups are empty. The producer captures an interior N9/B5 example with independent named `items` and `offset_count` dimensions. It saves one graph per dtype. The same loaded graph is then reused over changed counts, including the four N/B corners, new partitions and data at equal shapes, and a return to an earlier pair. Changing a boundary remains a runtime input rather than a new capture.
+
+Use new paths for the dynamic artifact and receipts, then run the same predictor command. The loader selects the exact supported contract from the manifest schema rather than a consumer flag:
+
+```powershell
+$dynamicArtifact = 'C:\work\cuda-dynamic-float32'
+& $acceptPython -I "$consumer\export_cuda.py" --dynamic --dtype float32 --directory $dynamicArtifact --source-revision $revision --source-tree $tree --wheel $wheel --output "$consumer\dynamic-producer-float32.json"
+$produced = Get-Content -LiteralPath "$consumer\dynamic-producer-float32.json" -Raw | ConvertFrom-Json
+& $acceptPython -I "$consumer\predict_cuda.py" --directory $dynamicArtifact --manifest-sha256 $produced.artifact.manifest_sha256 --output "$consumer\dynamic-consumer-float32.json"
+```
+
+The dynamic loader checks actual symbolic input/output metadata and exact range constraints after loading the verified bytes. It verifies the relationship between offsets length and output B, independent item/offset symbols, fixed widths, dtype/device, one native pool and no backward node. This pinned metadata inspection does not promise stable internal symbolic names or a cross-version format.
+
+Explicit consumer admission and saved graph guards are separate. In PyTorch2.9.1, a printed `Dim(min=2)` range does not strictly exclude zero or one at runtime. The [exact upstream input check](https://github.com/pytorch/pytorch/blob/v2.9.1/torch/_export/utils.py#L397-L417) skips that lower-bound check when the minimum is at most two. This consumer explicitly refuses N0/1 before invoking the graph. Direct-module tests observe the actual guard behavior separately, including offset-count bounds. Raw numerical bounds are also wrapper admission: tanh can turn an infinite raw value into a finite encoded value, so native encoded-input validation alone cannot establish the raw-feature contract. Invalid offset contents still reach native validation and must be refused before indexed pooling work, followed by successful valid recovery.
+
+Schema1 retains the fixed contract and six cases. Schema2 has its own exact contract, ranges and variable-B canaries. A schema change around a static program does not supply the required symbolic graph metadata. Neither schema admits unknown fields or treats a digest as permission to load untrusted code.
+
+## Fixed artifact executed acceptance
 
 The [local validation record](evidence/export-windows-sm89-20261021.json) identifies executed source cb5c8b565b1eb7603a4dfbb2093b624692866803 and its checked archive, reused wheel, native payload and source hashes. All seven listed checks passed. The installed suite reported256passed,4skipped and1warning in8.04seconds, including the previous175CUDA tests. The four skipped symlink fixtures could not be created with ordinary Windows privilege. PyTorch's PT2 loader emitted a nonwritable-buffer warning, which remains visible in the logs. Loaded inference state byte/version checks passed. Neither skipped checks nor the warning were hidden.
 
@@ -42,10 +63,20 @@ Separate producer and consumer invocations passed for both dtypes, with distinct
 
 Review caught a draft dtype-variable shadowing defect before execution. The first passing cohort then exposed a receipt-label bug: merging an adjacent helper's identity dictionary overwrote the producer's top-level script hash. The artifact manifest and consumer retained the correct producer identity. The producer now checks and removes the helper's generic label before merging its other fields. Final acceptance reran the corrected source. Literal byte checks also replaced numerical equality for immutability, with a signed-zero write that bypasses the version counter as a sensitive regression control. Earlier attempts remain preserved privately.
 
+## Dynamic artifact executed acceptance
+
+The [dynamic export record](evidence/dynamic-export-windows-sm89-20261022.json) identifies executed source `3538b2d6388604d928793a5d04898c6b8b6c7c38`, its checked source archive, reused installed wheel and literal consumer/test hashes. All 17 commands passed in a fresh external environment. The complete CUDA suite reported 444 passed, 4 skipped and 1 warning in 13.92 seconds, including 98 new dynamic export cases and 346 established tests. The existing four symlink fixtures remain unavailable with ordinary Windows privilege. The PT2 nonwritable-buffer warning remains recorded, with loaded-state byte/version checks passing.
+
+Each dtype's producer performed two matched SGD updates and saved one dynamic artifact. Its separate consumer loaded that graph once without producer/training imports and exercised all 11 declared cases. Captured/reloaded native outputs matched eager native canaries exactly in this cohort. The fresh consumers' float32 primitive differences were zero. Float64 primitive differences were at most 8.326672684688674e-17 for predictions and 3.3306690738754696e-16 for pooled values. These are observations for the exercised inputs, without a general numerical-error or model-quality claim.
+
+Direct graph witnesses admitted N0/1 while the wrapper refused them. The other five shape cases produced the actual saved guard failures and then recovered on valid inputs. Separate tests retained native offset-content refusal, metadata admission before graph execution, actual serialized static/narrow-range graph rejection and changed-canary detection. Both dtypes' fixed export, static/dynamic training and fresh consumption of the actual preceding schema1 artifacts also passed. This compatibility observation covers those artifacts in the same pinned environment.
+
+The first attempt reported 10 failed, 434 passed, 4 skipped and 1 warning. The saved guards correctly raised `AssertionError: Guard failed: ...`, while new test/receipt helpers expected `RuntimeError`. Both dynamic consumers completed their numerical comparisons before the guard witness stopped their receipts. The correction recognizes guard-specific assertion/runtime forms and records the actual exception type. Guard-specific messages keep these controls from passing merely because native content admission refused an input. The corrected source was archived and all 17 commands rerun. The earlier failures remain retained, with no change to native math, runtime code or input admission.
+
 ## Choices and limits
 
 Strict export is explicit because the pinned API's default is False. The opaque custom operation keeps its runtime validation kernel and synchronization. Fake metadata permits capture without reading offsets. Changing offset contents must still affect execution after reload. A captured shape is not a substitute for content admission.
 
 The existing accepted wheel and native binary can be reused because this increment changes examples, tests and documentation rather than runtime package code. Its original NVCC12.8.93/MSVC19.44/C++17 provenance remains attached to that payload. Reusing it is not a fresh compiler result. The source archive includes these new examples and tests through its existing manifest rules.
 
-This route does not qualify dynamic shapes, CUDA1 or other devices, mixed precision, exported backward, graph capture, Inductor/Triton, cross-version serialization/ABI compatibility, performance, peak memory, model quality or hostile artifact safety. Earlier eager sanitizer evidence retains its original scope. The export consumer has ordinary functional execution checks rather than a new instrumented native cohort.
+The dynamic route covers only its declared packed inference subset. Zero/one items or groups, dynamic padded export, CUDA1 or other devices, mixed precision, exported backward, graph capture, Inductor/Triton, cross-version serialization/ABI compatibility, performance, peak memory, model quality and hostile artifact safety remain outside it. Earlier eager sanitizer evidence retains its original scope. The export consumer has ordinary functional execution checks rather than a new instrumented native cohort.

@@ -26,6 +26,19 @@ STATE_SHAPES = {"encoder.weight": (4, 3), "encoder.bias": (4,),
                 "scorer.weight": (1, 4), "head.weight": (1, 4), "head.bias": (1,)}
 CASE_NAMES = ("mixed_empty", "changed_raw", "changed_partition", "singletons",
               "one_nonempty", "within_group_permutation")
+DYNAMIC_CASE_SPECS = (
+    ("minimum", (0, 1, 2), 1.0, 0.0),
+    ("min_items_many_groups", (0, 0, 0, 1, 1, 1, 2, 2, 2), 1.0, 0.0),
+    ("max_items_few_groups", (0, 13, 32), 1.0, 0.0),
+    ("maximum", (0, 3, 3, 8, 9, 17, 24, 24, 32), 1.0, 0.0),
+    ("base", (0, 2, 2, 5, 7, 9), 1.0, 0.0),
+    ("same_items_fewer_groups", (0, 3, 3, 9), 1.0, 0.0),
+    ("same_groups_more_items", (0, 1, 5, 12), 1.0, 0.0),
+    ("changed_partition", (0, 1, 4, 4, 8, 9), 1.0, 0.0),
+    ("changed_raw", (0, 2, 2, 5, 7, 9), -0.4, 0.25),
+    ("return_pair", (0, 0, 3, 4, 7, 9), 0.75, -0.2),
+    ("within_group_permutation", (0, 2, 2, 5, 7, 9), 1.0, 0.0),
+)
 MANIFEST_LIMIT, PROGRAM_LIMIT = 64 * 1024, 2 * 1024 * 1024
 TRAINING = {"optimizer": "SGD", "learning_rate": 0.03, "optimizer_steps": 2,
             "reference_optimizer_steps": 2, "all_parameter_blocks_changed": True}
@@ -44,10 +57,15 @@ def tolerance(dtype):
             else {"rtol": 2e-10, "atol": 2e-12})
 
 
-def contract(dtype):
-    return {"device": "cuda:0", "dtype": str(_dtype(dtype)).removeprefix("torch."),
-            "raw_shape": [9, 3], "offsets_shape": [6], "offsets_dtype": "int64",
-            "raw_absolute_limit": 6.0, "contiguous": True, "inference_only": True}
+def contract(dtype, dynamic=False):
+    result = {"device": "cuda:0", "dtype": str(_dtype(dtype)).removeprefix("torch."),
+              "raw_shape": [9, 3], "offsets_shape": [6], "offsets_dtype": "int64",
+              "raw_absolute_limit": 6.0, "contiguous": True, "inference_only": True}
+    if dynamic:
+        result.update({"raw_shape": ["N", 3], "offsets_shape": ["O"],
+                       "shape_mode": "dynamic", "item_count_range": [2, 32],
+                       "group_count_range": [2, 8], "requires_grad": False})
+    return result
 
 
 def environment_identity():
@@ -75,13 +93,20 @@ def environment_identity():
     return result
 
 
-def validate_inputs(raw, offsets, dtype=None):
-    for tensor, shape, expected_dtype in ((raw, (9, 3), None), (offsets, (6,), torch.int64)):
+def validate_inputs(raw, offsets, dtype=None, dynamic=False):
+    for tensor, expected_dtype in ((raw, None), (offsets, torch.int64)):
         if (type(tensor) is not torch.Tensor or tensor.device != torch.device("cuda:0")
-                or tensor.layout != torch.strided or tensor.shape != shape
+                or tensor.layout != torch.strided
                 or not tensor.is_contiguous() or tensor.is_conj() or tensor.is_neg()
                 or (expected_dtype is not None and tensor.dtype != expected_dtype)):
             raise ValueError("Inputs must retain the declared shape, CUDA device and representation")
+    if dynamic:
+        if (raw.ndim != 2 or raw.shape[1] != 3 or not 2 <= raw.shape[0] <= 32
+                or offsets.ndim != 1 or not 3 <= offsets.numel() <= 9
+                or raw.requires_grad or offsets.requires_grad):
+            raise ValueError("Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients")
+    elif raw.shape != (9, 3) or offsets.shape != (6,):
+        raise ValueError("Inputs must retain the declared shape, CUDA device and representation")
     _dtype(raw.dtype)
     if dtype is not None and raw.dtype != _dtype(dtype):
         raise ValueError("Input dtype must match this artifact")
@@ -132,7 +157,18 @@ def reference(raw, boundaries, state):
     return F.linear(pooled, state["head.weight"], state["head.bias"]).squeeze(-1), pooled
 
 
-def make_cases(dtype):
+def make_cases(dtype, dynamic=False):
+    if dynamic:
+        result = []
+        for name, bounds, scale, shift in DYNAMIC_CASE_SPECS:
+            raw = torch.linspace(-1.5, 1.5, bounds[-1] * 3, dtype=_dtype(dtype),
+                                 device="cuda:0").reshape(bounds[-1], 3) * scale + shift
+            if name == "within_group_permutation":
+                raw = raw[[1, 0, 4, 2, 3, 6, 5, 8, 7]]
+            result.append({"name": name, "raw": raw.clone().contiguous(),
+                           "offsets": torch.tensor(bounds, dtype=torch.int64, device="cuda:0"),
+                           "boundaries": bounds})
+        return result
     raw = torch.linspace(-1.5, 1.5, 27, dtype=_dtype(dtype), device="cuda:0").reshape(9, 3)
     base = (0, 2, 2, 5, 7, 9)
     cases = ((raw, base), (raw * -0.4 + 0.25, base),
@@ -143,14 +179,84 @@ def make_cases(dtype):
              "boundaries": bounds} for name, (features, bounds) in zip(CASE_NAMES, cases)]
 
 
-def graph_metadata(exported):
-    operations = [node.target for node in exported.graph_module.graph.nodes if node.op == "call_function"]
+def graph_contract(dynamic=False):
+    result = {"pool_operator": "ragged_pool_cuda::pool", "pool_count": 1, "backward_count": 0}
+    if dynamic:
+        result.update({"input_shapes": {"raw": ["N", 3], "offsets": ["O"]},
+                       "output_shapes": {"predictions": ["O-1"], "pooled": ["O-1", 4]},
+                       "range_constraints": {"N": [2, 32], "O": [3, 9]},
+                       "independent_input_dimensions": True})
+    return result
+
+
+def graph_metadata(exported, dynamic=False):
+    nodes = list(exported.graph_module.graph.nodes)
+    operations = [node.target for node in nodes if node.op == "call_function"]
     custom = [str(op) for op in operations if hasattr(op, "_schema")
               and op._schema.name.split("::")[0] not in ("aten", "prims")]
     backward = sum("backward" in str(op).lower() for op in operations)
     if custom != ["ragged_pool_cuda.pool.default"] or backward:
         raise ValueError("Export must retain one native CUDA pooling forward and no backward or other custom operation")
-    return {"pool_operator": "ragged_pool_cuda::pool", "pool_count": 1, "backward_count": 0}
+    if not dynamic:
+        return graph_contract()
+
+    # This pinned diagnostic reads symbolic metadata without evaluating the graph.
+    by_name = {node.name: node for node in nodes}
+    inputs = [spec for spec in exported.graph_signature.input_specs if spec.kind.name == "USER_INPUT"]
+    outputs = list(exported.graph_signature.output_specs)
+    if len(inputs) != 2 or len(outputs) != 2:
+        raise ValueError("Dynamic export must have exactly two tensor inputs and outputs")
+
+    def metadata(spec):
+        node = by_name.get(getattr(spec.arg, "name", None))
+        value = None if node is None else node.meta.get("val")
+        if not isinstance(value, torch.Tensor):
+            raise ValueError("Dynamic graph tensor metadata is missing")
+        return node, value
+
+    def expression(dimension):
+        return dimension.node.expr if isinstance(dimension, torch.SymInt) else dimension
+
+    def shape(value):
+        return tuple(expression(dimension) for dimension in value.shape)
+
+    _, raw = metadata(inputs[0])
+    offsets_node, offsets = metadata(inputs[1])
+    if raw.ndim != 2 or offsets.ndim != 1 or type(raw.shape[1]) is not int or raw.shape[1] != 3:
+        raise ValueError("Dynamic graph input widths or ranks differ")
+    items, offset_count = expression(raw.shape[0]), expression(offsets.shape[0])
+    if (getattr(items, "is_Symbol", False) is not True
+            or getattr(offset_count, "is_Symbol", False) is not True or items == offset_count):
+        raise ValueError("Dynamic graph must retain independent item and offset dimensions")
+    ranges = exported.range_constraints
+    if set(ranges) != {items, offset_count}:
+        raise ValueError("Dynamic graph has unexpected symbolic range constraints")
+    for symbol, expected in ((items, (2, 32)), (offset_count, (3, 9))):
+        actual = ranges[symbol]
+        if (actual.lower, actual.upper) != expected:
+            raise ValueError("Dynamic graph symbolic ranges differ from the declared bounds")
+    if (raw.dtype not in DTYPES.values() or raw.device != torch.device("cuda:0")
+            or offsets.dtype != torch.int64 or offsets.device != raw.device):
+        raise ValueError("Dynamic graph input dtype or device differs")
+    pool = next(node for node in nodes if node.op == "call_function"
+                and str(node.target) == "ragged_pool_cuda.pool.default")
+    if len(pool.args) != 3 or pool.args[2] is not offsets_node:
+        raise ValueError("Dynamic native pooling must consume the original offsets")
+    encoded = [getattr(node, "meta", {}).get("val") for node in pool.args[:2]]
+    if (not all(isinstance(value, torch.Tensor) for value in encoded)
+            or shape(encoded[0]) != (items, 4) or shape(encoded[1]) != (items,)):
+        raise ValueError("Dynamic native pooling lost its item dimension or feature width")
+    result_tensors = [metadata(spec)[1] for spec in outputs]
+    pool_value = pool.meta.get("val")
+    if (not isinstance(pool_value, torch.Tensor)
+            or shape(pool_value) != (offset_count - 1, 4)
+            or shape(result_tensors[0]) != (offset_count - 1,)
+            or shape(result_tensors[1]) != (offset_count - 1, 4)):
+        raise ValueError("Dynamic outputs must follow the independent offset dimension")
+    for value in (*encoded, pool_value, *result_tensors):
+        if value.dtype != raw.dtype or value.device != raw.device:
+            raise ValueError("Dynamic graph intermediate or output dtype or device differs")
+    return graph_contract(True)
 
 
 def snapshot(tensors):
@@ -218,7 +324,9 @@ def _manifest(manifest):
             "producer_script_sha256", "environment", "contract", "graph", "training", "weights", "files", "expected"}
     if type(manifest) is not dict or set(manifest) != keys:
         raise ValueError("The manifest has unexpected keys")
-    _exact(manifest["schema_version"], 1, "schema_version")
+    if type(manifest["schema_version"]) is not int or manifest["schema_version"] not in (1, 2):
+        raise ValueError("schema_version must be exactly 1 or 2")
+    dynamic = manifest["schema_version"] == 2
     _dtype(manifest["dtype"])
     if type(manifest["dtype"]) is not str:
         raise ValueError("The manifest dtype must be a name")
@@ -228,9 +336,8 @@ def _manifest(manifest):
     if type(manifest["producer_pid"]) is not int or manifest["producer_pid"] <= 0:
         raise ValueError("The producer PID must be a positive integer")
     _exact(manifest["environment"], environment_identity(), "environment")
-    _exact(manifest["contract"], contract(manifest["dtype"]), "contract")
-    _exact(manifest["graph"], {"pool_operator": "ragged_pool_cuda::pool", "pool_count": 1,
-                              "backward_count": 0}, "graph")
+    _exact(manifest["contract"], contract(manifest["dtype"], dynamic), "contract")
+    _exact(manifest["graph"], graph_contract(dynamic), "graph")
     training = manifest["training"]
     if type(training) is not dict or set(training) != set(TRAINING) | {"steps"}:
         raise ValueError("Training metadata has unexpected fields")
@@ -268,20 +375,28 @@ def _manifest(manifest):
     if type(entry["size_bytes"]) is not int or not 0 < entry["size_bytes"] <= PROGRAM_LIMIT:
         raise ValueError("Program size is outside the declared limit")
     expected = manifest["expected"]
-    if type(expected) is not list or len(expected) != len(CASE_NAMES):
-        raise ValueError("Expected outputs must cover the six declared cases")
-    for name, case in zip(CASE_NAMES, expected):
+    case_shapes = ([(name, len(bounds) - 1) for name, bounds, _, _ in DYNAMIC_CASE_SPECS]
+                   if dynamic else [(name, 5) for name in CASE_NAMES])
+    if type(expected) is not list or len(expected) != len(case_shapes):
+        raise ValueError("Expected outputs must cover exactly the declared cases")
+    for (name, groups), case in zip(case_shapes, expected):
         if type(case) is not dict or set(case) != {"name", "predictions", "pooled"} or case["name"] != name:
             raise ValueError("Expected case names or fields differ")
-        _numbers(case["predictions"], (5,), name)
-        _numbers(case["pooled"], (5, 4), name)
+        _numbers(case["predictions"], (groups,), name)
+        _numbers(case["pooled"], (groups, 4), name)
 
 
 class Predictor:
     def __init__(self, manifest, exported):
         self.manifest, self.exported_program = manifest, exported
+        self.dynamic = manifest["schema_version"] == 2
         self.module = exported.module()
         self.state = state_tensors(manifest["weights"], manifest["dtype"])
+        if self.dynamic:
+            specs = [spec for spec in exported.graph_signature.input_specs if spec.kind.name == "USER_INPUT"]
+            by_name = {node.name: node for node in exported.graph_module.graph.nodes}
+            if by_name[specs[0].arg.name].meta["val"].dtype != _dtype(manifest["dtype"]):
+                raise ValueError("The graph input dtype differs from the artifact")
         if set(exported.state_dict) != set(STATE_SHAPES):
             raise ValueError("The graph state differs from the declared parameters")
         for name, expected in self.state.items():
@@ -292,12 +407,13 @@ class Predictor:
             torch.testing.assert_close(value, expected, rtol=0, atol=0)
 
     def __call__(self, raw, offsets):
-        validate_inputs(raw, offsets, self.manifest["dtype"])
+        validate_inputs(raw, offsets, self.manifest["dtype"], self.dynamic)
+        groups = offsets.numel() - 1
         with torch.inference_mode():
             result = self.module(raw, offsets)
             if type(result) not in (tuple, list) or len(result) != 2:
                 raise ValueError("The exported model must return predictions and pooled values")
-            for output, shape in zip(result, ((5,), (5, 4))):
+            for output, shape in zip(result, ((groups,), (groups, 4))):
                 if (type(output) is not torch.Tensor or output.shape != shape or output.dtype != raw.dtype
                         or output.device != raw.device or not bool(torch.isfinite(output).all())):
                     raise ValueError("The exported model returned invalid outputs")
@@ -324,7 +440,7 @@ def load_artifact(directory, expected_manifest_sha256):
             or sha256(program).hexdigest() != manifest["files"]["model.pt2"]["sha256"]):
         raise ValueError("Program bytes differ from the verified manifest")
     exported = torch.export.load(io.BytesIO(program))
-    _exact(graph_metadata(exported), manifest["graph"], "loaded graph")
+    _exact(graph_metadata(exported, manifest["schema_version"] == 2), manifest["graph"], "loaded graph")
     return Predictor(manifest, exported)
 
 
@@ -333,7 +449,10 @@ def exercise(predictor):
     errors, previous = [], None
     state_groups = {"loaded": predictor.module.state_dict(), "reference": predictor.state}
     state = {group: snapshot(values) for group, values in state_groups.items()}
-    cases = make_cases(predictor.manifest["dtype"])
+    cases = make_cases(predictor.manifest["dtype"], predictor.dynamic)
+    malformed = [torch.tensor(bounds, dtype=torch.int64, device="cuda:0")
+                 for bounds in ((0, 2, 1, 5, 7, 9), (0, 2, 2, 5, 7, 8))]
+    baseline = None
     with torch.inference_mode():
         for case, canary in zip(cases, predictor.manifest["expected"]):
             raw, offsets = case["raw"], case["offsets"]
@@ -344,6 +463,8 @@ def exercise(predictor):
             expected = tuple(torch.tensor(canary[name], dtype=raw.dtype, device=raw.device)
                              for name in ("predictions", "pooled"))
             errors.append({"name": case["name"]})
+            if predictor.dynamic:
+                errors[-1].update({"items": raw.shape[0], "groups": offsets.numel() - 1})
             for name, actual, primitive, saved in zip(("predictions", "pooled"), result, oracle, expected):
                 torch.testing.assert_close(actual, primitive, **tolerance(raw.dtype))
                 torch.testing.assert_close(actual, saved, **tolerance(raw.dtype))
@@ -355,14 +476,25 @@ def exercise(predictor):
             if previous is not None and any(a.untyped_storage().data_ptr() == b.untyped_storage().data_ptr()
                                             for a in result for b in previous):
                 raise AssertionError("Successive inference outputs must own fresh storage")
+            if predictor.dynamic:
+                if case["name"] == "base":
+                    baseline = tuple(value.clone() for value in result)
+                elif case["name"] in ("changed_partition", "changed_raw", "return_pair"):
+                    if all(torch.equal(actual, base) for actual, base in zip(result, baseline)):
+                        raise AssertionError("Changed inference content retained every base output")
+                elif case["name"] == "within_group_permutation":
+                    for actual, base in zip(result, baseline):
+                        torch.testing.assert_close(actual, base, **tolerance(raw.dtype))
             previous = result
             unchanged(inputs, before)
         for group, parameters in state.items():
             unchanged(state_groups[group], parameters)
-        valid = make_cases(predictor.manifest["dtype"])[0]
-        for bounds in ((0, 2, 1, 5, 7, 9), (0, 2, 2, 5, 7, 8)):
+        valid = next(case for case in cases if case["name"] == ("base" if predictor.dynamic else "mixed_empty"))
+        for bad_offsets in malformed:
+            inputs = {"raw": valid["raw"], "offsets": bad_offsets, "valid_offsets": valid["offsets"]}
+            before = snapshot(inputs)
             try:
-                predictor(valid["raw"], torch.tensor(bounds, dtype=torch.int64, device="cuda:0"))
+                predictor(valid["raw"], bad_offsets)
             except RuntimeError:
                 pass
             else:
@@ -370,7 +502,77 @@ def exercise(predictor):
             recovery = predictor(valid["raw"], valid["offsets"])
             for actual, expected in zip(recovery, reference(valid["raw"], valid["boundaries"], predictor.state)):
                 torch.testing.assert_close(actual, expected, **tolerance(valid["raw"].dtype))
+            unchanged(inputs, before)
+        for group, parameters in state.items():
+            unchanged(state_groups[group], parameters)
     return errors
+
+
+def exercise_guards(predictor):
+    """Separate wrapper admission from the pinned export's actual shape guards."""
+    if not predictor.dynamic:
+        raise ValueError("Shape guard witnesses belong to schema 2")
+    dtype = _dtype(predictor.manifest["dtype"])
+    valid = next(case for case in make_cases(dtype, True) if case["name"] == "base")
+    fixtures = (
+        ("zero_items", 0, (0, 0, 0), 3, True),
+        ("one_item", 1, (0, 0, 1), 3, True),
+        ("too_many_items", 33, (0, 16, 33), 3, False),
+        ("zero_groups", 2, (0,), 3, False),
+        ("one_group", 2, (0, 2), 3, False),
+        ("too_many_groups", 2, (0, 0, 0, 0, 0, 1, 1, 1, 2, 2), 3, False),
+        ("wrong_width", 9, (0, 2, 2, 5, 7, 9), 4, False),
+    )
+    cases = [(name, torch.zeros((items, width), dtype=dtype, device="cuda:0"),
+              torch.tensor(bounds, dtype=torch.int64, device="cuda:0"), bounds, admitted)
+             for name, items, bounds, width, admitted in fixtures]
+    state = predictor.module.state_dict()
+    state_before, records = snapshot(state), []
+    with torch.inference_mode():
+        for name, raw, offsets, bounds, admitted in cases:
+            inputs = {"raw": raw, "offsets": offsets}
+            before = snapshot(inputs)
+            record = {"name": name, "items": raw.shape[0], "groups": offsets.numel() - 1}
+            try:
+                predictor(raw, offsets)
+            except ValueError as error:
+                record["wrapper"] = {"status": "refused", "message": str(error)}
+            else:
+                raise AssertionError("The schema 2 wrapper admitted an out-of-contract shape")
+            try:
+                result = predictor.module(raw, offsets)
+            except (RuntimeError, AssertionError) as error:
+                message = str(error)
+                shape_guard = (message.startswith("Guard failed: ")
+                               or ("Expected input" in message and "shape" in message))
+                if admitted or not shape_guard:
+                    raise
+                record["direct_graph"] = {"status": "shape_guard_refused", "message": message,
+                                          "exception_type": type(error).__name__}
+            else:
+                if not admitted:
+                    raise AssertionError("The saved graph failed to enforce a declared shape guard")
+                for actual, expected in zip(result, reference(raw, bounds, predictor.state)):
+                    torch.testing.assert_close(actual, expected, **tolerance(dtype))
+                # PyTorch 2.9.1 _check_symint deliberately allows 0/1 for a minimum of 2.
+                record["direct_graph"] = {"status": "admitted_minimum_exception",
+                                          "output_shapes": [list(value.shape) for value in result]}
+            unchanged(inputs, before)
+            recovery = predictor(valid["raw"], valid["offsets"])
+            for actual, expected in zip(recovery, reference(valid["raw"], valid["boundaries"], predictor.state)):
+                torch.testing.assert_close(actual, expected, **tolerance(dtype))
+            record["valid_recovery"] = True
+            records.append(record)
+        unchanged(state, state_before)
+    grad_raw = valid["raw"].clone().requires_grad_()
+    try:
+        predictor(grad_raw, valid["offsets"])
+    except ValueError as error:
+        records.append({"name": "requires_grad", "wrapper": {"status": "refused", "message": str(error)},
+                        "direct_graph": {"status": "not_exercised", "reason": "Wrapper inference contract"}})
+    else:
+        raise AssertionError("Dynamic inference admitted an input requiring gradients")
+    return records
 
 
 def main():
@@ -401,8 +603,12 @@ def main():
                         "source_revision": predictor.manifest["source_revision"],
                         "source_tree": predictor.manifest["source_tree"],
                         "producer_script_sha256": predictor.manifest["producer_script_sha256"],
-                        "manifest_sha256": args.manifest_sha256, "comparisons": exercise(predictor),
-                        "graph": graph_metadata(predictor.exported_program), "status": "passed"})
+                        "manifest_sha256": args.manifest_sha256,
+                        "graph": graph_metadata(predictor.exported_program, predictor.dynamic)})
+        receipt["comparisons"] = exercise(predictor)
+        if predictor.dynamic:
+            receipt.update({"schema_version": 2, "shape_guards": exercise_guards(predictor)})
+        receipt["status"] = "passed"
     except BaseException as error:
         receipt.update({"status": "failed", "error": {"type": type(error).__name__, "message": str(error)}})
         raise

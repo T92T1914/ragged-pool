@@ -1,0 +1,1087 @@
+{
+  "status": "passed",
+  "scope": "Local ordinary installed bounded dynamic CUDA inference export/reload",
+  "executed_source_revision": "3538b2d6388604d928793a5d04898c6b8b6c7c38",
+  "executed_source_tree": "3bc61785f6c35db569cf02c85b7a860e363bf514",
+  "source_archive_sha256": "2d54877794424abf75a3c2c3825ae267e0932d93020210b5e716e1953e9daadd",
+  "source_archive_tracked_members": 32,
+  "consumer_and_test_sha256": {
+    "examples/export_cuda.py": "ae8dfdd9b0dc1c6bbc13a2e50d1a0c0917bf42182293c995cac75a0e75e24d0a",
+    "examples/predict_cuda.py": "df5af21a322ea52192c99b5b980e906d52b859070bdd64a550b4d628f2f68372",
+    "examples/train_compiled.py": "0c2fb7cc545fb17c213f8a3e2edeac3f623b45c435c581726b7cceebcfc225ea",
+    "examples/train_cuda.py": "76a881ab48a9eff476e22ba93399574e2f6b80e1ea1374af04af6f9dd47e8554",
+    "examples/train_padded.py": "acb51a53d1976fe4e170ac6e16f37524b9bc20d034bf50d2a68cc6b980924ae6",
+    "tests/test_compiled.py": "dfecabd46cecf54623c676dd75cf2f11eb2bb309fe7d8398dea5d8c92e36f312",
+    "tests/test_cuda.py": "ba2f2c7d503a59d6e7c0eaa921ab7fa870084a4fa30cbab5927ab88c63bcbf89",
+    "tests/test_dynamic.py": "fc87baa7ee99014a566aceb008ff85ef078687bd1d5b650c9d4a6a444c585038",
+    "tests/test_dynamic_exported.py": "e1f3f9af89e82cdf33c22474d23240d803a7f0666fb716999137513f55063d14",
+    "tests/test_exported.py": "b6c1f7bd8daf604346dcfe6e2721da2a5ba860ff7bcedb33d9f50bd50c029002",
+    "tests/test_padded.py": "b92c03ce971617bee7303561dec70d86bf369585c637680dee6698d92b8fd26d"
+  },
+  "installed_package_payload_sha256": {
+    "ragged_pool_cuda/_C.cp311-win_amd64.pyd": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "ragged_pool_cuda/__init__.py": "227b2a471ab438f21a21b437cefc6a220169e0a403b7f3602ba122ca05d05fab",
+    "ragged_pool_cuda/_registration.py": "6c7493510a215a3387b2f958dec5328174921349cd911078e49cfab5f675766c",
+    "ragged_pool_cuda/_validation.py": "131f9a2f119299384b99bac2a4ef47c2863024e0cf85dac6f803ebe31e675e28",
+    "ragged_pool_cuda/padded.py": "ac19d4609c8e680ca9ce080cf3f0952bcf34e15142c13fea2f16f3f61f3d82d8",
+    "ragged_pool_cuda/reference.py": "402f140aba3dc94e8ceea25143f4ba99cada8b7f473f2c552064145327e85a4e"
+  },
+  "environment": {
+    "os": "Windows x64",
+    "python": "3.11.8",
+    "torch": "2.9.1+cu128",
+    "cuda_runtime": "12.8",
+    "device": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "torch_threads": 1,
+    "torch_interop_threads": 1
+  },
+  "installation": {
+    "fresh_isolated_environment_outside_checkout": true,
+    "ordinary_wheel": true,
+    "wheel_sha256": "27527f80b414c0f4f162ee6c105775f73b5aec906afb3541c52131812fd970c7",
+    "native_sha256": "cbc3e65f59168497f4751fc2f938aa566c769eb208389e1cc84371854b561487",
+    "runtime_source_changed": false,
+    "new_wheel": false,
+    "new_native_compilation": false,
+    "new_native_instrumentation": false,
+    "original_compiler_provenance": {
+      "nvcc": "12.8.93",
+      "msvc": "19.44.35228",
+      "cpp_standard": 17,
+      "architecture": "sm_89"
+    }
+  },
+  "checks": {
+    "manifest_commands_passed": 17,
+    "pytest_passed": 444,
+    "pytest_skipped": 4,
+    "pytest_warnings": 1,
+    "pytest_seconds": 13.92,
+    "established_cuda_tests": 346,
+    "new_dynamic_export_cases": 98,
+    "skips": "Four existing file/directory symlink fixtures unavailable with ordinary Windows privilege",
+    "warning": "Existing PyTorch PT2 nonwritable-buffer warning retained; loaded state byte/version checks passed",
+    "regressions": "Both dtypes: fixed and changing-shape training, new fixed export/fresh consumer, and actual prior schema1 artifact consumer"
+  },
+  "dynamic_artifacts": {
+    "float32": {
+      "status": "passed",
+      "distinct_producer_consumer_processes": true,
+      "producer_training_imports_in_consumer": [],
+      "schema_version": 2,
+      "manifest_sha256": "d777600c46b10826a8fb25f691b4c8ad63f2b8fb45936124415e1d1289b3aacf",
+      "program": {
+        "sha256": "cbfff967caa822fb825d3debaa04142232f63ffd242bf6a19f7e954280bd4fa9",
+        "size_bytes": 17952
+      },
+      "graph": {
+        "pool_operator": "ragged_pool_cuda::pool",
+        "pool_count": 1,
+        "backward_count": 0,
+        "input_shapes": {
+          "raw": [
+            "N",
+            3
+          ],
+          "offsets": [
+            "O"
+          ]
+        },
+        "output_shapes": {
+          "predictions": [
+            "O-1"
+          ],
+          "pooled": [
+            "O-1",
+            4
+          ]
+        },
+        "range_constraints": {
+          "N": [
+            2,
+            32
+          ],
+          "O": [
+            3,
+            9
+          ]
+        },
+        "independent_input_dimensions": true
+      },
+      "contract": {
+        "device": "cuda:0",
+        "dtype": "float32",
+        "raw_shape": [
+          "N",
+          3
+        ],
+        "offsets_shape": [
+          "O"
+        ],
+        "offsets_dtype": "int64",
+        "raw_absolute_limit": 6.0,
+        "contiguous": true,
+        "inference_only": true,
+        "shape_mode": "dynamic",
+        "item_count_range": [
+          2,
+          32
+        ],
+        "group_count_range": [
+          2,
+          8
+        ],
+        "requires_grad": false
+      },
+      "training": {
+        "optimizer": "SGD",
+        "learning_rate": 0.03,
+        "optimizer_steps": 2,
+        "reference_optimizer_steps": 2,
+        "all_parameter_blocks_changed": true,
+        "steps": [
+          {
+            "step": 1,
+            "native_loss": 0.3642439544200897,
+            "reference_loss": 0.3642439544200897,
+            "output_max_abs_difference": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "loss": 0.0,
+              "input_gradient": 0.0
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0011692792177200317,
+              "encoder.bias": 0.004095643758773804,
+              "scorer.weight": 0.0003637373447418213,
+              "head.weight": 0.00798112154006958,
+              "head.bias": 0.01943349838256836
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          {
+            "step": 2,
+            "native_loss": 0.15170782804489136,
+            "reference_loss": 0.15170782804489136,
+            "output_max_abs_difference": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "loss": 0.0,
+              "input_gradient": 0.0
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0005678534507751465,
+              "encoder.bias": 0.0031698644161224365,
+              "scorer.weight": 8.556991815567017e-05,
+              "head.weight": 0.00535014271736145,
+              "head.bias": 0.014667853713035583
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          }
+        ]
+      },
+      "producer_comparisons": [
+        {
+          "name": "minimum",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "min_items_many_groups",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "max_items_few_groups",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "maximum",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "base",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "same_items_fewer_groups",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "same_groups_more_items",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "return_pair",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        }
+      ],
+      "consumer_comparisons": [
+        {
+          "name": "minimum",
+          "items": 2,
+          "groups": 2,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "min_items_many_groups",
+          "items": 2,
+          "groups": 8,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "max_items_few_groups",
+          "items": 32,
+          "groups": 2,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "maximum",
+          "items": 32,
+          "groups": 8,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "base",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "same_items_fewer_groups",
+          "items": 9,
+          "groups": 3,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "same_groups_more_items",
+          "items": 12,
+          "groups": 3,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "return_pair",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        }
+      ],
+      "separate_shape_guard_witnesses": [
+        {
+          "name": "zero_items",
+          "items": 0,
+          "groups": 2,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "admitted_minimum_exception",
+            "output_shapes": [
+              [
+                2
+              ],
+              [
+                2,
+                4
+              ]
+            ]
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "one_item",
+          "items": 1,
+          "groups": 2,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "admitted_minimum_exception",
+            "output_shapes": [
+              [
+                2
+              ],
+              [
+                2,
+                4
+              ]
+            ]
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "too_many_items",
+          "items": 33,
+          "groups": 2,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: raw.size()[0] <= 32",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "zero_groups",
+          "items": 2,
+          "groups": 0,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: offsets.size()[0] >= 3",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "one_group",
+          "items": 2,
+          "groups": 1,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: offsets.size()[0] >= 3",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "too_many_groups",
+          "items": 2,
+          "groups": 9,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: offsets.size()[0] <= 9",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "wrong_width",
+          "items": 9,
+          "groups": 5,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: raw.size()[1] == 3",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "requires_grad",
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "not_exercised",
+            "reason": "Wrapper inference contract"
+          }
+        }
+      ],
+      "selected_state_unchanged_by_export": true
+    },
+    "float64": {
+      "status": "passed",
+      "distinct_producer_consumer_processes": true,
+      "producer_training_imports_in_consumer": [],
+      "schema_version": 2,
+      "manifest_sha256": "b48a6d7d1779dffbf85cb9403807084028ee7e5a76215154f10bac5ed3f47969",
+      "program": {
+        "sha256": "6b3eeb10661d434ff9a5ef8fe77ec63cfa4f0d00811483fcae78ec7c7ac93382",
+        "size_bytes": 18144
+      },
+      "graph": {
+        "pool_operator": "ragged_pool_cuda::pool",
+        "pool_count": 1,
+        "backward_count": 0,
+        "input_shapes": {
+          "raw": [
+            "N",
+            3
+          ],
+          "offsets": [
+            "O"
+          ]
+        },
+        "output_shapes": {
+          "predictions": [
+            "O-1"
+          ],
+          "pooled": [
+            "O-1",
+            4
+          ]
+        },
+        "range_constraints": {
+          "N": [
+            2,
+            32
+          ],
+          "O": [
+            3,
+            9
+          ]
+        },
+        "independent_input_dimensions": true
+      },
+      "contract": {
+        "device": "cuda:0",
+        "dtype": "float64",
+        "raw_shape": [
+          "N",
+          3
+        ],
+        "offsets_shape": [
+          "O"
+        ],
+        "offsets_dtype": "int64",
+        "raw_absolute_limit": 6.0,
+        "contiguous": true,
+        "inference_only": true,
+        "shape_mode": "dynamic",
+        "item_count_range": [
+          2,
+          32
+        ],
+        "group_count_range": [
+          2,
+          8
+        ],
+        "requires_grad": false
+      },
+      "training": {
+        "optimizer": "SGD",
+        "learning_rate": 0.03,
+        "optimizer_steps": 2,
+        "reference_optimizer_steps": 2,
+        "all_parameter_blocks_changed": true,
+        "steps": [
+          {
+            "step": 1,
+            "native_loss": 0.1752760009969802,
+            "reference_loss": 0.1752760009969802,
+            "output_max_abs_difference": {
+              "predictions": 0.0,
+              "pooled": 0.0,
+              "loss": 0.0,
+              "input_gradient": 4.336808689942018e-19
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 0.0,
+              "scorer.weight": 1.3010426069826053e-18,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0008292428274350172,
+              "encoder.bias": 0.0037348159080672905,
+              "scorer.weight": 4.094647882675606e-05,
+              "head.weight": 0.005101558024678932,
+              "head.bias": 0.010074860718194106
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 0.0
+            }
+          },
+          {
+            "step": 2,
+            "native_loss": 0.4396604293856726,
+            "reference_loss": 0.4396604293856726,
+            "output_max_abs_difference": {
+              "predictions": 5.551115123125783e-17,
+              "pooled": 1.1102230246251565e-16,
+              "loss": 0.0,
+              "input_gradient": 1.734723475976807e-18
+            },
+            "parameter_gradient_max_abs_difference": {
+              "encoder.weight": 1.734723475976807e-18,
+              "encoder.bias": 0.0,
+              "scorer.weight": 2.6020852139652106e-18,
+              "head.weight": 5.551115123125783e-17,
+              "head.bias": 2.220446049250313e-16
+            },
+            "native_parameter_update_max_abs": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.02764653429481996
+            },
+            "reference_parameter_update_max_abs": {
+              "encoder.weight": 0.0006195250022527632,
+              "encoder.bias": 0.005694568866150829,
+              "scorer.weight": 7.404383341080845e-05,
+              "head.weight": 0.010142693789438328,
+              "head.bias": 0.027646534294819974
+            },
+            "updated_parameter_max_abs_difference": {
+              "encoder.weight": 0.0,
+              "encoder.bias": 0.0,
+              "scorer.weight": 0.0,
+              "head.weight": 0.0,
+              "head.bias": 1.3877787807814457e-17
+            }
+          }
+        ]
+      },
+      "producer_comparisons": [
+        {
+          "name": "minimum",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "min_items_many_groups",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "max_items_few_groups",
+          "reference_prediction_max_abs": 5.551115123125783e-17,
+          "reference_pooled_max_abs": 3.3306690738754696e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "maximum",
+          "reference_prediction_max_abs": 2.7755575615628914e-17,
+          "reference_pooled_max_abs": 1.1102230246251565e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "base",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "same_items_fewer_groups",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 2.7755575615628914e-17,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "same_groups_more_items",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 5.551115123125783e-17,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "reference_prediction_max_abs": 8.326672684688674e-17,
+          "reference_pooled_max_abs": 2.220446049250313e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 1.1102230246251565e-16,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "return_pair",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "reference_prediction_max_abs": 0.0,
+          "reference_pooled_max_abs": 0.0,
+          "captured_prediction_max_abs": 0.0,
+          "captured_pooled_max_abs": 0.0,
+          "reloaded_prediction_max_abs": 0.0,
+          "reloaded_pooled_max_abs": 0.0
+        }
+      ],
+      "consumer_comparisons": [
+        {
+          "name": "minimum",
+          "items": 2,
+          "groups": 2,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "min_items_many_groups",
+          "items": 2,
+          "groups": 8,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "max_items_few_groups",
+          "items": 32,
+          "groups": 2,
+          "predictions_reference_max_abs": 5.551115123125783e-17,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 3.3306690738754696e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "maximum",
+          "items": 32,
+          "groups": 8,
+          "predictions_reference_max_abs": 2.7755575615628914e-17,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 1.1102230246251565e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "base",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "same_items_fewer_groups",
+          "items": 9,
+          "groups": 3,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 2.7755575615628914e-17,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "same_groups_more_items",
+          "items": 12,
+          "groups": 3,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 5.551115123125783e-17,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_partition",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 8.326672684688674e-17,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 2.220446049250313e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "changed_raw",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 1.1102230246251565e-16,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "return_pair",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        },
+        {
+          "name": "within_group_permutation",
+          "items": 9,
+          "groups": 5,
+          "predictions_reference_max_abs": 0.0,
+          "predictions_canary_max_abs": 0.0,
+          "pooled_reference_max_abs": 0.0,
+          "pooled_canary_max_abs": 0.0
+        }
+      ],
+      "separate_shape_guard_witnesses": [
+        {
+          "name": "zero_items",
+          "items": 0,
+          "groups": 2,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "admitted_minimum_exception",
+            "output_shapes": [
+              [
+                2
+              ],
+              [
+                2,
+                4
+              ]
+            ]
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "one_item",
+          "items": 1,
+          "groups": 2,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "admitted_minimum_exception",
+            "output_shapes": [
+              [
+                2
+              ],
+              [
+                2,
+                4
+              ]
+            ]
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "too_many_items",
+          "items": 33,
+          "groups": 2,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: raw.size()[0] <= 32",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "zero_groups",
+          "items": 2,
+          "groups": 0,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: offsets.size()[0] >= 3",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "one_group",
+          "items": 2,
+          "groups": 1,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: offsets.size()[0] >= 3",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "too_many_groups",
+          "items": 2,
+          "groups": 9,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: offsets.size()[0] <= 9",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "wrong_width",
+          "items": 9,
+          "groups": 5,
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "shape_guard_refused",
+            "message": "Guard failed: raw.size()[1] == 3",
+            "exception_type": "AssertionError"
+          },
+          "valid_recovery": true
+        },
+        {
+          "name": "requires_grad",
+          "wrapper": {
+            "status": "refused",
+            "message": "Dynamic inference requires N in [2,32], B in [2,8], width 3 and no input gradients"
+          },
+          "direct_graph": {
+            "status": "not_exercised",
+            "reason": "Wrapper inference contract"
+          }
+        }
+      ],
+      "selected_state_unchanged_by_export": true
+    }
+  },
+  "adverse_results": [
+    {
+      "source_revision": "1aa44aadee0adb7dc55475514a9bfa1c85a8cdcb",
+      "pytest_failed": 10,
+      "pytest_passed": 434,
+      "pytest_skipped": 4,
+      "pytest_warnings": 1,
+      "failed_commands": [
+        "pytest",
+        "dynamic-consumer-float32",
+        "dynamic-consumer-float64"
+      ],
+      "finding": "Saved graph guards raised AssertionError with Guard failed messages, while new test/receipt helpers expected RuntimeError",
+      "resolution": "Recognize only guard-specific AssertionError/RuntimeError forms, keep coherent offset controls, retain first attempt and rerun corrected source",
+      "native_math_or_admission_changed": false
+    }
+  ],
+  "review_and_attribution": {
+    "semantic": "Independent agent source review, separate from Code Review plugin CI diagnostics",
+    "research": "GitHub exact source, Context7 and original versioned PyTorch documentation",
+    "consensus": "Previously recorded quota-unavailable; no retry, new synthesis or paid escalation",
+    "license": "MIT, existing PyTorch license/notices and truthful assistance statement unchanged"
+  },
+  "limits": [
+    "Bounded packed inference only, CUDA0 ordinary contiguous inputs, one dtype per artifact",
+    "Wrapper explicitly excludes N0/1 even though direct saved graph admits the pinned lower-bound exception",
+    "Same pinned environment and installed native dependency required; trusted local files only",
+    "No dynamic padded export, exported backward, optimizing backend, performance, memory or model-quality claim",
+    "No new native sanitizer/compiler result, cross-version ABI/platform/device guarantee or operational security result",
+    "Hosted CPU CI is a separate regression layer, not CUDA execution"
+  ]
+}
