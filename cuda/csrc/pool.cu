@@ -238,6 +238,63 @@ __global__ void pool_jvp(const scalar_t* values, const scalar_t* logits,
   }
 }
 
+template <typename scalar_t>
+__global__ void pool_double_backward(
+    const scalar_t* value_upstream, const scalar_t* logit_upstream,
+    const scalar_t* grad, const scalar_t* values, const scalar_t* logits,
+    const int64_t* offsets, int64_t width, scalar_t* grad_grad_output,
+    scalar_t* grad_values, scalar_t* grad_logits) {
+  const int64_t group = blockIdx.x;
+  const int64_t start = offsets[group], end = offsets[group + 1];
+  if (start == end) return;
+  if (end - start == 1) {
+    // The singleton backward is dv=g, dl=0. Its only derivative is dg=p.
+    for (int64_t d = 0; d < width; ++d) {
+      grad_grad_output[group * width + d] = value_upstream[start * width + d];
+    }
+    return;
+  }
+  const double maximum = group_maximum(logits, start, end);
+  const double denominator = group_denominator(logits, start, end, maximum);
+  double pooled[128] = {};
+  double combined[128] = {};
+  double mean_logit_upstream = 0.0;
+  for (int64_t i = start; i < end; ++i) {
+    const double weight = exp(static_cast<double>(logits[i]) - maximum) / denominator;
+    mean_logit_upstream += weight * static_cast<double>(logit_upstream[i]);
+    for (int64_t d = 0; d < width; ++d) {
+      pooled[d] += weight * static_cast<double>(values[i * width + d]);
+      combined[d] += weight * static_cast<double>(value_upstream[i * width + d]);
+    }
+  }
+  // For S=<p,dv>+<q,dl>, H=E[p]+E[(q-E[q])*(v-E[v])] is dS/dg.
+  // Center both covariance factors before accumulating in float64.
+  for (int64_t i = start; i < end; ++i) {
+    const double weight = exp(static_cast<double>(logits[i]) - maximum) / denominator;
+    const double centered_q = static_cast<double>(logit_upstream[i]) - mean_logit_upstream;
+    for (int64_t d = 0; d < width; ++d) {
+      combined[d] += weight * centered_q *
+                     (static_cast<double>(values[i * width + d]) - pooled[d]);
+    }
+  }
+  for (int64_t d = 0; d < width; ++d) {
+    grad_grad_output[group * width + d] = static_cast<scalar_t>(combined[d]);
+  }
+  for (int64_t i = start; i < end; ++i) {
+    const double weight = exp(static_cast<double>(logits[i]) - maximum) / denominator;
+    const double centered_q = static_cast<double>(logit_upstream[i]) - mean_logit_upstream;
+    double logit_dot = 0.0;
+    for (int64_t d = 0; d < width; ++d) {
+      const double upstream = static_cast<double>(grad[group * width + d]);
+      const double centered_value = static_cast<double>(values[i * width + d]) - pooled[d];
+      grad_values[i * width + d] = static_cast<scalar_t>(weight * centered_q * upstream);
+      logit_dot += upstream * (static_cast<double>(value_upstream[i * width + d]) -
+                              combined[d] + centered_q * centered_value);
+    }
+    grad_logits[i] = static_cast<scalar_t>(weight * logit_dot);
+  }
+}
+
 at::Tensor forward_cuda(const at::Tensor& values, const at::Tensor& logits,
                         const at::Tensor& offsets) {
   check_metadata(values, logits, offsets);
@@ -309,17 +366,53 @@ at::Tensor jvp_cuda(const at::Tensor& values, const at::Tensor& logits,
   return output;
 }
 
+std::tuple<at::Tensor, at::Tensor, at::Tensor> double_backward_cuda(
+    const at::Tensor& grad_grad_values, const at::Tensor& grad_grad_logits,
+    const at::Tensor& grad_output, const at::Tensor& values,
+    const at::Tensor& logits, const at::Tensor& offsets) {
+  check_metadata(values, logits, offsets);
+  check_grad_metadata(grad_output, values, offsets);
+  check_tangent_metadata(grad_grad_values, values);
+  check_tangent_metadata(grad_grad_logits, logits);
+  const c10::cuda::CUDAGuard guard(values.device());
+  const auto stream = c10::cuda::getCurrentCUDAStream(values.get_device()).stream();
+  // Only derivative inputs are normalized. Admission sees the original primals.
+  const auto value_upstream = grad_grad_values.resolve_neg().contiguous();
+  const auto logit_upstream = grad_grad_logits.resolve_neg().contiguous();
+  const auto grad = grad_output.resolve_neg().contiguous();
+  admit_contents(values, logits, offsets, &grad, stream);
+  admit_tangents(value_upstream, logit_upstream, stream);
+  const int64_t groups = offsets.numel() - 1;
+  auto grad_grad_output = at::zeros({groups, values.size(1)}, values.options());
+  auto grad_values = at::zeros_like(values);
+  auto grad_logits = at::zeros_like(logits);
+  if (groups > 0) {
+    AT_DISPATCH_FLOATING_TYPES(values.scalar_type(), "ragged_cuda_double_backward", [&] {
+      pool_double_backward<scalar_t><<<groups, 1, 0, stream>>>(
+          value_upstream.const_data_ptr<scalar_t>(), logit_upstream.const_data_ptr<scalar_t>(),
+          grad.const_data_ptr<scalar_t>(), values.const_data_ptr<scalar_t>(),
+          logits.const_data_ptr<scalar_t>(), offsets.const_data_ptr<int64_t>(), values.size(1),
+          grad_grad_output.mutable_data_ptr<scalar_t>(), grad_values.mutable_data_ptr<scalar_t>(),
+          grad_logits.mutable_data_ptr<scalar_t>());
+    });
+    C10_CUDA_KERNEL_LAUNCH_CHECK();
+  }
+  return {grad_grad_output, grad_values, grad_logits};
+}
+
 }  // namespace
 
 TORCH_LIBRARY(ragged_pool_cuda, library) {
   library.def("pool(Tensor values, Tensor logits, Tensor offsets) -> Tensor");
   library.def("_backward(Tensor grad_output, Tensor values, Tensor logits, Tensor offsets) -> (Tensor, Tensor)");
   library.def("_jvp(Tensor values, Tensor logits, Tensor offsets, Tensor dvalues, Tensor dlogits) -> Tensor");
+  library.def("_double_backward(Tensor grad_grad_values, Tensor grad_grad_logits, Tensor grad_output, Tensor values, Tensor logits, Tensor offsets) -> (Tensor, Tensor, Tensor)");
 }
 TORCH_LIBRARY_IMPL(ragged_pool_cuda, CUDA, library) {
   library.impl("pool", forward_cuda);
   library.impl("_backward", backward_cuda);
   library.impl("_jvp", jvp_cuda);
+  library.impl("_double_backward", double_backward_cuda);
 }
 // Inspect original primals before a generic Negative fallback could copy them.
 // Backward intentionally resolves only its admitted logical upstream gradient.
@@ -327,6 +420,7 @@ TORCH_LIBRARY_IMPL(ragged_pool_cuda, Negative, library) {
   library.impl("pool", forward_cuda);
   library.impl("_backward", backward_cuda);
   library.impl("_jvp", jvp_cuda);
+  library.impl("_double_backward", double_backward_cuda);
 }
 
 // Setuptools exports this CPython symbol on Windows. Tensor calls use the

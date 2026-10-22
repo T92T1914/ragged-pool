@@ -31,6 +31,22 @@ def _fake_jvp(values, logits, offsets, dvalues, dlogits):
     return values.new_empty((offsets.shape[0] - 1, values.shape[1]))
 
 
+@torch.library.register_fake("ragged_pool_cuda::_double_backward")
+def _fake_double_backward(grad_grad_values, grad_grad_logits, grad_output, values, logits, offsets):
+    check_metadata(values, logits, offsets)
+    check_grad_metadata(grad_output, values, offsets)
+    for upstream, primal in ((grad_grad_values, values), (grad_grad_logits, logits)):
+        torch._check(upstream.device == primal.device, lambda: "second upstreams must be on the primal CUDA device")
+        torch._check(upstream.layout == torch.strided, lambda: "second upstreams must have strided layout")
+        torch._check(upstream.dtype == primal.dtype, lambda: "second upstream dtype must match its primal")
+        torch._check(upstream.dim() == primal.dim(), lambda: "second upstream shape must match its first gradient")
+        torch._check(not upstream.is_conj(), lambda: "conjugate second upstream views are not supported")
+        for actual, expected in zip(upstream.shape, primal.shape):
+            torch._check(actual == expected, lambda: "second upstream shape must match its first gradient")
+    return (values.new_empty((offsets.shape[0] - 1, values.shape[1])),
+            torch.empty_like(values), torch.empty_like(logits))
+
+
 def _setup_context(ctx, inputs, output):
     values, logits, offsets = inputs
     ctx.save_for_backward(values, logits, offsets)
@@ -50,6 +66,11 @@ def _reject_jvp_reverse(ctx, *grads):
     raise RuntimeError("ragged-pool-cuda supports first-order JVP only; differentiating tangents is not supported")
 
 
+def _reject_third_order(ctx, *grads):
+    raise RuntimeError("ragged_pool_second_order supports up to second-order reverse differentiation; third order is not supported")
+
+
 torch.library.register_autograd("ragged_pool_cuda::pool", _backward, setup_context=_setup_context)
 torch.library.register_autograd("ragged_pool_cuda::_backward", _reject_second_order)
 torch.library.register_autograd("ragged_pool_cuda::_jvp", _reject_jvp_reverse)
+torch.library.register_autograd("ragged_pool_cuda::_double_backward", _reject_third_order)
