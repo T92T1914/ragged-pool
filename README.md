@@ -90,6 +90,8 @@ Its optional [accumulation mode](docs/distributed-accumulation.md) combines two 
 
 The [completed-window distributed handoff](docs/distributed-resume.md) continues that fixed run in fresh Linux CPU workers. Both ranks must restore weights, momentum and the progress cursor before DDP can broadcast model state. Complete continuation comparisons and reset-momentum/readiness controls check the next update. It is a controlled checkpoint handoff, with pending-gradient and crash recovery outside its scope.
 
+The [distributed gradient clipping example](docs/distributed-clipping.md) clips the joint parameter gradient after the complete accumulation window has synchronized. An actual duplicate-replica norm control exposes over-clipping, while full native and primitive references check the optimizer inputs and momentum updates. This is a separate policy from per-example clipping, without a privacy or model-quality claim.
+
 ## Train across packed shapes
 
 `examples/train_dynamic.py` uses one `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=True)` model across five actual SGD updates with changing packed item/group counts. It compares outputs, raw-input and parameter gradients, and updated parameters against eager native and independent PyTorch models. Raw feature and hidden widths stay fixed. Separate pool checks qualify zero/one specialization, runtime content admission and saved-input behavior. The [dynamic training guide](docs/dynamic_training.md) explains the exact shape sequence, installed commands and the distinction between one compile API call and captured graph submissions. This adds first-order packed graph integration, without an optimized-code or speed claim.

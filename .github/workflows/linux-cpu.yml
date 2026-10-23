@@ -612,6 +612,59 @@ jobs:
           print('Distributed resume admission control passed: no process group or DDP construction; both owned workers reaped')
           PY
 
+      - name: Clip the synchronized installed CPU model gradient
+        working-directory: ${{ runner.temp }}/ragged-linux-consumer
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          tree="$(git -C "$GITHUB_WORKSPACE" rev-parse 'HEAD^{tree}')"
+          for dtype in float32 float64; do
+            "$python" -I -B examples/clip_distributed.py --dtype "$dtype" --directory "$RAGGED_EVIDENCE/global-clipped-$dtype" --output "$RAGGED_EVIDENCE/global-clipped-$dtype.json" --wheel "$RAGGED_WHEEL" --source-revision "$RAGGED_REVISION" --source-tree "$tree"
+          done
+          if "$python" -I -B examples/clip_distributed.py --dtype float32 --directory "$RAGGED_EVIDENCE/global-clipped-failure" --output "$RAGGED_EVIDENCE/global-clipped-failure.json" --wheel "$RAGGED_WHEEL" --fail-rank 1; then
+            echo 'Injected clipping worker failure unexpectedly succeeded'
+            exit 1
+          else
+            test "$?" -eq 1
+          fi
+          "$python" -I - "$RAGGED_EVIDENCE" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          failed = json.loads((root / 'global-clipped-failure.json').read_text())
+          rank = json.loads((root / 'global-clipped-failure/worker-1.json').read_text())
+          assert failed['status'] == 'failed' and failed['deliberate_failure_rank'] == 1
+          assert 'oracles' not in failed and 'comparison' not in failed
+          assert failed['lifecycle']['all_owned_workers_reaped']
+          assert len(failed['lifecycle']['owned_processes']) == 2
+          assert all(not p['alive'] and p['exitcode'] not in (None, 0)
+                     for p in failed['lifecycle']['owned_processes'])
+          assert rank['status'] == 'error' and rank['error_type'] == 'RuntimeError'
+          assert rank['error'] == 'Deliberate owned-worker failure before Gloo initialization'
+          for dtype in ('float32', 'float64'):
+              result = json.loads((root / f'global-clipped-{dtype}.json').read_text())
+              assert result['status'] == 'passed' and result['dtype'] == dtype
+              assert result['clipping_caps'] == [0.25, 2.0] and result['clipping_epsilon'] == 1e-6
+              assert result['global_group_counts'] == [9, 5]
+              assert result['lifecycle']['all_owned_workers_reaped']
+              assert len(result['lifecycle']['owned_processes']) == 2
+              assert all(not p['alive'] and p['exitcode'] == 0 for p in result['lifecycle']['owned_processes'])
+              controls = result['comparison']['duplicate_replica_norm_controls']
+              assert len(controls) == 2 and all(c['correct_active_windows'] == [True, False] for c in controls)
+              assert all(c['replica_control_active_windows'] == [True, False] for c in controls)
+              for worker in result['workers']:
+                  assert set(worker['routes']) == {'global', 'replica_norm_control'}
+                  for mode, windows in worker['routes'].items():
+                      assert len(windows) == 2
+                      for window in windows:
+                          assert [micro['hook_calls'] for micro in window['microbatches']] == [0, 1]
+                          assert window['clipping']['norm_scalar_collectives'] == int(mode == 'replica_norm_control')
+                          assert set(window['clipping']['pre_clip_gradients']) == set(window['parameter_gradients'])
+              print('Clipped distributed result', json.dumps({'dtype': dtype,
+                  'identity': result['identity'], 'source_labels': result['source_labels'],
+                  'comparison': result['comparison'], 'all_owned_workers_reaped': True}, sort_keys=True))
+          print('Clipping injected failure control passed: both directly owned workers reaped')
+          PY
+
       - name: Train and export the selected model, then predict in a fresh process
         working-directory: ${{ runner.temp }}/ragged-linux-consumer
         run: |
