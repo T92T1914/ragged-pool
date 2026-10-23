@@ -47,6 +47,7 @@ FIXED_FILES = (
     'docs/results/cross-device-resume.json',
     'docs/distributed-cpu.md',
     'docs/results/distributed-cpu.json',
+    'docs/distributed-accumulation.md',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

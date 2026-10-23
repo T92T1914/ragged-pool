@@ -131,7 +131,7 @@ jobs:
           python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
           "$python" -m pip --isolated install 'torch==2.9.1+cpu' --index-url https://download.pytorch.org/whl/cpu
           "$python" -m pip --isolated install -r "$source/requirements-lock.txt"
-          "$python" -m pip --isolated install --no-deps "$RAGGED_WHEEL"
+          "$python" -m pip --isolated install "$RAGGED_WHEEL"
           "$python" -m pip check | tee "$RAGGED_EVIDENCE/pip-check.txt"
           "$python" -m pip freeze --all > "$RAGGED_EVIDENCE/acceptance-environment.txt"
           mkdir "$consumer" "$consumer/scripts"
@@ -494,6 +494,58 @@ jobs:
                   'transport_scope': result['transport_scope'],
                   'all_owned_workers_reaped': result['lifecycle']['all_owned_workers_reaped']}, sort_keys=True))
           print('Distributed injected failure control passed: both directly owned workers reaped')
+          PY
+
+      - name: Accumulate installed CPU microbatches before the distributed update
+        working-directory: ${{ runner.temp }}/ragged-linux-consumer
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          tree="$(git -C "$GITHUB_WORKSPACE" rev-parse 'HEAD^{tree}')"
+          for dtype in float32 float64; do
+            "$python" -I -B examples/train_distributed.py --accumulate --dtype "$dtype" --directory "$RAGGED_EVIDENCE/accumulated-$dtype" --output "$RAGGED_EVIDENCE/accumulated-$dtype.json" --wheel "$RAGGED_WHEEL" --source-revision "$RAGGED_REVISION" --source-tree "$tree"
+          done
+          if "$python" -I -B examples/train_distributed.py --accumulate --dtype float32 --directory "$RAGGED_EVIDENCE/accumulated-failure" --output "$RAGGED_EVIDENCE/accumulated-failure.json" --wheel "$RAGGED_WHEEL" --fail-rank 1; then
+            echo 'Accumulation failure control unexpectedly succeeded'
+            exit 1
+          else
+            test "$?" -eq 1
+          fi
+          "$python" -I - "$RAGGED_EVIDENCE" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          failed = json.loads((root / 'accumulated-failure.json').read_text())
+          rank = json.loads((root / 'accumulated-failure/worker-1.json').read_text())
+          assert failed['status'] == 'failed' and failed['accumulation'] is True
+          assert failed['deliberate_failure_rank'] == 1 and 'oracles' not in failed
+          assert failed['lifecycle']['all_owned_workers_reaped']
+          owned = failed['lifecycle']['owned_processes']
+          assert len(owned) == 2 and all(not p['alive'] and p['exitcode'] not in (None, 0) for p in owned)
+          assert rank['status'] == 'error' and rank['error_type'] == 'RuntimeError'
+          assert rank['error'] == 'Deliberate owned-worker failure before Gloo initialization'
+          for dtype in ('float32', 'float64'):
+              result = json.loads((root / f'accumulated-{dtype}.json').read_text())
+              assert result['status'] == 'passed' and result['accumulation'] is True
+              assert result['global_group_counts'] == [9, 5]
+              assert result['windows'] == result['microbatches_per_window'] == 2
+              workers = result['workers']
+              for worker in workers:
+                  for mode, steps in worker['routes'].items():
+                      expected = [1, 1] if mode == 'eager_sync' else [0, 1]
+                      assert len(steps) == 2
+                      for step in steps:
+                          assert [m['hook_calls'] for m in step['microbatches']] == expected
+                          assert step['optimizer_steps'] == step['zero_grad_calls'] == 1
+              print('Accumulated distributed result', json.dumps({'dtype': dtype,
+                  'comparison': result['comparison'], 'identity': result['identity'],
+                  'source_labels': result['source_labels'],
+                  'global_group_counts': result['global_group_counts'],
+                  'global_micro_group_counts': result['global_micro_group_counts'],
+                  'local_micro_group_counts': result['local_micro_group_counts'],
+                  'communication_hooks': [w['communication_hooks'] for w in workers],
+                  'communication_scope': result['communication_scope'],
+                  'all_owned_workers_reaped': result['lifecycle']['all_owned_workers_reaped']}, sort_keys=True))
+          print('Accumulated injected failure control passed: both directly owned workers reaped')
           PY
 
       - name: Train and export the selected model, then predict in a fresh process

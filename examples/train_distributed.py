@@ -4,9 +4,15 @@ Run a copied script outside the checkout with the ordinary installed CPU wheel.
 This consumer qualifies one Linux PyTorch 2.9.1+cpu route. It uses two owned
 local Gloo workers and two momentum updates. It measures agreement, not training
 quality, speed, fault tolerance or security.
+
+The optional --accumulate protocol divides each update into two microbatches.
+It checks the whole-window objective and observes gradient-bucket reductions
+through the official averaging hook. Each global microbatch contains a group,
+while a rank-local microbatch can contain none.
 """
 import argparse
 import copy
+from contextlib import nullcontext
 from datetime import timedelta
 from hashlib import sha256
 from importlib.metadata import distribution
@@ -30,12 +36,15 @@ SEED = 1811
 WORLD_SIZE = 2
 DTYPES = {"float32": torch.float32, "float64": torch.float64}
 BOUNDARIES = (((0, 2, 2), (0, 1, 3, 4)), ((0,), (0, 0, 1, 3, 6)))
+ACCUM_BOUNDARIES = ((((0, 2, 2), (0, 1, 3, 4)),
+                     ((0,), (0, 0, 1, 3, 6))),
+                    (((0,), (0, 2)), ((0, 0, 1, 3, 5), (0,))))
 PARAMETER_NAMES = ("encoder.weight", "encoder.bias", "scorer.weight",
                    "head.weight", "head.bias")
 SGD_OPTIONS = {"lr": 0.03, "momentum": 0.8, "dampening": 0,
                "weight_decay": 0, "nesterov": False, "maximize": False,
                "foreach": False, "differentiable": False, "fused": False}
-RECEIPT_LIMIT = 512 * 1024
+RECEIPT_LIMIT = 2 * 1024 * 1024
 GROUP_TIMEOUT_SECONDS = 30
 PARENT_TIMEOUT_SECONDS = 120
 
@@ -254,6 +263,325 @@ def _step(model, optimizer, batch, route, loss_mode, distributed=False):
             "sgd_recurrence_exact": True, "all_parameter_blocks_changed": True}
 
 
+def accumulation_fixture(dtype_name):
+    """Build two fixed accumulation windows, each with two microbatches per rank."""
+    if dtype_name not in DTYPES:
+        raise ValueError("Expected float32 or float64")
+    dtype = DTYPES[dtype_name]
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(SEED)
+        initial = SetRegressor().to(dtype=dtype)
+    generator = torch.Generator(device="cpu").manual_seed(SEED + 200)
+    windows, digest = [], sha256()
+    for window, micro_boundaries in enumerate(ACCUM_BOUNDARIES):
+        micros = []
+        for micro, rank_boundaries in enumerate(micro_boundaries):
+            ranks = []
+            for rank, boundaries in enumerate(rank_boundaries):
+                groups = len(boundaries) - 1
+                raw = 0.25 * torch.randn(boundaries[-1], 3, dtype=dtype,
+                                         generator=generator)
+                targets = (0.4 * torch.randn(groups, dtype=dtype, generator=generator)
+                           + torch.linspace(-0.3, 0.5, groups, dtype=dtype))
+                batch = {"raw": raw, "targets": targets,
+                         "offsets": torch.tensor(boundaries, dtype=torch.int64),
+                         "boundaries": boundaries}
+                for name in ("raw", "targets", "offsets"):
+                    value = batch[name]
+                    digest.update(json.dumps([window, micro, rank, name,
+                                              list(value.shape), str(value.dtype)]).encode())
+                    digest.update(value.numpy().tobytes())
+                ranks.append(batch)
+            micros.append(tuple(ranks))
+        windows.append(tuple(micros))
+    return initial, windows, digest.hexdigest()
+
+
+def accumulation_rank_batch(batches, window, micro, rank):
+    for label, value in (("window", window), ("microbatch", micro), ("rank", rank)):
+        if type(value) is not int or value not in (0, 1):
+            raise ValueError(f"Expected {label} index zero or one")
+    return batches[window][micro][rank]
+
+
+def accumulation_global_batch(batches, window):
+    """Pack whole groups in microbatch-major order, then rank order."""
+    parts = [accumulation_rank_batch(batches, window, micro, rank)
+             for micro in range(2) for rank in range(WORLD_SIZE)]
+    boundaries, raw_count = [0], 0
+    for batch in parts:
+        boundaries.extend(raw_count + value for value in batch["boundaries"][1:])
+        raw_count += batch["raw"].shape[0]
+    return {"raw": torch.cat([batch["raw"] for batch in parts]),
+            "targets": torch.cat([batch["targets"] for batch in parts]),
+            "offsets": torch.tensor(boundaries, dtype=torch.int64),
+            "boundaries": tuple(boundaries)}
+
+
+def accumulation_global_counts(batches, window):
+    counts = tuple(sum(accumulation_rank_batch(batches, window, micro, rank)
+                       ["targets"].numel() for rank in range(WORLD_SIZE))
+                   for micro in range(2))
+    return sum(counts), counts
+
+
+def accumulation_loss(local_sse, global_window_groups, global_micro_groups,
+                      mode, world_size=WORLD_SIZE):
+    """Apply the whole-window mean or the deliberately different microbatch mean."""
+    if mode in ("global_window_mean", "eager_sync"):
+        return normalized_local_loss(local_sse, global_window_groups, world_size)
+    if mode == "microbatch_mean_control":
+        return normalized_local_loss(local_sse, global_micro_groups, world_size) / 2
+    raise ValueError("Unknown accumulation objective mode")
+
+
+def _counted_allreduce(state, bucket):
+    from torch.distributed.algorithms.ddp_comm_hooks import default_hooks
+    state["events"].append({"window": state["window"], "microbatch": state["microbatch"],
+                            "scalars": bucket.buffer().numel(),
+                            "dtype": str(bucket.buffer().dtype)})
+    # The official hook supplies the mean. A custom hook's bucket is not already
+    # divided by world size, so an unscaled SUM would change this objective.
+    return default_hooks.allreduce_hook(state["group"], bucket)
+
+
+def _accumulation_step(model, optimizer, microbatches, window=0,
+                       mode="global_window_mean", hook_state=None, route="native",
+                       distributed=False, global_groups=None, micro_global_groups=None):
+    """Accumulate exactly two connected backwards, then take one momentum update."""
+    if len(microbatches) != 2:
+        raise ValueError("Expected exactly two microbatches in one update")
+    if type(window) is not int or window not in (0, 1):
+        raise ValueError("Expected accumulation window index zero or one")
+    if mode not in ("global_window_mean", "eager_sync", "microbatch_mean_control"):
+        raise ValueError("Unknown accumulation objective mode")
+    named = _parameter_bindings(model, optimizer)
+    bindings = {name: (id(value), value.data_ptr()) for name, value in named.items()}
+    before_parameters = copied(named)
+    before_momentum = {name: optimizer.state[value].get(
+        "momentum_buffer", torch.zeros_like(value)).detach().clone()
+        for name, value in named.items()}
+    had_momentum = {name: "momentum_buffer" in optimizer.state[value]
+                    for name, value in named.items()}
+    counts = torch.tensor([batch["targets"].numel() for batch in microbatches],
+                          dtype=torch.int64)
+    if distributed:
+        import torch.distributed as dist
+        if hook_state is None:
+            raise ValueError("Distributed accumulation requires its communication observer")
+        dist.all_reduce(counts, op=dist.ReduceOp.SUM)
+    observed_micro_counts = tuple(int(value) for value in counts)
+    observed_groups = sum(observed_micro_counts)
+    if (global_groups is not None and global_groups != observed_groups
+            or micro_global_groups is not None
+            and tuple(micro_global_groups) != observed_micro_counts):
+        raise AssertionError("Supplied accumulation counts differ from the batches")
+    if any(value <= 0 for value in observed_micro_counts):
+        raise ValueError("Each declared global microbatch must contain a group")
+    optimizer.zero_grad(set_to_none=True)
+    if any(value.grad is not None for value in named.values()):
+        raise AssertionError("Gradients survived the start of an accumulation window")
+    micro_records, metric_sum = [], torch.zeros((), dtype=next(iter(named.values())).dtype)
+    first_micro_gradients = None
+    for micro, batch in enumerate(microbatches):
+        raw = batch["raw"].detach().clone().requires_grad_(True)
+        inputs = {"raw": raw, "targets": batch["targets"], "offsets": batch["offsets"]}
+        input_before = snapshot(inputs)
+        if hook_state is not None:
+            hook_state.update({"window": window, "microbatch": micro})
+        calls_before = len(hook_state["events"]) if hook_state is not None else 0
+        context = (model.no_sync() if distributed and micro == 0 and mode != "eager_sync"
+                   else nullcontext())
+        # DDP decides whether to prepare reduction during forward. Both calls
+        # belong inside no_sync for the first microbatch, including an empty one.
+        with context:
+            predictions, pooled = model(raw, batch["offsets"], batch["boundaries"], route)
+            local_sse = (predictions - batch["targets"]).square().sum()
+            loss = accumulation_loss(local_sse, observed_groups, observed_micro_counts[micro],
+                                     mode, WORLD_SIZE if distributed else 1)
+            loss.backward()
+        if raw.grad is None or any(value.grad is None for value in named.values()):
+            raise AssertionError("Every microbatch must retain every input and parameter connection")
+        gradients = {name: value.grad.detach().clone() for name, value in named.items()}
+        if micro == 0:
+            first_micro_gradients = copied(gradients)
+        for name, value in named.items():
+            torch.testing.assert_close(value, before_parameters[name], rtol=0, atol=0)
+            if (id(value), value.data_ptr()) != bindings[name]:
+                raise AssertionError("A microbatch changed a parameter binding")
+            if ("momentum_buffer" in optimizer.state[value]) != had_momentum[name]:
+                raise AssertionError("A microbatch changed optimizer state before its update")
+            if had_momentum[name]:
+                torch.testing.assert_close(optimizer.state[value]["momentum_buffer"],
+                                           before_momentum[name], rtol=0, atol=0)
+        unchanged(inputs, input_before)
+        calls_after = len(hook_state["events"]) if hook_state is not None else 0
+        delta = calls_after - calls_before
+        if distributed:
+            expected_calls = 1 if micro == 1 or mode == "eager_sync" else 0
+            if delta != expected_calls:
+                raise AssertionError("The fixed 25-scalar model used an unexpected gradient-bucket reduction count")
+            for event in hook_state["events"][calls_before:calls_after]:
+                if event["scalars"] != 25 or event["dtype"] != str(raw.dtype):
+                    raise AssertionError("The observed gradient bucket differs from this fixed model")
+        metric_sum += local_sse.detach()
+        micro_records.append({"predictions": predictions.detach().clone(),
+                              "pooled": pooled.detach().clone(),
+                              "raw_gradients": raw.grad.detach().clone(),
+                              "parameter_gradients_after_backward": gradients,
+                              "local_sse": local_sse.detach().clone(),
+                              "local_backward_loss": loss.detach().clone(),
+                              "local_groups": batch["targets"].numel(),
+                              "global_groups": observed_micro_counts[micro],
+                              "hook_calls": delta, "input_unchanged": True,
+                              "parameters_and_momentum_unchanged_before_step": True})
+    gradients = {name: value.grad.detach().clone() for name, value in named.items()}
+    if distributed:
+        dist.all_reduce(metric_sum, op=dist.ReduceOp.SUM)
+    optimizer.step()
+    after_parameters = copied(named)
+    momentum = {name: optimizer.state[value]["momentum_buffer"].detach().clone()
+                for name, value in named.items()}
+    for name, value in named.items():
+        expected_momentum = before_momentum[name] * SGD_OPTIONS["momentum"] + gradients[name]
+        expected_parameter = before_parameters[name].clone()
+        expected_parameter.add_(expected_momentum, alpha=-SGD_OPTIONS["lr"])
+        torch.testing.assert_close(momentum[name], expected_momentum, rtol=0, atol=0)
+        torch.testing.assert_close(value, expected_parameter, rtol=0, atol=0)
+        if (id(value), value.data_ptr()) != bindings[name]:
+            raise AssertionError("An optimizer step replaced a parameter binding")
+        if torch.equal(value, before_parameters[name]):
+            raise AssertionError(f"A window update did not change parameter block: {name}")
+    _parameter_bindings(model, optimizer)
+    return {"microbatches": micro_records,
+            "first_micro_parameter_gradients": first_micro_gradients,
+            "parameter_gradients": gradients, "parameters": after_parameters,
+            "momentum": momentum, "global_groups": observed_groups,
+            "global_micro_groups": observed_micro_counts,
+            "local_groups": sum(batch["targets"].numel() for batch in microbatches),
+            "metric": metric_sum / observed_groups,
+            "optimizer_steps": 1, "zero_grad_calls": 1,
+            "bindings_unchanged": True, "sgd_recurrence_exact": True,
+            "all_parameter_blocks_changed": True}
+
+
+def _accumulation_oracle(initial, batches, route):
+    model = copy.deepcopy(initial)
+    optimizer = torch.optim.SGD(model.parameters(), **SGD_OPTIONS)
+    steps, first_micro = [], []
+    for window in range(2):
+        global_groups, _ = accumulation_global_counts(batches, window)
+        contributions = []
+        for rank in range(WORLD_SIZE):
+            local = copy.deepcopy(model)
+            batch = accumulation_rank_batch(batches, window, 0, rank)
+            raw = batch["raw"].detach().clone().requires_grad_(True)
+            predictions, pooled = local(raw, batch["offsets"], batch["boundaries"], "primitive")
+            local_sse = (predictions - batch["targets"]).square().sum()
+            # This is the local contribution before any DDP reduction.
+            (local_sse * (WORLD_SIZE / global_groups)).backward()
+            if raw.grad is None or any(value.grad is None for value in local.parameters()):
+                raise AssertionError("The independent first microbatch lost a gradient connection")
+            contributions.append({"parameter_gradients": {
+                name: value.grad.detach().clone() for name, value in local.named_parameters()},
+                "raw_gradients": raw.grad.detach().clone(),
+                "predictions": predictions.detach().clone(), "pooled": pooled.detach().clone()})
+        first_micro.append(contributions)
+        steps.append(_step(model, optimizer, accumulation_global_batch(batches, window), route,
+                           "global_group_mean"))
+    return steps, first_micro
+
+
+def _compare_accumulation(receipts, native, primitive, first_micro, dtype_name, batches):
+    tolerance = ({"rtol": 2e-4, "atol": 2e-6} if dtype_name == "float32"
+                 else {"rtol": 2e-10, "atol": 2e-12})
+    exact = {"rtol": 0, "atol": 0}
+    modes = ("global_window_mean", "eager_sync", "microbatch_mean_control")
+    rank_errors, oracle_errors, worker_errors, local_errors, eager_errors = [], [], [], [], []
+    for window in range(2):
+        rank_record, oracle_record = {}, {}
+        for mode in modes:
+            rank_record[mode] = {field: compare(receipts[0]["routes"][mode][window][field],
+                                                receipts[1]["routes"][mode][window][field], exact)
+                                 for field in ("parameter_gradients", "parameters", "momentum")}
+        for field in ("parameter_gradients", "parameters", "momentum"):
+            oracle_record[field] = compare(native[window][field], primitive[window][field], tolerance)
+        oracle_record["outputs"] = compare(
+            {name: native[window][name] for name in ("predictions", "pooled", "raw_gradients", "metric")},
+            {name: primitive[window][name] for name in ("predictions", "pooled", "raw_gradients", "metric")},
+            tolerance)
+        rank_errors.append(rank_record)
+        oracle_errors.append(oracle_record)
+        for rank in range(WORLD_SIZE):
+            correct = receipts[rank]["routes"]["global_window_mean"][window]
+            eager = receipts[rank]["routes"]["eager_sync"][window]
+            eager_record = {"window": window, "rank": rank}
+            for field in ("parameter_gradients", "parameters", "momentum"):
+                eager_record[field] = compare(correct[field], eager[field], tolerance)
+            eager_record["microbatches"] = [compare(
+                {name: correct["microbatches"][micro][name]
+                 for name in ("predictions", "pooled", "raw_gradients")},
+                {name: eager["microbatches"][micro][name]
+                 for name in ("predictions", "pooled", "raw_gradients")}, tolerance)
+                for micro in range(2)]
+            eager_errors.append(eager_record)
+            local_errors.append({"window": window, "rank": rank,
+                                 "parameter_gradients": compare(
+                                     correct["first_micro_parameter_gradients"],
+                                     first_micro[window][rank]["parameter_gradients"], tolerance),
+                                 "outputs": compare({name: correct["microbatches"][0][name]
+                                                     for name in ("raw_gradients", "predictions", "pooled")},
+                                                    {name: first_micro[window][rank][name]
+                                                     for name in ("raw_gradients", "predictions", "pooled")},
+                                                    tolerance)})
+        raw_start = group_start = 0
+        for micro in range(2):
+            for rank in range(WORLD_SIZE):
+                batch = accumulation_rank_batch(batches, window, micro, rank)
+                worker = receipts[rank]["routes"]["global_window_mean"][window]
+                observed = worker["microbatches"][micro]
+                raw_stop = raw_start + batch["raw"].shape[0]
+                group_stop = group_start + batch["targets"].shape[0]
+                if (observed["local_groups"] != batch["targets"].numel()
+                        or worker["global_groups"] != native[window]["global_groups"]):
+                    raise AssertionError("Accumulated worker group counts differ from the fixture")
+                record = {"window": window, "microbatch": micro, "rank": rank}
+                for label, oracle in (("native", native[window]), ("primitive", primitive[window])):
+                    expected = {"predictions": oracle["predictions"][group_start:group_stop],
+                                "pooled": oracle["pooled"][group_start:group_stop],
+                                "raw_gradients": oracle["raw_gradients"][raw_start:raw_stop] * WORLD_SIZE}
+                    record[label] = {"outputs": compare({name: observed[name] for name in expected},
+                                                          expected, tolerance),
+                                     "metric": compare({"metric": worker["metric"]},
+                                                       {"metric": oracle["metric"]}, tolerance)}
+                    for field in ("parameter_gradients", "parameters", "momentum"):
+                        record[label][field] = compare(worker[field], oracle[field], tolerance)
+                worker_errors.append(record)
+                raw_start, group_start = raw_stop, group_stop
+    controls = []
+    threshold = 1e-8 if dtype_name == "float32" else 1e-11
+    for rank, receipt in enumerate(receipts):
+        correct = receipt["routes"]["global_window_mean"]
+        wrong = receipt["routes"]["microbatch_mean_control"]
+        first_forward = [compare({name: correct[0]["microbatches"][micro][name]
+                                  for name in ("predictions", "pooled")},
+                                 {name: wrong[0]["microbatches"][micro][name]
+                                  for name in ("predictions", "pooled")}, exact)
+                         for micro in range(2)]
+        drift = {field: [max(maximum_difference(correct[window][field][name],
+                                                wrong[window][field][name])
+                              for name in PARAMETER_NAMES) for window in range(2)]
+                 for field in ("parameter_gradients", "parameters", "momentum")}
+        if not all(value > threshold for values in drift.values() for value in values):
+            raise AssertionError("The microbatch-mean control did not change the optimizer trajectory")
+        controls.append({"rank": rank, "first_window_forward_exact": first_forward,
+                         "max_absolute_drift": drift, "required_drift_greater_than": threshold})
+    return {"tolerance": tolerance, "raw_input_gradient_scale": WORLD_SIZE,
+            "rank_equality": rank_errors, "native_vs_primitive": oracle_errors,
+            "worker_vs_oracle": worker_errors, "first_micro_vs_local_primitive": local_errors,
+            "eager_sync_vs_accumulation": eager_errors, "microbatch_mean_controls": controls}
+
+
 def _json_value(value):
     if isinstance(value, torch.Tensor):
         return {"shape": list(value.shape), "dtype": str(value.dtype),
@@ -342,7 +670,7 @@ def installed_identity(wheel=None):
     return result
 
 
-def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank):
+def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulate=False):
     # These are fresh interpreters. No shared parent tensors or work queues are used.
     log = Path(directory) / f"worker-{rank}.log"
     receipt = Path(directory) / f"worker-{rank}.json"
@@ -378,21 +706,38 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank):
                                     rank=rank, world_size=WORLD_SIZE,
                                     timeout=timedelta(seconds=GROUP_TIMEOUT_SECONDS))
             initialized = True
-            initial, batches, fixture_digest = fixture(dtype_name)
+            make_fixture = accumulation_fixture if accumulate else fixture
+            initial, batches, fixture_digest = make_fixture(dtype_name)
             template_before = snapshot(dict(initial.named_parameters()))
-            fixture_inputs = {f"{step}-{peer}-{name}": value
-                              for step, ranks in enumerate(batches)
-                              for peer, batch in enumerate(ranks)
-                              for name, value in batch.items() if isinstance(value, torch.Tensor)}
+            if accumulate:
+                fixture_inputs = _accumulation_fixture_inputs(batches)
+            else:
+                fixture_inputs = {f"{step}-{peer}-{name}": value
+                                  for step, ranks in enumerate(batches)
+                                  for peer, batch in enumerate(ranks)
+                                  for name, value in batch.items() if isinstance(value, torch.Tensor)}
             fixture_before = snapshot(fixture_inputs)
-            routes = {}
-            for mode in ("global_group_mean", "local_mean_control"):
+            routes, communication = {}, {}
+            modes = (("global_window_mean", "eager_sync", "microbatch_mean_control") if accumulate
+                     else ("global_group_mean", "local_mean_control"))
+            for mode in modes:
                 model = copy.deepcopy(initial)
                 ddp = DistributedDataParallel(model, device_ids=None,
                                               find_unused_parameters=False)
                 optimizer = torch.optim.SGD(model.parameters(), **SGD_OPTIONS)
-                routes[mode] = [_step(ddp, optimizer, rank_batch(batches, step, rank),
-                                     "native", mode, distributed=True) for step in range(2)]
+                if accumulate:
+                    hook_state = {"group": dist.group.WORLD, "events": [],
+                                  "window": None, "microbatch": None}
+                    ddp.register_comm_hook(hook_state, _counted_allreduce)
+                    routes[mode] = [_accumulation_step(
+                        ddp, optimizer,
+                        [accumulation_rank_batch(batches, window, micro, rank) for micro in range(2)],
+                        window=window, mode=mode, hook_state=hook_state, distributed=True)
+                        for window in range(2)]
+                    communication[mode] = hook_state["events"]
+                else:
+                    routes[mode] = [_step(ddp, optimizer, rank_batch(batches, step, rank),
+                                         "native", mode, distributed=True) for step in range(2)]
                 del ddp, optimizer, model
             unchanged(dict(initial.named_parameters()), template_before)
             unchanged(fixture_inputs, fixture_before)
@@ -402,6 +747,9 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank):
                            "backend_options_scope": "PyTorch 2.9.1 ProcessGroupGloo._Options bindings",
                            "fixture_sha256": fixture_digest, "routes": routes,
                            "template_unchanged": True, "fixtures_unchanged": True})
+            if accumulate:
+                result.update({"accumulation": True, "communication_hooks": communication,
+                               "communication_scope": "official averaging hook calls for the fixed 25-scalar bucket"})
         except BaseException as error:
             traceback.print_exc()
             result.update({"error_type": type(error).__name__, "error": str(error)})
@@ -443,7 +791,7 @@ def _cleanup_owned(processes):
     return actions
 
 
-def _launch_workers(dtype_name, directory, wheel, fail_rank):
+def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False):
     rendezvous = directory / "gloo-rendezvous"
     if rendezvous.exists():
         raise ValueError("The task-owned rendezvous path must not exist")
@@ -465,7 +813,7 @@ def _launch_workers(dtype_name, directory, wheel, fail_rank):
     started = []
     try:
         for rank in range(WORLD_SIZE):
-            arguments = (rank, dtype_name, str(directory), str(rendezvous), wheel, fail_rank)
+            arguments = (rank, dtype_name, str(directory), str(rendezvous), wheel, fail_rank, accumulate)
             code = ("import runpy; runpy.run_path(" + repr(str(Path(__file__).resolve()))
                     + ")['_worker'](*" + repr(arguments) + ")")
             with (directory / f"bootstrap-{rank}.log").open("xb") as stream:
@@ -638,12 +986,81 @@ def run(dtype_name, directory, wheel=None, fail_rank=None):
     return result
 
 
+def _accumulation_fixture_inputs(batches):
+    return {f"{window}-{micro}-{rank}-{name}": value
+            for window, micros in enumerate(batches)
+            for micro, ranks in enumerate(micros)
+            for rank, batch in enumerate(ranks)
+            for name, value in batch.items() if isinstance(value, torch.Tensor)}
+
+
+def run_accumulation(dtype_name, directory, wheel=None, fail_rank=None):
+    if sys.platform != "linux":
+        raise RuntimeError(
+            "The two-rank Gloo consumer is qualified on Linux only; the tested "
+            "Windows PyTorch 2.9.1+cpu wheel did not provide a usable loopback transport")
+    directory = Path(directory).resolve()
+    directory.mkdir(parents=True, exist_ok=False)
+    for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                 "NUMEXPR_NUM_THREADS", "TORCH_NUM_THREADS"):
+        os.environ[name] = "1"
+    lifecycle, receipts = _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=True)
+    if receipts is None:
+        result = {"status": "failed", "dtype": dtype_name, "accumulation": True,
+                  "lifecycle": lifecycle, "deliberate_failure_rank": fail_rank}
+        _write_json(directory / "parent.json", result)
+        return result
+    # The complete global and local primitive oracles run after both workers exit.
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+    identity = installed_identity(wheel)
+    initial, batches, fixture_digest = accumulation_fixture(dtype_name)
+    template_before = snapshot(dict(initial.named_parameters()))
+    fixture_inputs = _accumulation_fixture_inputs(batches)
+    fixture_before = snapshot(fixture_inputs)
+    native, native_first_micro = _accumulation_oracle(initial, batches, "native")
+    primitive, primitive_first_micro = _accumulation_oracle(initial, batches, "primitive")
+    unchanged(dict(initial.named_parameters()), template_before)
+    unchanged(fixture_inputs, fixture_before)
+    for receipt in receipts:
+        if (receipt["fixture_sha256"] != fixture_digest or receipt["identity"] != identity
+                or receipt.get("accumulation") is not True):
+            raise AssertionError("Accumulation workers and parent used different fixtures or installed bytes")
+    comparison = _compare_accumulation(receipts, native, primitive, primitive_first_micro,
+                                       dtype_name, batches)
+    result = {"status": "passed", "dtype": dtype_name, "seed": SEED,
+              "accumulation": True, "world_size": WORLD_SIZE, "device": "cpu",
+              "backend": "ragged_gloo_loopback", "windows": 2, "microbatches_per_window": 2,
+              "global_group_counts": [accumulation_global_counts(batches, window)[0]
+                                      for window in range(2)],
+              "global_micro_group_counts": [accumulation_global_counts(batches, window)[1]
+                                            for window in range(2)],
+              "local_micro_group_counts": [[[accumulation_rank_batch(batches, window, micro, rank)
+                                               ["targets"].numel() for rank in range(WORLD_SIZE)]
+                                             for micro in range(2)] for window in range(2)],
+              "transport_scope": "single host; Gloo device hostname 127.0.0.1; file rendezvous",
+              "gloo_threads_per_worker": 1,
+              "backend_options_scope": "public custom-backend registry; pinned PyTorch 2.9.1 Gloo _Options bindings",
+              "communication_scope": "official averaging hook calls for one fixed 25-scalar bucket; excludes count and metric collectives",
+              "parameter_names": PARAMETER_NAMES, "parameter_scalar_count": 25,
+              "sgd_options": SGD_OPTIONS, "identity": identity, "fixture_sha256": fixture_digest,
+              "lifecycle": lifecycle, "comparison": comparison, "workers": receipts,
+              "oracles": {"native": native, "primitive": primitive,
+                          "local_first_micro_at_native_state": native_first_micro,
+                          "local_first_micro_at_primitive_state": primitive_first_micro},
+              "template_unchanged": True, "fixtures_unchanged": True}
+    _write_json(directory / "parent.json", result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dtype", choices=tuple(DTYPES), required=True)
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--accumulate", action="store_true",
+                        help="Check two microbatches per update, delayed gradient synchronization and whole-window normalization")
     parser.add_argument("--source-revision")
     parser.add_argument("--source-tree")
     parser.add_argument("--fail-rank", type=int, choices=(0, 1), help=argparse.SUPPRESS)
@@ -658,7 +1075,8 @@ def main():
         parser.error("The output path must be new")
     wheel = arguments.wheel or os.environ.get("RAGGED_WHEEL")
     wheel = str(Path(wheel).resolve(strict=True)) if wheel else None
-    result = run(arguments.dtype, arguments.directory, wheel, arguments.fail_rank)
+    consumer = run_accumulation if arguments.accumulate else run
+    result = consumer(arguments.dtype, arguments.directory, wheel, arguments.fail_rank)
     result["source_labels"] = {"revision": arguments.source_revision,
                                 "tree": arguments.source_tree,
                                 "meaning": "caller-supplied labels; executable script hash is independently recorded"}
