@@ -665,6 +665,65 @@ jobs:
           print('Clipping injected failure control passed: both directly owned workers reaped')
           PY
 
+      - name: Agree on finite gradients before changing the installed CPU update
+        working-directory: ${{ runner.temp }}/ragged-linux-consumer
+        run: |
+          set -euo pipefail
+          python="$RUNNER_TEMP/ragged-linux-accept-env/bin/python"
+          tree="$(git -C "$GITHUB_WORKSPACE" rev-parse 'HEAD^{tree}')"
+          for dtype in float32 float64; do
+            "$python" -I -B examples/admit_distributed.py --dtype "$dtype" --directory "$RAGGED_EVIDENCE/admitted-$dtype" --output "$RAGGED_EVIDENCE/admitted-$dtype.json" --wheel "$RAGGED_WHEEL" --source-revision "$RAGGED_REVISION" --source-tree "$tree"
+          done
+          if "$python" -I -B examples/admit_distributed.py --dtype float32 --directory "$RAGGED_EVIDENCE/admitted-failure" --output "$RAGGED_EVIDENCE/admitted-failure.json" --wheel "$RAGGED_WHEEL" --fail-rank 1; then
+            echo 'Injected admission worker failure unexpectedly succeeded'
+            exit 1
+          else
+            test "$?" -eq 1
+          fi
+          "$python" -I - "$RAGGED_EVIDENCE" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          failed = json.loads((root / 'admitted-failure.json').read_text())
+          rank = json.loads((root / 'admitted-failure/normal/worker-1.json').read_text())
+          assert failed['status'] == 'failed' and failed['deliberate_failure_rank'] == 1
+          assert 'oracles' not in failed and 'comparison' not in failed
+          assert set(failed['cohorts']) == {'normal'}
+          life = failed['cohorts']['normal']['lifecycle']
+          assert life['all_owned_workers_reaped'] and len(life['owned_processes']) == 2
+          assert all(not p['alive'] and p['exitcode'] not in (None, 0) for p in life['owned_processes'])
+          assert rank['status'] == 'error' and rank['error_type'] == 'RuntimeError'
+          assert rank['error'] == 'Deliberate owned-worker failure before Gloo initialization'
+          for dtype in ('float32', 'float64'):
+              result = json.loads((root / f'admitted-{dtype}.json').read_text())
+              assert result['status'] == 'passed' and result['dtype'] == dtype
+              assert result['admission_caps'] == [0.25, 0.1]
+              assert result['global_group_counts'] == [9, 5]
+              assert set(result['cohorts']) == {'normal', 'coordinated', 'local_only'}
+              for scenario, cohort in result['cohorts'].items():
+                  life = cohort['lifecycle']
+                  assert life['all_owned_workers_reaped'] and len(life['owned_processes']) == 2
+                  assert all(not p['alive'] and p['exitcode'] == 0 for p in life['owned_processes'])
+                  assert len(cohort['workers']) == 2
+                  for worker in cohort['workers']:
+                      rank = worker['rank']
+                      assert worker['completed_optimizer_steps'] == (2 if scenario == 'normal' else 1)
+                      windows = worker['routes']['global']
+                      assert len(windows) == 2
+                      for index, window in enumerate(windows):
+                          assert [micro['hook_calls'] for micro in window['microbatches']] == [0, 1]
+                          assert window['admission']['admission_scalar_collectives'] == int(scenario != 'local_only')
+                          expected_bad = int(index == 1 and scenario != 'normal' and (scenario == 'coordinated' or rank == 1))
+                          assert window['admission']['bad_count'] == expected_bad
+                      terminal = windows[1]
+                      if scenario != 'normal':
+                          assert terminal['optimizer_steps'] == terminal['post_gate_metric_collectives'] == 0
+                          assert terminal['clip_calls'] == int(scenario == 'local_only' and rank == 0)
+              print('Admission distributed result', json.dumps({'dtype': dtype,
+                  'identity': result['identity'], 'source_labels': result['source_labels'],
+                  'comparison': result['comparison'], 'all_owned_workers_reaped': True}, sort_keys=True))
+          print('Admission injected failure control passed: both directly owned workers reaped')
+          PY
+
       - name: Train and export the selected model, then predict in a fresh process
         working-directory: ${{ runner.temp }}/ragged-linux-consumer
         run: |

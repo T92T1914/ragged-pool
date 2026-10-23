@@ -43,6 +43,7 @@ PARAMETER_NAMES = ("encoder.weight", "encoder.bias", "scorer.weight",
                    "head.weight", "head.bias")
 PARAMETER_SHAPES = ((4, 3), (4,), (1, 4), (1, 4), (1,))
 CLIP_CAPS = (0.25, 2.0)
+ADMISSION_CAPS = (0.25, 0.1)
 SGD_OPTIONS = {"lr": 0.03, "momentum": 0.8, "dampening": 0,
                "weight_decay": 0, "nesterov": False, "maximize": False,
                "foreach": False, "differentiable": False, "fused": False}
@@ -463,10 +464,95 @@ def clip_parameter_gradients(model, optimizer, max_norm, rule="global", distribu
             "bindings_unchanged": True, "parameters_and_momentum_unchanged": True}
 
 
+def _admission_gradients(model, optimizer):
+    try:
+        named = _parameter_bindings(model, optimizer)
+    except AssertionError as error:
+        raise ValueError("Admission requires the fixed ordered CPU model") from error
+    dtype = next(iter(named.values())).dtype
+    gradients = {}
+    for (name, parameter), shape in zip(named.items(), PARAMETER_SHAPES):
+        value = parameter.grad
+        if (tuple(parameter.shape) != shape or dtype not in DTYPES.values()
+                or parameter.dtype != dtype or value is None or type(value) is not torch.Tensor
+                or value.shape != parameter.shape or value.dtype != dtype
+                or value.device.type != "cpu" or value.layout != torch.strided
+                or not value.is_contiguous() or torch.is_inference(value)
+                or value.is_conj() or value.is_neg() or value.requires_grad):
+            raise ValueError("Finite admission requires five fixed dense contiguous CPU gradient blocks")
+        gradients[name] = value
+    return named, gradients
+
+
+def probe_parameter_gradients(model, optimizer):
+    """Inspect numerical validity without throwing for NaN, infinity or norm overflow."""
+    import math
+    _, gradients = _admission_gradients(model, optimizer)
+    invalid = []
+    for name, gradient in gradients.items():
+        for index, value in enumerate(gradient.detach().reshape(-1).tolist()):
+            if not math.isfinite(value):
+                kind = "nan" if math.isnan(value) else ("posinf" if value > 0 else "neginf")
+                invalid.append({"name": name, "flat_index": index, "kind": kind})
+    norm = torch.nn.utils.get_total_norm(list(gradients.values()), norm_type=2.0,
+                                        error_if_nonfinite=False, foreach=False)
+    value = float(norm)
+    norm_finite = math.isfinite(value)
+    norm_kind = "finite" if norm_finite else ("nan" if math.isnan(value) else
+                                              ("posinf" if value > 0 else "neginf"))
+    return {"finite_elements": not invalid, "joint_norm_finite": norm_finite,
+            "local_bad": int(bool(invalid) or not norm_finite),
+            "joint_norm_value": value if norm_finite else None, "joint_norm_kind": norm_kind,
+            "nonfinite_elements": invalid}
+
+
+def admit_parameter_gradients(model, optimizer, distributed=False, coordinated=True, peer_bad=0):
+    """Vote on one numerical boundary, using a single integer SUM when coordinated."""
+    if type(distributed) is not bool or type(coordinated) is not bool or type(peer_bad) is not int or peer_bad not in (0, 1):
+        raise ValueError("Expected boolean gate modes and one explicit serial peer bit")
+    if distributed and peer_bad:
+        raise ValueError("A real distributed vote cannot use a simulated peer bit")
+    result = probe_parameter_gradients(model, optimizer)
+    count = result["local_bad"]
+    collectives = 0
+    if coordinated:
+        if distributed:
+            import torch.distributed as dist
+            vote = torch.tensor(count, dtype=torch.int64, device="cpu")
+            dist.all_reduce(vote, op=dist.ReduceOp.SUM, async_op=False)
+            count = int(vote)
+            collectives = 1
+        else:
+            count += peer_bad
+    result.update({"bad_count": count, "admitted": count == 0,
+                   "admission_scalar_collectives": collectives, "coordinated": coordinated,
+                   "serial_peer_bad": None if distributed else peer_bad})
+    return result
+
+
+def _byte_description(value):
+    return {"shape": list(value.shape), "dtype": str(value.dtype), "object_id": id(value),
+            "storage_pointer": value.untyped_storage().data_ptr(), "version": value._version,
+            "hex": value.detach().view(torch.uint8).numpy().tobytes().hex()}
+
+
+def gradient_byte_snapshot(model, optimizer):
+    _, gradients = _admission_gradients(model, optimizer)
+    return {name: _byte_description(value) for name, value in gradients.items()}
+
+
+def training_state_byte_snapshot(model, optimizer):
+    named = _parameter_bindings(model, optimizer)
+    return {"parameters": {name: _byte_description(value) for name, value in named.items()},
+            "momentum": {name: (_byte_description(optimizer.state[value]["momentum_buffer"])
+                                  if "momentum_buffer" in optimizer.state.get(value, {}) else None)
+                         for name, value in named.items()}}
+
+
 def _accumulation_step(model, optimizer, microbatches, window=0,
                        mode="global_window_mean", hook_state=None, route="native",
                        distributed=False, global_groups=None, micro_global_groups=None,
-                       clipping=None):
+                       clipping=None, admission=None, inject_nonfinite=False):
     """Accumulate exactly two connected backwards, then take one momentum update."""
     if len(microbatches) != 2:
         raise ValueError("Expected exactly two microbatches in one update")
@@ -476,6 +562,12 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
         raise ValueError("Unknown accumulation objective mode")
     if clipping not in (None, "global", "replica_norm_control"):
         raise ValueError("Unknown optional clipping rule")
+    if admission not in (None, "normal", "coordinated", "local_only") or type(inject_nonfinite) is not bool:
+        raise ValueError("Unknown optional finite-admission protocol")
+    if admission is not None and clipping != "global":
+        raise ValueError("The finite-admission protocol uses the declared global clipping rule")
+    if inject_nonfinite and (admission not in ("coordinated", "local_only") or window != 1):
+        raise ValueError("The deliberate nonfinite control belongs to the second control window")
     named = _parameter_bindings(model, optimizer)
     bindings = {name: (id(value), value.data_ptr()) for name, value in named.items()}
     before_parameters = copied(named)
@@ -556,7 +648,50 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
                               "global_groups": observed_micro_counts[micro],
                               "hook_calls": delta, "input_unchanged": True,
                               "parameters_and_momentum_unchanged_before_step": True})
-    clip_record = (clip_parameter_gradients(model, optimizer, CLIP_CAPS[window], clipping, distributed)
+    gate_record = None
+    if admission is not None:
+        pre_injection = {name: value.grad.detach().clone() for name, value in named.items()}
+        if inject_nonfinite:
+            named["head.bias"].grad.view(-1)[0] = float("nan")
+        gradients_before_gate = gradient_byte_snapshot(model, optimizer)
+        state_before_gate = training_state_byte_snapshot(model, optimizer)
+        gate_record = admit_parameter_gradients(model, optimizer, distributed,
+                                                coordinated=admission != "local_only")
+        gradients_after_gate = gradient_byte_snapshot(model, optimizer)
+        state_after_gate = training_state_byte_snapshot(model, optimizer)
+        if gradients_before_gate != gradients_after_gate or state_before_gate != state_after_gate:
+            raise AssertionError("The finite-admission vote mutated a gradient or training state")
+        if not gate_record["admitted"] or admission == "local_only" and window == 1:
+            local_clip = (clip_parameter_gradients(model, optimizer, ADMISSION_CAPS[window], "global", distributed)
+                          if gate_record["admitted"] else None)
+            final_gradients = gradient_byte_snapshot(model, optimizer)
+            final_state = training_state_byte_snapshot(model, optimizer)
+            if final_state != state_before_gate:
+                raise AssertionError("A terminal admission control changed parameters or momentum")
+            if not gate_record["admitted"] and final_gradients != gradients_before_gate:
+                raise AssertionError("A numerical refusal changed post-injection gradient bytes or ownership")
+            result = {"status": "local_only_stopped" if gate_record["admitted"] else "refused",
+                      "window": window, "admission": gate_record,
+                      "microbatches": micro_records, "first_micro_parameter_gradients": first_micro_gradients,
+                      "pre_injection_parameter_gradients": pre_injection,
+                      "injection": ({"name": "head.bias", "flat_index": 0, "kind": "nan"}
+                                    if inject_nonfinite else None),
+                      "gradient_bytes_before_gate": gradients_before_gate,
+                      "gradient_bytes_after_gate": gradients_after_gate,
+                      "gradient_bytes_at_stop": final_gradients,
+                      "training_state_before_gate": state_before_gate,
+                      "training_state_after_gate": state_after_gate,
+                      "training_state_at_stop": final_state,
+                      "parameters": copied(named),
+                      "momentum": {name: optimizer.state[value]["momentum_buffer"].detach().clone()
+                                   for name, value in named.items()},
+                      "optimizer_steps": 0, "clip_calls": int(local_clip is not None),
+                      "post_gate_metric_collectives": 0, "norm_scalar_collectives": 0}
+            if local_clip is not None:
+                result["clipping"] = local_clip
+            return result
+    cap = ADMISSION_CAPS[window] if admission is not None else CLIP_CAPS[window]
+    clip_record = (clip_parameter_gradients(model, optimizer, cap, clipping, distributed)
                    if clipping is not None else None)
     gradients = {name: value.grad.detach().clone() for name, value in named.items()}
     if distributed:
@@ -588,6 +723,14 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
             "all_parameter_blocks_changed": True}
     if clip_record is not None:
         result["clipping"] = clip_record
+    if gate_record is not None:
+        result.update({"status": "updated", "window": window, "admission": gate_record,
+                       "pre_injection_parameter_gradients": pre_injection,
+                       "gradient_bytes_before_gate": gradients_before_gate,
+                       "gradient_bytes_after_gate": gradients_after_gate,
+                       "training_state_before_gate": state_before_gate,
+                       "training_state_after_gate": state_after_gate, "injection": None,
+                       "clip_calls": 1, "post_gate_metric_collectives": int(distributed)})
     return result
 
 
@@ -796,7 +939,8 @@ def installed_identity(wheel=None):
     return result
 
 
-def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulate=False, clipping=False):
+def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulate=False, clipping=False,
+            admission=None):
     # These are fresh interpreters. No shared parent tensors or work queues are used.
     log = Path(directory) / f"worker-{rank}.log"
     receipt = Path(directory) / f"worker-{rank}.json"
@@ -821,6 +965,11 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
                     raise ValueError("The clipping protocol requires accumulation")
                 identity["clip_consumer_sha256"] = sha256(
                     Path(__file__).resolve().with_name("clip_distributed.py").read_bytes()).hexdigest()
+            if admission is not None:
+                if admission not in ("normal", "coordinated", "local_only") or not clipping:
+                    raise ValueError("The finite-admission worker needs its declared accumulation/clipping protocol")
+                identity["admit_consumer_sha256"] = sha256(
+                    Path(__file__).resolve().with_name("admit_distributed.py").read_bytes()).hexdigest()
 
             def loopback_gloo(store, process_rank, size, timeout):
                 # register_backend is public. These Gloo options are pinned 2.9.1
@@ -849,9 +998,9 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
                                   for name, value in batch.items() if isinstance(value, torch.Tensor)}
             fixture_before = snapshot(fixture_inputs)
             routes, communication = {}, {}
-            modes = (("global", "replica_norm_control") if clipping else
+            modes = (("global",) if admission is not None else (("global", "replica_norm_control") if clipping else
                      (("global_window_mean", "eager_sync", "microbatch_mean_control") if accumulate
-                      else ("global_group_mean", "local_mean_control")))
+                      else ("global_group_mean", "local_mean_control"))))
             for mode in modes:
                 model = copy.deepcopy(initial)
                 ddp = DistributedDataParallel(model, device_ids=None,
@@ -861,13 +1010,26 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
                     hook_state = {"group": dist.group.WORLD, "events": [],
                                   "window": None, "microbatch": None}
                     ddp.register_comm_hook(hook_state, _counted_allreduce)
-                    routes[mode] = [_accumulation_step(
-                        ddp, optimizer,
-                        [accumulation_rank_batch(batches, window, micro, rank) for micro in range(2)],
-                        window=window, mode="global_window_mean" if clipping else mode,
-                        hook_state=hook_state, distributed=True,
-                        clipping=mode if clipping else None)
-                        for window in range(2)]
+                    if admission is None:
+                        routes[mode] = [_accumulation_step(
+                            ddp, optimizer,
+                            [accumulation_rank_batch(batches, window, micro, rank) for micro in range(2)],
+                            window=window, mode="global_window_mean" if clipping else mode,
+                            hook_state=hook_state, distributed=True,
+                            clipping=mode if clipping else None)
+                            for window in range(2)]
+                    else:
+                        routes[mode] = []
+                        for window in range(2):
+                            step = _accumulation_step(
+                                ddp, optimizer,
+                                [accumulation_rank_batch(batches, window, micro, rank) for micro in range(2)],
+                                window=window, mode="global_window_mean", hook_state=hook_state,
+                                distributed=True, clipping="global", admission=admission,
+                                inject_nonfinite=admission != "normal" and window == 1 and rank == 1)
+                            routes[mode].append(step)
+                            if step["status"] != "updated":
+                                break
                     communication[mode] = hook_state["events"]
                 else:
                     routes[mode] = [_step(ddp, optimizer, rank_batch(batches, step, rank),
@@ -887,6 +1049,11 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
             if clipping:
                 result.update({"global_clipping": True, "clipping_caps": CLIP_CAPS,
                                "clipping_scope": "joint replicated parameter vector after the final synchronized backward"})
+            if admission is not None:
+                terminal = routes["global"][-1]
+                result.update({"status": "passed" if terminal["status"] == "updated" else terminal["status"],
+                               "admission_scenario": admission, "clipping_caps": ADMISSION_CAPS,
+                               "completed_optimizer_steps": sum(step["optimizer_steps"] for step in routes["global"])})
         except BaseException as error:
             traceback.print_exc()
             result.update({"error_type": type(error).__name__, "error": str(error)})
@@ -928,7 +1095,7 @@ def _cleanup_owned(processes):
     return actions
 
 
-def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False, clipping=False):
+def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False, clipping=False, admission=None):
     rendezvous = directory / "gloo-rendezvous"
     if rendezvous.exists():
         raise ValueError("The task-owned rendezvous path must not exist")
@@ -953,6 +1120,10 @@ def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False, c
             arguments = (rank, dtype_name, str(directory), str(rendezvous), wheel, fail_rank, accumulate)
             if clipping:
                 arguments += (True,)
+            if admission is not None:
+                if not clipping or admission not in ("normal", "coordinated", "local_only"):
+                    raise ValueError("The launcher needs one declared finite-admission scenario")
+                arguments += (admission,)
             code = ("import runpy; runpy.run_path(" + repr(str(Path(__file__).resolve()))
                     + ")['_worker'](*" + repr(arguments) + ")")
             with (directory / f"bootstrap-{rank}.log").open("xb") as stream:
@@ -998,9 +1169,13 @@ def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False, c
         return lifecycle, None
     receipts = [_read_json(directory / f"worker-{rank}.json") for rank in range(WORLD_SIZE)]
     for rank, result in enumerate(receipts):
-        if (result["status"] != "passed" or result["rank"] != rank
+        expected_status = ("refused" if admission == "coordinated" else
+                           ("local_only_stopped" if rank == 0 else "refused")
+                           if admission == "local_only" else "passed")
+        if (result["status"] != expected_status or result["rank"] != rank
                 or result["pid"] != started[rank].pid or result["parent_pid"] != os.getpid()
-                or not result["process_group_destroyed"]):
+                or not result["process_group_destroyed"]
+                or admission is not None and result.get("admission_scenario") != admission):
             raise AssertionError("Worker receipt does not match its directly owned process")
     return lifecycle, receipts
 
