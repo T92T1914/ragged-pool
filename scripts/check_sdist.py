@@ -50,6 +50,7 @@ FIXED_FILES = (
     'docs/distributed-accumulation.md',
     'docs/distributed-resume.md',
     'docs/distributed-clipping.md',
+    'docs/distributed-admission.md',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',
