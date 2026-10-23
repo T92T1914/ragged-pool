@@ -43,6 +43,8 @@ FIXED_FILES = (
     'scripts/check_activation_receipt.py',
     'docs/coinstallation.md',
     'docs/results/coinstallation-cu128.json',
+    'docs/cross-device-resume.md',
+    'docs/results/cross-device-resume.json',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

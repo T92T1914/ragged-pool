@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "status": "execution-pending",
+  "scope": "One deterministic trusted local CPU/CUDA model and SGD momentum handoff",
+  "source_updates": 2,
+  "fresh_target_updates": 2,
+  "directions": ["cpu-to-cuda", "cuda-to-cpu"],
+  "dtypes": ["float32", "float64"],
+  "new_native_build": false,
+  "actual_installed_handoff": "pending"
+}
