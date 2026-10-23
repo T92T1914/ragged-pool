@@ -1,8 +1,9 @@
 """Check one two-rank CPU DDP objective against complete global-batch training.
 
 Run a copied script outside the checkout with the ordinary installed CPU wheel.
-The fixed consumer uses two owned local Gloo workers and two momentum updates.
-It measures agreement, not training quality, speed, fault tolerance or security.
+This consumer qualifies one Linux PyTorch 2.9.1+cpu route. It uses two owned
+local Gloo workers and two momentum updates. It measures agreement, not training
+quality, speed, fault tolerance or security.
 """
 import argparse
 import copy
@@ -587,6 +588,10 @@ def _compare_results(receipts, native, primitive, dtype_name, batches):
 
 
 def run(dtype_name, directory, wheel=None, fail_rank=None):
+    if sys.platform != "linux":
+        raise RuntimeError(
+            "The two-rank Gloo consumer is qualified on Linux only; the tested "
+            "Windows PyTorch 2.9.1+cpu wheel did not provide a usable loopback transport")
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, exist_ok=False)
     for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",

@@ -467,6 +467,34 @@ jobs:
           for dtype in float32 float64; do
             "$python" -I -B examples/train_distributed.py --dtype "$dtype" --directory "$RAGGED_EVIDENCE/distributed-$dtype" --output "$RAGGED_EVIDENCE/distributed-$dtype.json" --wheel "$RAGGED_WHEEL" --source-revision "$RAGGED_REVISION" --source-tree "$tree"
           done
+          if "$python" -I -B examples/train_distributed.py --dtype float32 --directory "$RAGGED_EVIDENCE/distributed-failure" --output "$RAGGED_EVIDENCE/distributed-failure.json" --wheel "$RAGGED_WHEEL" --fail-rank 1; then
+            echo 'Injected worker failure unexpectedly succeeded'
+            exit 1
+          else
+            test "$?" -eq 1
+          fi
+          "$python" -I - "$RAGGED_EVIDENCE" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          failed = json.loads((root / 'distributed-failure.json').read_text())
+          rank = json.loads((root / 'distributed-failure/worker-1.json').read_text())
+          assert failed['status'] == 'failed' and failed['deliberate_failure_rank'] == 1
+          assert 'oracles' not in failed
+          assert failed['lifecycle']['all_owned_workers_reaped']
+          owned = failed['lifecycle']['owned_processes']
+          assert len(owned) == 2 and all(not p['alive'] and p['exitcode'] not in (None, 0) for p in owned)
+          assert rank['status'] == 'error' and rank['error_type'] == 'RuntimeError'
+          assert rank['error'] == 'Deliberate owned-worker failure before Gloo initialization'
+          for dtype in ('float32', 'float64'):
+              result = json.loads((root / f'distributed-{dtype}.json').read_text())
+              assert result['status'] == 'passed' and result['global_group_counts'] == [5, 4]
+              print('Distributed result', json.dumps({'dtype': dtype, 'comparison': result['comparison'],
+                  'identity': result['identity'], 'source_labels': result['source_labels'],
+                  'local_group_counts': result['local_group_counts'],
+                  'transport_scope': result['transport_scope'],
+                  'all_owned_workers_reaped': result['lifecycle']['all_owned_workers_reaped']}, sort_keys=True))
+          print('Distributed injected failure control passed: both directly owned workers reaped')
+          PY
 
       - name: Train and export the selected model, then predict in a fresh process
         working-directory: ${{ runner.temp }}/ragged-linux-consumer

@@ -73,6 +73,20 @@ def test_import_does_not_load_native_packages_query_cuda_or_start_distributed_wo
         example()
 
 
+def test_unqualified_windows_run_refuses_before_creating_directory_or_launching_workers(monkeypatch, tmp_path):
+    module = example()
+    destination = tmp_path / "unused-distributed-run"
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("An unqualified platform must not launch distributed workers")
+
+    monkeypatch.setattr(module.sys, "platform", "win32")
+    monkeypatch.setattr(module, "_launch_workers", forbidden)
+    with pytest.raises(RuntimeError, match="qualified on Linux only"):
+        module.run("float32", destination)
+    assert not destination.exists()
+
+
 @pytest.mark.parametrize("dtype_name", ["float32", "float64"])
 def test_fixed_batches_rebase_offsets_and_preserve_rank_inputs(dtype_name):
     module = example()
