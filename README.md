@@ -6,6 +6,8 @@ Groups of feature vectors can contain different numbers of items. `ragged_pool(v
 
 This is a small framework integration and learning project. Ordinary PyTorch composition already expresses the operation. It does not claim a new algorithm, a production requirement or a general performance advantage.
 
+[Read in another language](https://github.com/T92T1914/T92T1914/blob/main/TRANSLATION.md).
+
 <picture>
   <source media="(prefers-color-scheme: dark) and (max-width: 680px)" srcset="docs/ragged-pool-obscur-narrow.png">
   <source media="(max-width: 680px)" srcset="docs/ragged-pool-clair-narrow.png">
