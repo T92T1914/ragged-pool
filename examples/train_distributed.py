@@ -367,7 +367,7 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank):
                 # register_backend is public. These Gloo options are pinned 2.9.1
                 # bindings, used explicitly to avoid an unqualified default NIC.
                 options = dist.ProcessGroupGloo._Options()
-                options._devices = [dist.ProcessGroupGloo.create_device(hostname="127.0.0.1")]
+                options._devices = [dist.ProcessGroupGloo.create_device(hostname="127.0.0.1", lazy_init=False)]
                 options._threads = 1
                 options._timeout = timeout
                 return dist.ProcessGroupGloo(store, process_rank, size, options)
@@ -448,7 +448,7 @@ def _launch_workers(dtype_name, directory, wheel, fail_rank):
     if rendezvous.exists():
         raise ValueError("The task-owned rendezvous path must not exist")
     executable = sys.executable
-    environment = os.environ.copy()
+    environment = dict(os.environ, GLOO_DEVICE_TRANSPORT="TCP", TORCH_GLOO_LAZY_INIT="0")
     creationflags = 0
     launch_route = "direct current interpreter"
     if os.name == "nt":
