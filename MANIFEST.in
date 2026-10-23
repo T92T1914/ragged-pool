@@ -59,3 +59,5 @@ include examples/train_distributed.py
 include docs/distributed-cpu.md
 include docs/results/distributed-cpu.json
 include docs/distributed-accumulation.md
+include examples/resume_distributed.py
+include docs/distributed-resume.md
