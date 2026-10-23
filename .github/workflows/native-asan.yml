@@ -66,6 +66,12 @@ jobs:
           cp scripts/native_campaign.py scripts/check_asan_control.py examples/train_sets.py "$RUNNER_TEMP/ragged-asan-consumer/"
           mkdir "$RUNNER_TEMP/ragged-asan-consumer/scripts"
           cp scripts/check_installed.py scripts/check_sdist.py scripts/check_stochastic_receipt.py scripts/check_activation_receipt.py "$RUNNER_TEMP/ragged-asan-consumer/scripts/"
+          # Read-only source fixtures serve mocked build/loader tests only.
+          # Numerical tests continue importing the ordinary installed package.
+          mkdir -p "$RUNNER_TEMP/ragged-asan-consumer/src/ragged_pool"
+          cp setup.py "$RUNNER_TEMP/ragged-asan-consumer/"
+          cp src/ragged_pool/_build.py src/ragged_pool/__init__.py "$RUNNER_TEMP/ragged-asan-consumer/src/ragged_pool/"
+          chmod a-w "$RUNNER_TEMP/ragged-asan-consumer/setup.py" "$RUNNER_TEMP/ragged-asan-consumer/src/ragged_pool/_build.py" "$RUNNER_TEMP/ragged-asan-consumer/src/ragged_pool/__init__.py"
           mkdir "$RUNNER_TEMP/asan-evidence"
       - name: Qualify the tool with an injected negative control
         working-directory: ${{ runner.temp }}/ragged-asan-consumer

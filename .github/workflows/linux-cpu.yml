@@ -137,6 +137,12 @@ jobs:
           mkdir "$consumer" "$consumer/scripts"
           cp -r "$source/tests" "$source/examples" "$consumer/"
           cp "$source/scripts/check_installed.py" "$source/scripts/check_sdist.py" "$source/scripts/check_stochastic_receipt.py" "$source/scripts/check_activation_receipt.py" "$consumer/scripts/"
+          # Read-only source fixtures serve mocked build/loader tests only.
+          # Numerical tests continue importing the ordinary installed package.
+          mkdir -p "$consumer/src/ragged_pool"
+          cp "$source/setup.py" "$consumer/"
+          cp "$source/src/ragged_pool/_build.py" "$source/src/ragged_pool/__init__.py" "$consumer/src/ragged_pool/"
+          chmod a-w "$consumer/setup.py" "$consumer/src/ragged_pool/_build.py" "$consumer/src/ragged_pool/__init__.py"
 
       - name: Verify installed bytes, licenses and ordinary native dependencies
         working-directory: ${{ runner.temp }}/ragged-linux-consumer

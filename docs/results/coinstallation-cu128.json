@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "status": "execution-pending",
+  "scope": "Explicit CPU cu128 wheel beside unchanged accepted CUDA companion",
+  "default_cpu_pin": "torch==2.9.1+cpu",
+  "explicit_variant_pin": "torch==2.9.1+cu128",
+  "new_native_cpu_build": "pending",
+  "new_native_cuda_build": false,
+  "ordinary_coinstallation": "pending",
+  "installed_mathematical_checks": "pending",
+  "installed_consumer": "pending"
+}

@@ -93,6 +93,15 @@ jobs:
           Copy-Item -LiteralPath scripts\check_installed.py -Destination $work
           New-Item -ItemType Directory -Path (Join-Path $work 'scripts') | Out-Null
           Copy-Item -LiteralPath scripts\check_installed.py,scripts\check_sdist.py,scripts\check_stochastic_receipt.py,scripts\check_activation_receipt.py -Destination (Join-Path $work 'scripts')
+          # Read-only source fixtures serve mocked build/loader tests only.
+          # Numerical tests continue importing the ordinary installed package.
+          $fixtures = Join-Path $work 'src\ragged_pool'
+          New-Item -ItemType Directory -Path $fixtures -Force | Out-Null
+          Copy-Item -LiteralPath setup.py -Destination $work
+          Copy-Item -LiteralPath src\ragged_pool\_build.py,src\ragged_pool\__init__.py -Destination $fixtures
+          foreach ($fixture in @((Join-Path $work 'setup.py'), (Join-Path $fixtures '_build.py'), (Join-Path $fixtures '__init__.py'))) {
+            (Get-Item -LiteralPath $fixture).IsReadOnly = $true
+          }
           "RAGGED_WHEEL=$($wheels[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Check installed identity, mathematics, registration and training

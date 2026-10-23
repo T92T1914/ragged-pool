@@ -41,6 +41,8 @@ FIXED_FILES = (
     'scripts/check_stochastic_receipt.py',
     'docs/activation-checkpointing.md',
     'scripts/check_activation_receipt.py',
+    'docs/coinstallation.md',
+    'docs/results/coinstallation-cu128.json',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',
