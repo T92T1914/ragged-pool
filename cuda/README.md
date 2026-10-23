@@ -2,6 +2,8 @@
 
 This optional companion adds native CUDA forward and backward to the CPU package's pooling problem, with a separate distribution, import and dependency pin. The root CPU installation, operators and broader derivative support retain their own contracts.
 
+A separate [cross-device training handoff](../docs/cross-device-resume.md) restores the fixed model and SGD momentum from CPU to CUDA0 or back, then completes two further updates in a fresh process. Both dtypes passed with the exact co-installed wheels. The example uses explicit caller transfers and preserves earlier saved-artifact contracts.
+
 To use both ordinary packages in one environment, follow the explicit [CPU cu128 build route](../docs/coinstallation.md). Its CPU extension is compiled against this companion's exact `torch==2.9.1+cu128` runtime and its wheel carries build tag `1cu128`. The default CPU-only wheel still requires +cpu, so that original pair has conflicting dependencies. The installed four-route consumer checks two actual updates on CPU and CUDA against independent primitives in both dtypes, with no automatic device movement or broad portability claim.
 
 The Windows `sm_89` route below passed a fresh external wheel installation, 138 functional tests, two eager training updates per dtype, and six bounded Compute Sanitizer runs against the installed native implementation. The [validation record](evidence/windows-sm89-20261021.json) identifies the tested source, wheel and execution cohort. These results qualify that specific route and workload, with the limits described below.

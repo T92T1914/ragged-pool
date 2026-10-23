@@ -52,3 +52,6 @@ include scripts/check_activation_receipt.py
 include examples/train_backends.py
 include docs/coinstallation.md
 include docs/results/coinstallation-cu128.json
+include examples/resume_backends.py
+include docs/cross-device-resume.md
+include docs/results/cross-device-resume.json

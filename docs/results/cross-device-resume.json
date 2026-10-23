@@ -1,0 +1,1291 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "execution_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+  "execution_tree": "d186485a727109aea68487eb357597f81f2da505",
+  "date_utc": "2026-10-23T05:24:03.744932+00:00",
+  "evidence_class": "Executed fresh external ordinary wheel installation and serial local CPU/CUDA consumers",
+  "new_native_build": false,
+  "new_instrumentation_run": false,
+  "projection": {
+    "omitted_top_level_fields": [
+      "process_ids",
+      "child_launchers",
+      "steps",
+      "python_executable",
+      "environment_prefix",
+      "working_directory",
+      "script_path",
+      "directory"
+    ],
+    "omitted_nested_fields": "installed_identity.installed_packages.*.*_path",
+    "retained": "All other raw receipt fields and numerical precision, including every per-step error, control, checkpoint and installed artifact identity.",
+    "private_retention": "Complete raw JSON tensor trajectories, subprocess logs and checkpoint/result files retained locally. SHA256 identifies each raw receipt; these files are not public downloads."
+  },
+  "checks": {
+    "serial_groups": 11,
+    "pytest_summaries": {
+      "state-contract": "52 passed, 1 skipped in 1.47s",
+      "packaging": "110 passed in 2.06s",
+      "cpu-registration": "30 passed in 2.80s",
+      "cpu-math": "1042 passed, 1 warning in 15.88s",
+      "cuda-regression": "812 passed, 4 skipped, 1 warning in 18.77s"
+    },
+    "pytest_total": {
+      "passed": 2046,
+      "skipped": 5
+    },
+    "skip_reason": "Windows symlink creation privilege unavailable: one new CPU fixture and four existing CUDA fixtures.",
+    "warnings": [
+      "Existing PyTorch nested-tensor prototype warning",
+      "Existing torch.export non-writable-buffer warning"
+    ],
+    "coinstallation_consumers": [
+      "float32 passed",
+      "float64 passed"
+    ]
+  },
+  "cases": [
+    {
+      "status": "passed",
+      "method": "state_dict.coinstalled_backend_training_handoff",
+      "scope": "Four deterministic synthetic updates on the declared installed CPU/CUDA pair. No general optimizer, stochastic replay, distributed recovery, hostile-file safety, exact CPU/GPU equivalence, performance or model-quality claim.",
+      "dtype": "float32",
+      "direction": "cpu-to-cuda",
+      "source_device": "cpu",
+      "target_device": "cuda:0",
+      "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+      "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+      "source_identity_basis": "Caller labels plus hashed consumer/helper, wheels, native and fixture bytes",
+      "optimizer_options": {
+        "lr": 0.03,
+        "momentum": 0.8,
+        "dampening": 0,
+        "weight_decay": 0,
+        "nesterov": false,
+        "maximize": false,
+        "foreach": false,
+        "differentiable": false,
+        "fused": false
+      },
+      "optimizer_steps": 4,
+      "producer_steps": 2,
+      "resumed_steps": 2,
+      "checkpoint_cursor": 2,
+      "distinct_processes": true,
+      "parent_cuda_models_after_children_exit": true,
+      "exact_restore": {
+        "exact_checkpoint_values": true,
+        "target_device_and_dtype": true,
+        "same_model_optimizer_parameter_objects": true,
+        "checkpoint_storage_disjoint": true
+      },
+      "native_target_oracle_uses_named_copies": true,
+      "primitive_handoff_uses_named_copies": true,
+      "native_comparison_max_abs_error": 0.0,
+      "primitive_comparison_max_abs_error": 0.0,
+      "native_step_errors": [
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        }
+      ],
+      "primitive_step_errors": [
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        }
+      ],
+      "comparison_tolerance": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "controls": {
+        "reset_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.02417171746492386,
+          "final_parameter_max_abs_error": 0.04139043018221855,
+          "divergence_threshold": 1e-08,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        },
+        "swap_same_shaped_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.009124577045440674,
+          "final_parameter_max_abs_error": 0.016418881714344025,
+          "divergence_threshold": 1e-08,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        }
+      },
+      "checkpoint_sha256": "a33cbbb4da86df8149f808d994d13a8c90a19dcd4fdd155b327b5ab00f48864e",
+      "checkpoint_bytes": 6341,
+      "checkpoint_byte_limit": 131072,
+      "checkpoint_unchanged": true,
+      "input_sources_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "independent_momentum_recurrence": true,
+      "same_parameter_and_optimizer_objects": true,
+      "all_parameter_blocks_changed_each_step": true,
+      "checkpoint_metadata": {
+        "format": "ragged-pool-fixed-backend-training-state",
+        "schema": 1,
+        "dtype": "float32",
+        "direction": "cpu-to-cuda",
+        "source_device": "cpu",
+        "target_device": "cuda:0",
+        "checkpoint_tensor_device": "cpu",
+        "next_update": 2,
+        "total_updates": 4,
+        "seed": 1811,
+        "architecture": "encoder3x4-tanh-scorer4x1-pool-head4x1",
+        "training": true,
+        "parameters": [
+          {
+            "name": "encoder.weight",
+            "shape": [
+              4,
+              3
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "encoder.bias",
+            "shape": [
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "scorer.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "head.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "head.bias",
+            "shape": [
+              1
+            ],
+            "dtype": "torch.float32"
+          }
+        ],
+        "optimizer": {
+          "class": "torch.optim.SGD",
+          "options": {
+            "lr": 0.03,
+            "momentum": 0.8,
+            "dampening": 0,
+            "weight_decay": 0,
+            "nesterov": false,
+            "maximize": false,
+            "foreach": false,
+            "differentiable": false,
+            "fused": false
+          }
+        },
+        "offsets": [
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ]
+        ],
+        "fixture_sha256": "739b3bcb10458c56dfc8369a547f37e4233683265b56bec7bcdfef9f7e8c1660",
+        "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+        "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        },
+        "stochastic_forward": false
+      },
+      "explicit_device_transfers": true,
+      "checkpoint_tensor_device": "cpu",
+      "stochastic_forward": false,
+      "live_rng_continuation": false,
+      "installed_identity": {
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "wheel_filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5",
+            "build_config": {
+              "cuda_version": "12.8",
+              "schema": 1,
+              "torch_version": "2.9.1+cu128",
+              "variant": "cu128",
+              "wheel_build_tag": "1cu128"
+            },
+            "build_config_sha256": "d0b115bc3956160c2d47e1f0639c27275d62b5952a441b05ba7c74e2d8be7a9a"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        }
+      },
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "threads": 1,
+      "interop_threads": 1,
+      "private_raw_receipt_sha256": "d767d7899295d5748f060c27fff9c2f6cac374602f3a7829d95d5aba5a8772fb"
+    },
+    {
+      "status": "passed",
+      "method": "state_dict.coinstalled_backend_training_handoff",
+      "scope": "Four deterministic synthetic updates on the declared installed CPU/CUDA pair. No general optimizer, stochastic replay, distributed recovery, hostile-file safety, exact CPU/GPU equivalence, performance or model-quality claim.",
+      "dtype": "float64",
+      "direction": "cpu-to-cuda",
+      "source_device": "cpu",
+      "target_device": "cuda:0",
+      "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+      "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+      "source_identity_basis": "Caller labels plus hashed consumer/helper, wheels, native and fixture bytes",
+      "optimizer_options": {
+        "lr": 0.03,
+        "momentum": 0.8,
+        "dampening": 0,
+        "weight_decay": 0,
+        "nesterov": false,
+        "maximize": false,
+        "foreach": false,
+        "differentiable": false,
+        "fused": false
+      },
+      "optimizer_steps": 4,
+      "producer_steps": 2,
+      "resumed_steps": 2,
+      "checkpoint_cursor": 2,
+      "distinct_processes": true,
+      "parent_cuda_models_after_children_exit": true,
+      "exact_restore": {
+        "exact_checkpoint_values": true,
+        "target_device_and_dtype": true,
+        "same_model_optimizer_parameter_objects": true,
+        "checkpoint_storage_disjoint": true
+      },
+      "native_target_oracle_uses_named_copies": true,
+      "primitive_handoff_uses_named_copies": true,
+      "native_comparison_max_abs_error": 0.0,
+      "primitive_comparison_max_abs_error": 2.220446049250313e-16,
+      "native_step_errors": [
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        }
+      ],
+      "primitive_step_errors": [
+        {
+          "output": 1.1102230246251565e-16,
+          "parameter_gradients": 5.551115123125783e-17,
+          "parameters": 0.0,
+          "momentum": 5.551115123125783e-17
+        },
+        {
+          "output": 5.551115123125783e-17,
+          "parameter_gradients": 1.1102230246251565e-16,
+          "parameters": 0.0,
+          "momentum": 2.220446049250313e-16
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 2.168404344971009e-18,
+          "parameters": 1.3877787807814457e-17,
+          "momentum": 2.220446049250313e-16
+        },
+        {
+          "output": 2.7755575615628914e-17,
+          "parameter_gradients": 1.1102230246251565e-16,
+          "parameters": 2.7755575615628914e-17,
+          "momentum": 5.551115123125783e-17
+        }
+      ],
+      "comparison_tolerance": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      },
+      "controls": {
+        "reset_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.028565138295500198,
+          "final_parameter_max_abs_error": 0.04886416332720378,
+          "divergence_threshold": 1e-11,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        },
+        "swap_same_shaped_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.01134521450089078,
+          "final_parameter_max_abs_error": 0.02042078260057091,
+          "divergence_threshold": 1e-11,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        }
+      },
+      "checkpoint_sha256": "7eead4947906eb9161bb71a220e97de8a07920f3be30489ebc0c80da6bbee3f6",
+      "checkpoint_bytes": 6469,
+      "checkpoint_byte_limit": 131072,
+      "checkpoint_unchanged": true,
+      "input_sources_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "independent_momentum_recurrence": true,
+      "same_parameter_and_optimizer_objects": true,
+      "all_parameter_blocks_changed_each_step": true,
+      "checkpoint_metadata": {
+        "format": "ragged-pool-fixed-backend-training-state",
+        "schema": 1,
+        "dtype": "float64",
+        "direction": "cpu-to-cuda",
+        "source_device": "cpu",
+        "target_device": "cuda:0",
+        "checkpoint_tensor_device": "cpu",
+        "next_update": 2,
+        "total_updates": 4,
+        "seed": 1811,
+        "architecture": "encoder3x4-tanh-scorer4x1-pool-head4x1",
+        "training": true,
+        "parameters": [
+          {
+            "name": "encoder.weight",
+            "shape": [
+              4,
+              3
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "encoder.bias",
+            "shape": [
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "scorer.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "head.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "head.bias",
+            "shape": [
+              1
+            ],
+            "dtype": "torch.float64"
+          }
+        ],
+        "optimizer": {
+          "class": "torch.optim.SGD",
+          "options": {
+            "lr": 0.03,
+            "momentum": 0.8,
+            "dampening": 0,
+            "weight_decay": 0,
+            "nesterov": false,
+            "maximize": false,
+            "foreach": false,
+            "differentiable": false,
+            "fused": false
+          }
+        },
+        "offsets": [
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ]
+        ],
+        "fixture_sha256": "9fabec5c5cdd8bacf069b8feb9e27ad507ed9388b43efdfe3350801afbbfda9c",
+        "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+        "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        },
+        "stochastic_forward": false
+      },
+      "explicit_device_transfers": true,
+      "checkpoint_tensor_device": "cpu",
+      "stochastic_forward": false,
+      "live_rng_continuation": false,
+      "installed_identity": {
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "wheel_filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5",
+            "build_config": {
+              "cuda_version": "12.8",
+              "schema": 1,
+              "torch_version": "2.9.1+cu128",
+              "variant": "cu128",
+              "wheel_build_tag": "1cu128"
+            },
+            "build_config_sha256": "d0b115bc3956160c2d47e1f0639c27275d62b5952a441b05ba7c74e2d8be7a9a"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        }
+      },
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "threads": 1,
+      "interop_threads": 1,
+      "private_raw_receipt_sha256": "a9f91492b96cd779b99a0aa3b7a36b9dc0f02dbd4c8bbd6ba6426ef92c38e270"
+    },
+    {
+      "status": "passed",
+      "method": "state_dict.coinstalled_backend_training_handoff",
+      "scope": "Four deterministic synthetic updates on the declared installed CPU/CUDA pair. No general optimizer, stochastic replay, distributed recovery, hostile-file safety, exact CPU/GPU equivalence, performance or model-quality claim.",
+      "dtype": "float32",
+      "direction": "cuda-to-cpu",
+      "source_device": "cuda:0",
+      "target_device": "cpu",
+      "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+      "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+      "source_identity_basis": "Caller labels plus hashed consumer/helper, wheels, native and fixture bytes",
+      "optimizer_options": {
+        "lr": 0.03,
+        "momentum": 0.8,
+        "dampening": 0,
+        "weight_decay": 0,
+        "nesterov": false,
+        "maximize": false,
+        "foreach": false,
+        "differentiable": false,
+        "fused": false
+      },
+      "optimizer_steps": 4,
+      "producer_steps": 2,
+      "resumed_steps": 2,
+      "checkpoint_cursor": 2,
+      "distinct_processes": true,
+      "parent_cuda_models_after_children_exit": true,
+      "exact_restore": {
+        "exact_checkpoint_values": true,
+        "target_device_and_dtype": true,
+        "same_model_optimizer_parameter_objects": true,
+        "checkpoint_storage_disjoint": true
+      },
+      "native_target_oracle_uses_named_copies": true,
+      "primitive_handoff_uses_named_copies": true,
+      "native_comparison_max_abs_error": 0.0,
+      "primitive_comparison_max_abs_error": 0.0,
+      "native_step_errors": [
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        }
+      ],
+      "primitive_step_errors": [
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        }
+      ],
+      "comparison_tolerance": {
+        "rtol": 0.0002,
+        "atol": 2e-06
+      },
+      "controls": {
+        "reset_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.024171724915504456,
+          "final_parameter_max_abs_error": 0.041390445083379745,
+          "divergence_threshold": 1e-08,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        },
+        "swap_same_shaped_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.009124577045440674,
+          "final_parameter_max_abs_error": 0.016418881714344025,
+          "divergence_threshold": 1e-08,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        }
+      },
+      "checkpoint_sha256": "478d5eca4d4d5f6eb89ea85edd942e5cb8cc11459091f5cd3a349e780cb17774",
+      "checkpoint_bytes": 6341,
+      "checkpoint_byte_limit": 131072,
+      "checkpoint_unchanged": true,
+      "input_sources_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "independent_momentum_recurrence": true,
+      "same_parameter_and_optimizer_objects": true,
+      "all_parameter_blocks_changed_each_step": true,
+      "checkpoint_metadata": {
+        "format": "ragged-pool-fixed-backend-training-state",
+        "schema": 1,
+        "dtype": "float32",
+        "direction": "cuda-to-cpu",
+        "source_device": "cuda:0",
+        "target_device": "cpu",
+        "checkpoint_tensor_device": "cpu",
+        "next_update": 2,
+        "total_updates": 4,
+        "seed": 1811,
+        "architecture": "encoder3x4-tanh-scorer4x1-pool-head4x1",
+        "training": true,
+        "parameters": [
+          {
+            "name": "encoder.weight",
+            "shape": [
+              4,
+              3
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "encoder.bias",
+            "shape": [
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "scorer.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "head.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float32"
+          },
+          {
+            "name": "head.bias",
+            "shape": [
+              1
+            ],
+            "dtype": "torch.float32"
+          }
+        ],
+        "optimizer": {
+          "class": "torch.optim.SGD",
+          "options": {
+            "lr": 0.03,
+            "momentum": 0.8,
+            "dampening": 0,
+            "weight_decay": 0,
+            "nesterov": false,
+            "maximize": false,
+            "foreach": false,
+            "differentiable": false,
+            "fused": false
+          }
+        },
+        "offsets": [
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ]
+        ],
+        "fixture_sha256": "739b3bcb10458c56dfc8369a547f37e4233683265b56bec7bcdfef9f7e8c1660",
+        "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+        "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        },
+        "stochastic_forward": false
+      },
+      "explicit_device_transfers": true,
+      "checkpoint_tensor_device": "cpu",
+      "stochastic_forward": false,
+      "live_rng_continuation": false,
+      "installed_identity": {
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "wheel_filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5",
+            "build_config": {
+              "cuda_version": "12.8",
+              "schema": 1,
+              "torch_version": "2.9.1+cu128",
+              "variant": "cu128",
+              "wheel_build_tag": "1cu128"
+            },
+            "build_config_sha256": "d0b115bc3956160c2d47e1f0639c27275d62b5952a441b05ba7c74e2d8be7a9a"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        }
+      },
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "threads": 1,
+      "interop_threads": 1,
+      "private_raw_receipt_sha256": "2f713a1bb68574882a63cad1efafd243d5c24494e9c942538283ba153712f514"
+    },
+    {
+      "status": "passed",
+      "method": "state_dict.coinstalled_backend_training_handoff",
+      "scope": "Four deterministic synthetic updates on the declared installed CPU/CUDA pair. No general optimizer, stochastic replay, distributed recovery, hostile-file safety, exact CPU/GPU equivalence, performance or model-quality claim.",
+      "dtype": "float64",
+      "direction": "cuda-to-cpu",
+      "source_device": "cuda:0",
+      "target_device": "cpu",
+      "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+      "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+      "source_identity_basis": "Caller labels plus hashed consumer/helper, wheels, native and fixture bytes",
+      "optimizer_options": {
+        "lr": 0.03,
+        "momentum": 0.8,
+        "dampening": 0,
+        "weight_decay": 0,
+        "nesterov": false,
+        "maximize": false,
+        "foreach": false,
+        "differentiable": false,
+        "fused": false
+      },
+      "optimizer_steps": 4,
+      "producer_steps": 2,
+      "resumed_steps": 2,
+      "checkpoint_cursor": 2,
+      "distinct_processes": true,
+      "parent_cuda_models_after_children_exit": true,
+      "exact_restore": {
+        "exact_checkpoint_values": true,
+        "target_device_and_dtype": true,
+        "same_model_optimizer_parameter_objects": true,
+        "checkpoint_storage_disjoint": true
+      },
+      "native_target_oracle_uses_named_copies": true,
+      "primitive_handoff_uses_named_copies": true,
+      "native_comparison_max_abs_error": 0.0,
+      "primitive_comparison_max_abs_error": 2.220446049250313e-16,
+      "native_step_errors": [
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        },
+        {
+          "output": 0.0,
+          "parameter_gradients": 0.0,
+          "parameters": 0.0,
+          "momentum": 0.0
+        }
+      ],
+      "primitive_step_errors": [
+        {
+          "output": 4.336808689942018e-19,
+          "parameter_gradients": 1.734723475976807e-18,
+          "parameters": 0.0,
+          "momentum": 1.734723475976807e-18
+        },
+        {
+          "output": 1.1102230246251565e-16,
+          "parameter_gradients": 2.220446049250313e-16,
+          "parameters": 1.3877787807814457e-17,
+          "momentum": 2.220446049250313e-16
+        },
+        {
+          "output": 5.551115123125783e-17,
+          "parameter_gradients": 2.7755575615628914e-17,
+          "parameters": 2.7755575615628914e-17,
+          "momentum": 2.220446049250313e-16
+        },
+        {
+          "output": 5.551115123125783e-17,
+          "parameter_gradients": 1.1102230246251565e-16,
+          "parameters": 2.7755575615628914e-17,
+          "momentum": 5.551115123125783e-17
+        }
+      ],
+      "comparison_tolerance": {
+        "rtol": 2e-10,
+        "atol": 2e-12
+      },
+      "controls": {
+        "reset_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.028565138295500184,
+          "final_parameter_max_abs_error": 0.04886416332720377,
+          "divergence_threshold": 1e-11,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        },
+        "swap_same_shaped_momentum": {
+          "next_forward_and_gradients_exact": true,
+          "first_update_max_abs_error": 0.01134521450089078,
+          "final_parameter_max_abs_error": 0.02042078260057091,
+          "divergence_threshold": 1e-11,
+          "diverged": true,
+          "live_state_bypass_after_valid_restore": true
+        }
+      },
+      "checkpoint_sha256": "9d68d0d78234ed3353a2de68de757a1ac037366643535c840e0c23aaf1358144",
+      "checkpoint_bytes": 6469,
+      "checkpoint_byte_limit": 131072,
+      "checkpoint_unchanged": true,
+      "input_sources_unchanged": true,
+      "initial_parameters_unchanged": true,
+      "independent_momentum_recurrence": true,
+      "same_parameter_and_optimizer_objects": true,
+      "all_parameter_blocks_changed_each_step": true,
+      "checkpoint_metadata": {
+        "format": "ragged-pool-fixed-backend-training-state",
+        "schema": 1,
+        "dtype": "float64",
+        "direction": "cuda-to-cpu",
+        "source_device": "cuda:0",
+        "target_device": "cpu",
+        "checkpoint_tensor_device": "cpu",
+        "next_update": 2,
+        "total_updates": 4,
+        "seed": 1811,
+        "architecture": "encoder3x4-tanh-scorer4x1-pool-head4x1",
+        "training": true,
+        "parameters": [
+          {
+            "name": "encoder.weight",
+            "shape": [
+              4,
+              3
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "encoder.bias",
+            "shape": [
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "scorer.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "head.weight",
+            "shape": [
+              1,
+              4
+            ],
+            "dtype": "torch.float64"
+          },
+          {
+            "name": "head.bias",
+            "shape": [
+              1
+            ],
+            "dtype": "torch.float64"
+          }
+        ],
+        "optimizer": {
+          "class": "torch.optim.SGD",
+          "options": {
+            "lr": 0.03,
+            "momentum": 0.8,
+            "dampening": 0,
+            "weight_decay": 0,
+            "nesterov": false,
+            "maximize": false,
+            "foreach": false,
+            "differentiable": false,
+            "fused": false
+          }
+        },
+        "offsets": [
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ],
+          [
+            0,
+            2,
+            2,
+            5,
+            7,
+            9
+          ],
+          [
+            0,
+            3,
+            5,
+            5,
+            8,
+            10,
+            12
+          ]
+        ],
+        "fixture_sha256": "9fabec5c5cdd8bacf069b8feb9e27ad507ed9388b43efdfe3350801afbbfda9c",
+        "source_revision": "3c471c30090050bbcf84107a11bede56c34835f7",
+        "source_tree": "d186485a727109aea68487eb357597f81f2da505",
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        },
+        "stochastic_forward": false
+      },
+      "explicit_device_transfers": true,
+      "checkpoint_tensor_device": "cpu",
+      "stochastic_forward": false,
+      "live_rng_continuation": false,
+      "installed_identity": {
+        "script_sha256": "bd67586d1fe2cdf861d7b7712dd6d70e7b81cdcd38205335e3b0c8c43f45ebd2",
+        "fixture_script_sha256": "d88b16f6d63dede7494a14e1dd69446a2553ad7a5116b6a91aad2de5bc4b01da",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "wheel_filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5",
+            "build_config": {
+              "cuda_version": "12.8",
+              "schema": 1,
+              "torch_version": "2.9.1+cu128",
+              "variant": "cu128",
+              "wheel_build_tag": "1cu128"
+            },
+            "build_config_sha256": "d0b115bc3956160c2d47e1f0639c27275d62b5952a441b05ba7c74e2d8be7a9a"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        }
+      },
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "compute_capability": [
+        8,
+        9
+      ],
+      "python_version": "3.11.8",
+      "torch_version": "2.9.1+cu128",
+      "cuda_runtime_version": "12.8",
+      "threads": 1,
+      "interop_threads": 1,
+      "private_raw_receipt_sha256": "bcb4ac83ce11f5f4225af57cbbe5dc6348065556fe2002d3eb43dcae38efea48"
+    }
+  ],
+  "scope": "Fixed deterministic synthetic model, exact qualified wheel pair, one Windows RTX 4090 environment. No arbitrary model/optimizer, stochastic replay, distributed recovery, hostile-file safety, bitwise CPU/GPU equivalence, performance or model-quality claim."
+}
