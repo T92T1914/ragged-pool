@@ -45,6 +45,8 @@ FIXED_FILES = (
     'docs/results/coinstallation-cu128.json',
     'docs/cross-device-resume.md',
     'docs/results/cross-device-resume.json',
+    'docs/distributed-cpu.md',
+    'docs/results/distributed-cpu.json',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',

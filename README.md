@@ -84,6 +84,8 @@ An opt-in [CPU/CUDA co-installation route](docs/coinstallation.md) builds the CP
 
 The [cross-device training handoff](docs/cross-device-resume.md) continues a fixed momentum-SGD run from CPU to CUDA0 or back in a fresh process. It restores weights and optimizer buffers after update two, then checks two further updates against native and independent primitive continuations. Both dtypes passed on the qualified wheel pair. Separate reset/swap momentum controls show why correct predictions alone do not establish a correct training resume.
 
+The [two-rank Linux CPU example](docs/distributed-cpu.md) trains the packed model with unequal group counts, then a rank with no groups. It scales each local squared-error sum so DDP's averaged parameter gradients match the global group mean. Both dtypes passed global native and primitive comparisons, and a wrong-local-mean control exposes the objective error. Windows Gloo failed before training and is retained as unavailable for this consumer.
+
 ## Train across packed shapes
 
 `examples/train_dynamic.py` uses one `torch.compile(..., backend="aot_eager", fullgraph=True, dynamic=True)` model across five actual SGD updates with changing packed item/group counts. It compares outputs, raw-input and parameter gradients, and updated parameters against eager native and independent PyTorch models. Raw feature and hidden widths stay fixed. Separate pool checks qualify zero/one specialization, runtime content admission and saved-input behavior. The [dynamic training guide](docs/dynamic_training.md) explains the exact shape sequence, installed commands and the distinction between one compile API call and captured graph submissions. This adds first-order packed graph integration, without an optimized-code or speed claim.
