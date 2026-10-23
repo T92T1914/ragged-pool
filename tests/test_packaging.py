@@ -2,6 +2,7 @@
 from hashlib import sha256
 import importlib.util
 from io import BytesIO
+import json
 from pathlib import Path
 import sys
 import tarfile
@@ -23,7 +24,7 @@ sdist_checker = load_checker('check_sdist')
 installed_checker = load_checker('check_installed')
 METADATA = (b'Metadata-Version: 2.4\nName: ragged-pool\nVersion: 0.1.0\n'
             b'License-Expression: MIT\nLicense-File: LICENSE\nLicense-File: NOTICE\n'
-            b'License-File: third_party/PYTORCH-LICENSE\n\n')
+            b'License-File: third_party/PYTORCH-LICENSE\nRequires-Dist: torch==2.9.1+cpu\n\n')
 
 
 @pytest.fixture
@@ -148,14 +149,21 @@ def test_native_selection_uses_interpreter_suffix_and_rejects_ambiguity(names, s
 
 
 @pytest.fixture
-def installed_fixture(tmp_path, monkeypatch):
+def installed_fixture(tmp_path, monkeypatch, request):
+    variant = getattr(request, 'param', 'cpu')
+    config = {'schema': 1, 'variant': variant, 'torch_version': '2.9.1+' + variant,
+              'cuda_version': None if variant == 'cpu' else '12.8',
+              'wheel_build_tag': '' if variant == 'cpu' else '1cu128'}
     checkout, prefix, consumer = tmp_path / 'checkout', tmp_path / 'acceptance', tmp_path / 'consumer'
     consumer.mkdir()
     monkeypatch.chdir(consumer)
     monkeypatch.setattr(sys, 'prefix', str(prefix))
     monkeypatch.setattr(sys, 'version_info', (3, 11, 8))
     native = 'ragged_pool/_C' + installed_checker.EXTENSION_SUFFIXES[0]
-    files = {'ragged_pool/__init__.py': b'# original package\n', native: b'owned native bytes'}
+    helper = (Path(__file__).resolve().parents[1] / 'src/ragged_pool/_build.py').read_bytes()
+    files = {'ragged_pool/__init__.py': b'# original package\n',
+             'ragged_pool/_build.py': helper, native: b'owned native bytes',
+             'ragged_pool/_build_config.json': (json.dumps(config, indent=2, sort_keys=True) + '\n').encode()}
     for name in ('LICENSE', 'NOTICE', 'third_party/PYTORCH-LICENSE'):
         path = checkout / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -164,24 +172,34 @@ def installed_fixture(tmp_path, monkeypatch):
     source = checkout / 'src/ragged_pool/__init__.py'
     source.parent.mkdir(parents=True)
     source.write_bytes(files['ragged_pool/__init__.py'])
-    files['ragged_pool-0.1.0.dist-info/METADATA'] = METADATA
+    source.with_name('_build.py').write_bytes(helper)
+    files['ragged_pool-0.1.0.dist-info/METADATA'] = METADATA.replace(
+        b'torch==2.9.1+cpu', ('torch==' + config['torch_version']).encode())
+    platform = 'win_amd64' if sys.platform == 'win32' else 'linux_x86_64'
+    tag = 'cp311-cp311-' + platform
+    wheel_metadata = 'Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: ' + tag + '\n'
+    if config['wheel_build_tag']:
+        wheel_metadata += 'Build: ' + config['wheel_build_tag'] + '\n'
+    files['ragged_pool-0.1.0.dist-info/WHEEL'] = wheel_metadata.encode()
     for name, data in files.items():
         path = prefix / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-    wheel = tmp_path / 'owned.whl'
+    build = ('-' + config['wheel_build_tag']) if config['wheel_build_tag'] else ''
+    wheel = tmp_path / ('ragged_pool-0.1.0' + build + '-' + tag + '.whl')
     with ZipFile(wheel, 'w') as archive:
         for name, data in files.items():
             archive.writestr(name, data)
     distribution = SimpleNamespace(version='0.1.0', locate_file=lambda name: prefix / name)
     monkeypatch.setattr(installed_checker, 'distribution', lambda name: distribution)
     package = SimpleNamespace(__file__=str(prefix / 'ragged_pool/__init__.py'))
-    torch = SimpleNamespace(__version__='2.9.1+cpu',
+    torch = SimpleNamespace(__version__=config['torch_version'],
+                            version=SimpleNamespace(cuda=config['cuda_version']),
                             ops=SimpleNamespace(loaded_libraries={str(prefix / native)}))
     monkeypatch.setitem(sys.modules, 'ragged_pool', package)
     monkeypatch.setitem(sys.modules, 'torch', torch)
     return SimpleNamespace(checkout=checkout, prefix=prefix, wheel=wheel, native=native,
-                           package=package, torch=torch)
+                           package=package, torch=torch, variant=variant, config=config)
 
 
 def test_installed_check_identifies_exact_wheel_and_loaded_library(installed_fixture):
@@ -190,6 +208,61 @@ def test_installed_check_identifies_exact_wheel_and_loaded_library(installed_fix
     assert receipt['native_library'] == fixture.native
     assert receipt['native_library_loaded'] is True
     assert receipt['package_file_sha256'][fixture.native] == sha256(b'owned native bytes').hexdigest()
+
+
+@pytest.mark.parametrize('installed_fixture', ['cu128'], indirect=True)
+def test_installed_checker_admits_only_explicit_cu128_expectation(installed_fixture):
+    fixture = installed_fixture
+    with pytest.raises(AssertionError, match='exact declared Torch build'):
+        installed_checker.check(fixture.checkout, fixture.wheel)
+    receipt = installed_checker.check(fixture.checkout, fixture.wheel, expected_variant='cu128')
+    assert receipt['build_config'] == fixture.config
+    assert receipt['torch_version'] == '2.9.1+cu128'
+    assert 'ragged_pool/_build_config.json' in receipt['package_file_sha256']
+
+
+def replace_wheel_member(wheel, name, data):
+    with ZipFile(wheel) as archive:
+        entries = {entry: archive.read(entry) for entry in archive.namelist()}
+    if data is None:
+        entries.pop(name)
+    else:
+        entries[name] = data
+    with ZipFile(wheel, 'w') as archive:
+        for entry, contents in entries.items():
+            archive.writestr(entry, contents)
+
+
+@pytest.mark.parametrize('installed_fixture', ['cpu', 'cu128'], indirect=True)
+@pytest.mark.parametrize('fault', ['missing_config', 'wrong_config', 'installed_config',
+                                  'dependency', 'build_tag', 'filename', 'runtime'])
+def test_installed_variant_identity_rejects_substitution(installed_fixture, fault):
+    fixture = installed_fixture
+    if fault == 'missing_config':
+        replace_wheel_member(fixture.wheel, 'ragged_pool/_build_config.json', None)
+    elif fault == 'wrong_config':
+        data = dict(fixture.config)
+        data['schema'] = 2
+        replace_wheel_member(fixture.wheel, 'ragged_pool/_build_config.json',
+                             (json.dumps(data, indent=2, sort_keys=True) + '\n').encode())
+    elif fault == 'installed_config':
+        (fixture.prefix / 'ragged_pool/_build_config.json').write_bytes(b'{}\n')
+    elif fault == 'dependency':
+        metadata = (fixture.prefix / 'ragged_pool-0.1.0.dist-info/METADATA').read_bytes()
+        replace_wheel_member(fixture.wheel, 'ragged_pool-0.1.0.dist-info/METADATA', metadata.replace(
+            ('torch==' + fixture.config['torch_version']).encode(), b'torch>=2.9'))
+    elif fault == 'build_tag':
+        metadata = (fixture.prefix / 'ragged_pool-0.1.0.dist-info/WHEEL').read_bytes()
+        metadata = metadata.replace(b'Build: 1cu128\n', b'') + b'Build: 2unreviewed\n'
+        replace_wheel_member(fixture.wheel, 'ragged_pool-0.1.0.dist-info/WHEEL', metadata)
+    elif fault == 'filename':
+        destination = fixture.wheel.with_name('ragged_pool-0.1.0-2unreviewed-cp311-cp311-any.whl')
+        fixture.wheel.rename(destination)
+        fixture.wheel = destination
+    else:
+        fixture.torch.version.cuda = '12.9'
+    with pytest.raises(AssertionError):
+        installed_checker.check(fixture.checkout, fixture.wheel, expected_variant=fixture.variant)
 
 
 @pytest.mark.parametrize('fault', ['native_bytes', 'source_bytes', 'import_path', 'loaded_path', 'duplicate'])

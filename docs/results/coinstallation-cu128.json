@@ -1,0 +1,881 @@
+{
+  "schema": 1,
+  "status": "installed-local-checks-passed",
+  "observed_at_utc": "2026-10-23T04:27:28.580491+00:00",
+  "scope": "One explicit Windows CPU cu128 wheel installed ordinarily beside the unchanged accepted CUDA companion",
+  "execution_revision": "4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4",
+  "execution_tree": "6f634237e37e039054401af9e587ce188989ded3",
+  "base_revision": "9e13270147a5c24f0e898139f0354a641d19c545",
+  "checked_build_sdist_sha256": "f7e21ec3adf0eb89d7167ff74fb75760a85459c4edce2a59661817c39a97011b",
+  "checked_build_source_files": 95,
+  "compiler": {
+    "new_cpu_native_compilation": true,
+    "cpu_source_unchanged_from_base": true,
+    "standard": "C++17",
+    "api": "ATen tensors and dispatcher, Python torch.library autograd/fake registration",
+    "msvc": "19.44.35228",
+    "toolset": "14.44.35207",
+    "optimization": "/O2 /fp:precise",
+    "build_workers_limit": 2,
+    "link_codegen_threads_limit": 2,
+    "new_cuda_native_compilation": false,
+    "warnings": [
+      "setuptools Py_DEBUG ABI-tag variable unset",
+      "intentional bytecode generation disabled"
+    ]
+  },
+  "artifacts": {
+    "cpu": {
+      "filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+      "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+      "native_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+      "requires_dist": [
+        "torch==2.9.1+cu128"
+      ],
+      "installed_non_record_members": 16,
+      "source_python_joins": {
+        "ragged_pool/__init__.py": "literal",
+        "ragged_pool/_build.py": "literal",
+        "ragged_pool/_padded_registration.py": "literal",
+        "ragged_pool/_registration.py": "literal",
+        "ragged_pool/_validation.py": "literal",
+        "ragged_pool/forward_ad.py": "literal",
+        "ragged_pool/padded.py": "literal",
+        "ragged_pool/reference.py": "literal"
+      }
+    },
+    "cuda": {
+      "filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+      "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+      "native_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+      "requires_dist": [
+        "torch==2.9.1+cu128"
+      ],
+      "installed_non_record_members": 15,
+      "source_python_joins": {
+        "ragged_pool_cuda/__init__.py": "literal",
+        "ragged_pool_cuda/_registration.py": "literal",
+        "ragged_pool_cuda/_validation.py": "literal",
+        "ragged_pool_cuda/forward_ad.py": "literal",
+        "ragged_pool_cuda/functional.py": "literal",
+        "ragged_pool_cuda/padded.py": "literal",
+        "ragged_pool_cuda/reference.py": "literal",
+        "ragged_pool_cuda/second_order.py": "complete CRLF-to-LF equality"
+      }
+    }
+  },
+  "cpu_build_config": {
+    "cuda_version": "12.8",
+    "schema": 1,
+    "torch_version": "2.9.1+cu128",
+    "variant": "cu128",
+    "wheel_build_tag": "1cu128"
+  },
+  "reused_cuda_native_build_revision": "b500a3bfd1f79cdc2ad03f93176871d4229b0066",
+  "reused_cuda_package_execution_revision": "43526b7e761f9bce76e8ccd4d1f5c0907412fb26",
+  "requirements": [
+    "colorama==0.4.6",
+    "filelock==3.32.3",
+    "fsspec==2026.7.0",
+    "iniconfig==2.3.1",
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.3",
+    "mpmath==1.3.0",
+    "networkx==3.6.1",
+    "numpy==2.2.6",
+    "packaging==26.3",
+    "pluggy==1.7.0",
+    "Pygments==2.21.0",
+    "pytest==8.4.2",
+    "sympy==1.14.0",
+    "torch==2.9.1+cu128",
+    "typing_extensions==4.16.0",
+    "setuptools==80.9.0",
+    "wheel==0.45.1"
+  ],
+  "ordinary_installation": {
+    "passed": true,
+    "dependency_bypass": false,
+    "fresh_external_environment": true,
+    "pip_check": "No broken requirements found.",
+    "both_import_orders_passed": true,
+    "complete_record_source_native_license_verification": true
+  },
+  "baseline": {
+    "status": "expected-refusal-observed",
+    "exit_code": 1,
+    "ordinary_resolver": true,
+    "dry_run": true,
+    "environment_unchanged": true
+  },
+  "checks": {
+    "cpu-packaging": {
+      "summary": "110 passed in 2.07s",
+      "log_sha256": "2dbd20ce3df7d491ca29e8232d5c674e7b8c248484c982fc9d1ee98b6bde5b6b",
+      "passed": 110
+    },
+    "cpu-registration": {
+      "summary": "30 passed in 3.20s",
+      "log_sha256": "466658c81d83e1a9330e4dbdb78555b0f35a8ab4b4ab5f0c58d7c3672d682215",
+      "passed": 30
+    },
+    "cpu-math": {
+      "summary": "1042 passed, 1 warning in 16.66s",
+      "log_sha256": "343b9d4b15ec83473d553a4afec40cbbfbea4173d7df7b3e74f62e4f851e5105",
+      "passed": 1042
+    },
+    "cuda-tests": {
+      "summary": "812 passed, 4 skipped, 1 warning in 21.22s",
+      "log_sha256": "c8389a376804dd7fa68106101f854471c32fef591d29efd8fe793ea0991d7400",
+      "passed": 812
+    }
+  },
+  "serial_command_count": 9,
+  "cohort_receipt_sha256": "d0237074a286cba46c9a8aa945eebbe6e9ab02dcdfdbc4656efe408c6707edb5",
+  "cpu_cu128_exclusions": [
+    "test_export.py",
+    "test_padded_export.py",
+    "test_training_resume.py",
+    "test_stochastic_resume.py",
+    "test_activation_checkpoint.py"
+  ],
+  "exclusion_reason": "Saved export, resume and activation consumers retain their separately qualified exact +cpu contracts. Full default CPU suite is a distinct hosted CI result.",
+  "consumers": {
+    "float32": {
+      "raw_private_receipt_sha256": "aa4196a1a877c4982adb6ee507df814d9e8a91d18ee9fe4b450b38163556307b",
+      "result": {
+        "status": "passed",
+        "method": "eager.coinstalled_cpu_cuda_training",
+        "dtype": "float32",
+        "scope": "Two synthetic first-order updates on one pinned installed CPU/CUDA wheel pair",
+        "seed": 1811,
+        "routes": [
+          "cpu_native",
+          "cuda_native",
+          "cpu_primitive",
+          "cuda_primitive"
+        ],
+        "cuda_device": "cuda:0",
+        "device_name": "NVIDIA GeForce RTX 4090",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "script_sha256": "eb73869042fc1434847eb18c14fc9abcdbabbbacd4b59263c9f065ea66c082e0",
+        "source_revision": "4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4",
+        "source_tree": "6f634237e37e039054401af9e587ce188989ded3",
+        "source_identity_basis": "Caller labels plus hashed script, wheels and loaded native bytes",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "wheel_filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5",
+            "build_config": {
+              "cuda_version": "12.8",
+              "schema": 1,
+              "torch_version": "2.9.1+cu128",
+              "variant": "cu128",
+              "wheel_build_tag": "1cu128"
+            },
+            "build_config_sha256": "d0b115bc3956160c2d47e1f0639c27275d62b5952a441b05ba7c74e2d8be7a9a"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        },
+        "root_cpu_operator_build_variant": "cu128",
+        "explicit_device_transfers": true,
+        "comparison_copies_to_cpu": true,
+        "fixture_sha256": "b93bbd614ff77abb629a8747f8d95824cc8159beef0f1bcc008832a2d15389f4",
+        "optimizer": "SGD",
+        "learning_rate": 0.03,
+        "optimizer_steps_per_route": 2,
+        "parameter_tensors": 5,
+        "scalar_parameters": 25,
+        "comparison_tolerance": {
+          "rtol": 0.0002,
+          "atol": 2e-06
+        },
+        "steps": [
+          {
+            "update": 1,
+            "N": 9,
+            "B": 5,
+            "offsets": [
+              0,
+              2,
+              2,
+              5,
+              7,
+              9
+            ],
+            "losses": {
+              "cpu_native": 0.36424392461776733,
+              "cuda_native": 0.3642439544200897,
+              "cpu_primitive": 0.36424392461776733,
+              "cuda_primitive": 0.3642439544200897
+            },
+            "output_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "predictions": 1.4901161193847656e-08,
+                "pooled": 2.9802322387695312e-08,
+                "loss": 2.9802322387695312e-08,
+                "input_gradient": 6.05359673500061e-09
+              },
+              "cuda_primitive__cpu_primitive": {
+                "predictions": 1.4901161193847656e-08,
+                "pooled": 2.9802322387695312e-08,
+                "loss": 2.9802322387695312e-08,
+                "input_gradient": 6.05359673500061e-09
+              }
+            },
+            "parameter_gradient_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 7.450580596923828e-09,
+                "encoder.bias": 1.4901161193847656e-08,
+                "scorer.weight": 1.862645149230957e-09,
+                "head.weight": 2.9802322387695312e-08,
+                "head.bias": 0.0
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 7.450580596923828e-09,
+                "encoder.bias": 1.4901161193847656e-08,
+                "scorer.weight": 1.862645149230957e-09,
+                "head.weight": 2.9802322387695312e-08,
+                "head.bias": 0.0
+              }
+            },
+            "updated_parameter_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 7.450580596923828e-09,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 7.450580596923828e-09,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "parameter_update_max_abs": {
+              "cpu_native": {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              },
+              "cuda_native": {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              },
+              "cpu_primitive": {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              },
+              "cuda_primitive": {
+                "encoder.weight": 0.0011692792177200317,
+                "encoder.bias": 0.004095643758773804,
+                "scorer.weight": 0.0003637373447418213,
+                "head.weight": 0.00798112154006958,
+                "head.bias": 0.01943349838256836
+              }
+            },
+            "inputs_unchanged": true,
+            "all_parameter_blocks_changed": true,
+            "same_parameter_and_optimizer_objects": true
+          },
+          {
+            "update": 2,
+            "N": 12,
+            "B": 6,
+            "offsets": [
+              0,
+              3,
+              5,
+              5,
+              8,
+              10,
+              12
+            ],
+            "losses": {
+              "cpu_native": 0.15170781314373016,
+              "cuda_native": 0.15170782804489136,
+              "cpu_primitive": 0.15170781314373016,
+              "cuda_primitive": 0.15170782804489136
+            },
+            "output_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "predictions": 1.4901161193847656e-08,
+                "pooled": 2.9802322387695312e-08,
+                "loss": 1.4901161193847656e-08,
+                "input_gradient": 3.725290298461914e-09
+              },
+              "cuda_primitive__cpu_primitive": {
+                "predictions": 1.4901161193847656e-08,
+                "pooled": 2.9802322387695312e-08,
+                "loss": 1.4901161193847656e-08,
+                "input_gradient": 3.725290298461914e-09
+              }
+            },
+            "parameter_gradient_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 1.862645149230957e-09,
+                "encoder.bias": 1.4901161193847656e-08,
+                "scorer.weight": 6.984919309616089e-10,
+                "head.weight": 0.0,
+                "head.bias": 2.9802322387695312e-08
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 1.862645149230957e-09,
+                "encoder.bias": 1.4901161193847656e-08,
+                "scorer.weight": 6.984919309616089e-10,
+                "head.weight": 0.0,
+                "head.bias": 2.9802322387695312e-08
+              }
+            },
+            "updated_parameter_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 4.656612873077393e-10,
+                "encoder.bias": 7.450580596923828e-09,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 4.656612873077393e-10,
+                "encoder.bias": 7.450580596923828e-09,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "parameter_update_max_abs": {
+              "cpu_native": {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              },
+              "cuda_native": {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              },
+              "cpu_primitive": {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              },
+              "cuda_primitive": {
+                "encoder.weight": 0.0005678534507751465,
+                "encoder.bias": 0.0031698644161224365,
+                "scorer.weight": 8.556991815567017e-05,
+                "head.weight": 0.00535014271736145,
+                "head.bias": 0.014667853713035583
+              }
+            },
+            "inputs_unchanged": true,
+            "all_parameter_blocks_changed": true,
+            "same_parameter_and_optimizer_objects": true
+          }
+        ],
+        "inputs_unchanged": true,
+        "initial_parameters_unchanged": true,
+        "threads": 1,
+        "interop_threads": 1
+      }
+    },
+    "float64": {
+      "raw_private_receipt_sha256": "aec2996669fc30451e31a309da47c5648a91fb73ca0c626cae83840fd80d9c33",
+      "result": {
+        "status": "passed",
+        "method": "eager.coinstalled_cpu_cuda_training",
+        "dtype": "float64",
+        "scope": "Two synthetic first-order updates on one pinned installed CPU/CUDA wheel pair",
+        "seed": 1811,
+        "routes": [
+          "cpu_native",
+          "cuda_native",
+          "cpu_primitive",
+          "cuda_primitive"
+        ],
+        "cuda_device": "cuda:0",
+        "device_name": "NVIDIA GeForce RTX 4090",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "python_version": "3.11.8",
+        "torch_version": "2.9.1+cu128",
+        "cuda_runtime_version": "12.8",
+        "script_sha256": "eb73869042fc1434847eb18c14fc9abcdbabbbacd4b59263c9f065ea66c082e0",
+        "source_revision": "4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4",
+        "source_tree": "6f634237e37e039054401af9e587ce188989ded3",
+        "source_identity_basis": "Caller labels plus hashed script, wheels and loaded native bytes",
+        "installed_packages": {
+          "cpu": {
+            "distribution_name": "ragged-pool",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "9ab9e866caa2e67ca65f51b7e3338d62239d85327b0dfb704ed33e62f6469156",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "1cu128",
+            "wheel_sha256": "1eba9a0b886bea62e41ab4931c5e9689d0562086774c9eb2916847a8ce82e474",
+            "wheel_filename": "ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "01af6bd675b09788f77a57ab1796345980d48fabbe65696f26287977d7a920c5",
+            "build_config": {
+              "cuda_version": "12.8",
+              "schema": 1,
+              "torch_version": "2.9.1+cu128",
+              "variant": "cu128",
+              "wheel_build_tag": "1cu128"
+            },
+            "build_config_sha256": "d0b115bc3956160c2d47e1f0639c27275d62b5952a441b05ba7c74e2d8be7a9a"
+          },
+          "cuda": {
+            "distribution_name": "ragged-pool-cuda",
+            "distribution_version": "0.1.0",
+            "package_version": "0.1.0",
+            "native_library_loaded": true,
+            "native_library_sha256": "ab0f6e08d589efbcfe8a7e02c9626e728aa86b2f89ab456fba8d8289da7f21f8",
+            "requires_dist": [
+              "torch==2.9.1+cu128"
+            ],
+            "wheel_build_tag": "",
+            "wheel_sha256": "91631c004ae04e36cdc6dfb1bf3c6624d3bb00acc20461ca1731fc6949690c97",
+            "wheel_filename": "ragged_pool_cuda-0.1.0-cp311-cp311-win_amd64.whl",
+            "metadata_sha256": "266a92c83f3095521005931aa0a813a8012b4fd30bec5ca6c75caac4dcd7a97b"
+          }
+        },
+        "root_cpu_operator_build_variant": "cu128",
+        "explicit_device_transfers": true,
+        "comparison_copies_to_cpu": true,
+        "fixture_sha256": "dd7651040e7b151b5f5de01649607f4e12de39119f0c63f2b1bf568e2cde303d",
+        "optimizer": "SGD",
+        "learning_rate": 0.03,
+        "optimizer_steps_per_route": 2,
+        "parameter_tensors": 5,
+        "scalar_parameters": 25,
+        "comparison_tolerance": {
+          "rtol": 2e-10,
+          "atol": 2e-12
+        },
+        "steps": [
+          {
+            "update": 1,
+            "N": 9,
+            "B": 5,
+            "offsets": [
+              0,
+              2,
+              2,
+              5,
+              7,
+              9
+            ],
+            "losses": {
+              "cpu_native": 0.17527600099698018,
+              "cuda_native": 0.1752760009969802,
+              "cpu_primitive": 0.17527600099698018,
+              "cuda_primitive": 0.1752760009969802
+            },
+            "output_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "predictions": 2.7755575615628914e-17,
+                "pooled": 1.1102230246251565e-16,
+                "loss": 0.0,
+                "input_gradient": 1.734723475976807e-18
+              },
+              "cuda_native__cuda_primitive": {
+                "predictions": 0.0,
+                "pooled": 0.0,
+                "loss": 0.0,
+                "input_gradient": 4.336808689942018e-19
+              },
+              "cuda_native__cpu_native": {
+                "predictions": 0.0,
+                "pooled": 2.7755575615628914e-17,
+                "loss": 2.7755575615628914e-17,
+                "input_gradient": 6.938893903907228e-18
+              },
+              "cuda_primitive__cpu_primitive": {
+                "predictions": 2.7755575615628914e-17,
+                "pooled": 1.1102230246251565e-16,
+                "loss": 2.7755575615628914e-17,
+                "input_gradient": 6.938893903907228e-18
+              }
+            },
+            "parameter_gradient_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 1.734723475976807e-18,
+                "encoder.bias": 0.0,
+                "scorer.weight": 4.336808689942018e-19,
+                "head.weight": 0.0,
+                "head.bias": 5.551115123125783e-17
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 1.734723475976807e-18,
+                "encoder.bias": 0.0,
+                "scorer.weight": 1.3010426069826053e-18,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 3.469446951953614e-18,
+                "encoder.bias": 1.3877787807814457e-17,
+                "scorer.weight": 2.168404344971009e-18,
+                "head.weight": 1.3877787807814457e-17,
+                "head.bias": 0.0
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 3.469446951953614e-18,
+                "encoder.bias": 1.3877787807814457e-17,
+                "scorer.weight": 6.505213034913027e-19,
+                "head.weight": 1.3877787807814457e-17,
+                "head.bias": 5.551115123125783e-17
+              }
+            },
+            "updated_parameter_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "parameter_update_max_abs": {
+              "cpu_native": {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              },
+              "cuda_native": {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              },
+              "cpu_primitive": {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              },
+              "cuda_primitive": {
+                "encoder.weight": 0.0008292428274350172,
+                "encoder.bias": 0.0037348159080672905,
+                "scorer.weight": 4.094647882675606e-05,
+                "head.weight": 0.005101558024678932,
+                "head.bias": 0.010074860718194106
+              }
+            },
+            "inputs_unchanged": true,
+            "all_parameter_blocks_changed": true,
+            "same_parameter_and_optimizer_objects": true
+          },
+          {
+            "update": 2,
+            "N": 12,
+            "B": 6,
+            "offsets": [
+              0,
+              3,
+              5,
+              5,
+              8,
+              10,
+              12
+            ],
+            "losses": {
+              "cpu_native": 0.43966042938567274,
+              "cuda_native": 0.4396604293856726,
+              "cpu_primitive": 0.4396604293856728,
+              "cuda_primitive": 0.4396604293856726
+            },
+            "output_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "predictions": 5.551115123125783e-17,
+                "pooled": 5.551115123125783e-17,
+                "loss": 5.551115123125783e-17,
+                "input_gradient": 2.7755575615628914e-17
+              },
+              "cuda_native__cuda_primitive": {
+                "predictions": 5.551115123125783e-17,
+                "pooled": 1.1102230246251565e-16,
+                "loss": 0.0,
+                "input_gradient": 1.734723475976807e-18
+              },
+              "cuda_native__cpu_native": {
+                "predictions": 5.551115123125783e-17,
+                "pooled": 1.1102230246251565e-16,
+                "loss": 1.1102230246251565e-16,
+                "input_gradient": 1.0408340855860843e-17
+              },
+              "cuda_primitive__cpu_primitive": {
+                "predictions": 5.551115123125783e-17,
+                "pooled": 1.1102230246251565e-16,
+                "loss": 1.6653345369377348e-16,
+                "input_gradient": 2.7755575615628914e-17
+              }
+            },
+            "parameter_gradient_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 8.673617379884035e-18,
+                "encoder.bias": 2.7755575615628914e-17,
+                "scorer.weight": 3.903127820947816e-18,
+                "head.weight": 1.1102230246251565e-16,
+                "head.bias": 1.1102230246251565e-16
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 1.734723475976807e-18,
+                "encoder.bias": 0.0,
+                "scorer.weight": 2.6020852139652106e-18,
+                "head.weight": 5.551115123125783e-17,
+                "head.bias": 2.220446049250313e-16
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 3.469446951953614e-18,
+                "encoder.bias": 5.551115123125783e-17,
+                "scorer.weight": 1.3010426069826053e-18,
+                "head.weight": 5.551115123125783e-17,
+                "head.bias": 1.1102230246251565e-16
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 1.0408340855860843e-17,
+                "encoder.bias": 8.326672684688674e-17,
+                "scorer.weight": 1.0842021724855044e-18,
+                "head.weight": 1.1102230246251565e-16,
+                "head.bias": 0.0
+              }
+            },
+            "updated_parameter_max_abs_errors": {
+              "cpu_native__cpu_primitive": {
+                "encoder.weight": 4.336808689942018e-19,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              },
+              "cuda_native__cuda_primitive": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 1.3877787807814457e-17
+              },
+              "cuda_native__cpu_native": {
+                "encoder.weight": 0.0,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 1.3877787807814457e-17
+              },
+              "cuda_primitive__cpu_primitive": {
+                "encoder.weight": 4.336808689942018e-19,
+                "encoder.bias": 0.0,
+                "scorer.weight": 0.0,
+                "head.weight": 0.0,
+                "head.bias": 0.0
+              }
+            },
+            "parameter_update_max_abs": {
+              "cpu_native": {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.027646534294819974
+              },
+              "cuda_native": {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.02764653429481996
+              },
+              "cpu_primitive": {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.027646534294819974
+              },
+              "cuda_primitive": {
+                "encoder.weight": 0.0006195250022527632,
+                "encoder.bias": 0.005694568866150829,
+                "scorer.weight": 7.404383341080845e-05,
+                "head.weight": 0.010142693789438328,
+                "head.bias": 0.027646534294819974
+              }
+            },
+            "inputs_unchanged": true,
+            "all_parameter_blocks_changed": true,
+            "same_parameter_and_optimizer_objects": true
+          }
+        ],
+        "inputs_unchanged": true,
+        "initial_parameters_unchanged": true,
+        "threads": 1,
+        "interop_threads": 1
+      }
+    }
+  },
+  "adverse": [
+    "Original exact wheel pair produced expected ResolutionImpossible without environment mutation.",
+    "First identity verification stopped on reused CUDA source line endings; complete exact accepted member hash plus documented CRLF-to-LF join corrected only the private verifier. Failed attempt retained."
+  ],
+  "limitations": [
+    "One pinned Windows CPython3.11.8/Torch2.9.1+cu128/RTX4090 route; no cross-version ABI or other GPU/platform qualification.",
+    "No new CUDA compile or native sanitizer execution. Prior native diagnostic evidence applies only to its stated binary and fixtures.",
+    "No AMP, distributed training, cross-device optimizer migration, performance, robustness, security or model-quality claim.",
+    "Public source publication and exact PR/main CI are separate delivery receipts; no binary release/tag/PyPI publication is part of this goal."
+  ]
+}

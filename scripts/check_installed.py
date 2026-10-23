@@ -25,7 +25,14 @@ def native_entry(names, suffixes=EXTENSION_SUFFIXES):
     return candidates[0]
 
 
-def check(checkout, wheel):
+def check(checkout, wheel, expected_variant='cpu'):
+    require(expected_variant in ('cpu', 'cu128'), 'Expected variant must be cpu or cu128')
+    expected_config = {
+        'schema': 1, 'variant': expected_variant,
+        'torch_version': '2.9.1+' + expected_variant,
+        'cuda_version': None if expected_variant == 'cpu' else '12.8',
+        'wheel_build_tag': '' if expected_variant == 'cpu' else '1cu128',
+    }
     checkout = checkout.resolve(strict=True)
     wheel = wheel.resolve(strict=True)
     require(not Path.cwd().resolve().is_relative_to(checkout), 'Run from outside the checkout')
@@ -46,11 +53,31 @@ def check(checkout, wheel):
         metadata = BytesParser().parsebytes(archive.read(metadata_name))
         require(metadata['Name'] == 'ragged-pool', 'Unexpected wheel distribution')
         require(metadata['Version'] == installed.version, 'Installed and wheel versions differ')
+        require(metadata['Version'] == '0.1.0', 'This checker is scoped to ragged-pool 0.1.0')
+        require(metadata.get_all('Requires-Dist', []) == ['torch==' + expected_config['torch_version']],
+                'The wheel must require its exact declared Torch build')
         require(metadata['License-Expression'] == 'MIT', 'The wheel must declare the MIT license')
+        filename = wheel.name.removesuffix('.whl').split('-')
+        expected_prefix = ['ragged_pool', '0.1.0']
+        if expected_config['wheel_build_tag']:
+            expected_prefix.append(expected_config['wheel_build_tag'])
+        require(wheel.suffix == '.whl' and len(filename) == len(expected_prefix) + 3
+                and filename[:len(expected_prefix)] == expected_prefix,
+                'The wheel filename must identify its declared Torch build')
+        wheel_metadata = metadata_name.rsplit('/', 1)[0] + '/WHEEL'
+        require(wheel_metadata in names, 'The wheel must contain its WHEEL metadata')
+        wheel_record = BytesParser().parsebytes(archive.read(wheel_metadata))
+        require(wheel_record.get('Build', '') == expected_config['wheel_build_tag'],
+                'WHEEL metadata and the declared build tag differ')
         wheel_python = {name for name in names if name.startswith('ragged_pool/') and name.endswith('.py')}
         require(wheel_python == source.keys(), 'Wheel and checkout Python source sets differ')
+        generated = 'ragged_pool/_build_config.json'
+        require(generated in names, 'The wheel must contain its generated build configuration')
+        expected_config_bytes = (json.dumps(expected_config, indent=2, sort_keys=True) + '\n').encode('utf-8')
+        require(archive.read(generated) == expected_config_bytes,
+                'The generated build configuration differs from the declared variant')
         native = native_entry(names)
-        for name in sorted(wheel_python | {native}):
+        for name in sorted(wheel_python | {native, generated}):
             wheel_bytes = archive.read(name)
             installed_path = Path(installed.locate_file(name)).resolve(strict=True)
             require(not installed_path.is_relative_to(checkout), f'Package source leaked into acceptance: {name}')
@@ -78,9 +105,13 @@ def check(checkout, wheel):
     native_path = Path(installed.locate_file(native)).resolve(strict=True)
     loaded = {Path(path).resolve() for path in torch.ops.loaded_libraries}
     require(native_path in loaded, 'The verified native library was not loaded by PyTorch')
-    require(torch.__version__ == '2.9.1+cpu', 'Acceptance requires PyTorch 2.9.1+cpu')
+    require(str(torch.__version__) == expected_config['torch_version'],
+            'Acceptance requires the wheel\'s exact PyTorch build')
+    require(torch.version.cuda == expected_config['cuda_version'],
+            'Acceptance requires the wheel\'s exact CUDA runtime flavor')
     require(sys.version_info[:3] == (3, 11, 8), 'Acceptance requires CPython 3.11.8')
     return {'package_version': installed.version, 'torch_version': torch.__version__,
+            'build_config': expected_config,
             'python_version': sys.version.split()[0], 'license_expression': metadata['License-Expression'],
             'native_library': native, 'native_library_loaded': True,
             'package_file_sha256': hashes}
@@ -90,5 +121,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--checkout', type=Path, required=True)
     parser.add_argument('--wheel', type=Path, required=True)
+    parser.add_argument('--expected-variant', choices=('cpu', 'cu128'), default='cpu')
     args = parser.parse_args()
-    print(json.dumps(check(args.checkout, args.wheel), indent=2))
+    print(json.dumps(check(args.checkout, args.wheel, args.expected_variant), indent=2))

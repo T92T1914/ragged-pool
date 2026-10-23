@@ -1,7 +1,18 @@
 """Stable weighted pooling for bounded packed CPU groups."""
 from pathlib import Path
+import json
 
 import torch
+
+from ._build import CONFIG_FILENAME, validate_runtime
+
+# This metadata is generated into the wheel, rather than inferred from the
+# current environment. A CPU-built wheel must not silently load under cu128.
+try:
+    _build_config = json.loads((Path(__file__).parent / CONFIG_FILENAME).read_text(encoding="utf-8"))
+except (OSError, UnicodeError, json.JSONDecodeError) as error:
+    raise ImportError("ragged-pool needs its generated build configuration. Install the wheel first.") from error
+validate_runtime(_build_config, str(torch.__version__), torch.version.cuda)
 
 # Load dispatcher registrations directly rather than invoking a pybind11 API.
 _libraries = list(Path(__file__).parent.glob("_C*.pyd")) + list(Path(__file__).parent.glob("_C*.so"))
