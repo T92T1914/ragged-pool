@@ -41,6 +41,8 @@ ACCUM_BOUNDARIES = ((((0, 2, 2), (0, 1, 3, 4)),
                     (((0,), (0, 2)), ((0, 0, 1, 3, 5), (0,))))
 PARAMETER_NAMES = ("encoder.weight", "encoder.bias", "scorer.weight",
                    "head.weight", "head.bias")
+PARAMETER_SHAPES = ((4, 3), (4,), (1, 4), (1, 4), (1,))
+CLIP_CAPS = (0.25, 2.0)
 SGD_OPTIONS = {"lr": 0.03, "momentum": 0.8, "dampening": 0,
                "weight_decay": 0, "nesterov": False, "maximize": False,
                "foreach": False, "differentiable": False, "fused": False}
@@ -345,9 +347,126 @@ def _counted_allreduce(state, bucket):
     return default_hooks.allreduce_hook(state["group"], bucket)
 
 
+def clip_parameter_gradients(model, optimizer, max_norm, rule="global", distributed=False):
+    """Clip the replicated vector, or deliberately count its norm twice.
+
+    The serial control uses the declared factor two without communication.
+    Distributed execution records the actual extra scalar SUM collective.
+    """
+    import math
+    if type(max_norm) not in (int, float):
+        raise ValueError("The clipping cap must be a finite positive nonboolean number")
+    try:
+        max_norm = float(max_norm)
+    except (OverflowError, ValueError) as error:
+        raise ValueError("The clipping cap must fit a finite positive float") from error
+    if not math.isfinite(max_norm) or max_norm <= 0:
+        raise ValueError("The clipping cap must be finite and positive")
+    if rule not in ("global", "replica_norm_control") or type(distributed) is not bool:
+        raise ValueError("Expected one declared clipping rule and a boolean distributed flag")
+    if type(optimizer) is not torch.optim.SGD:
+        raise ValueError("Clipping requires the fixed ordinary SGD optimizer")
+    try:
+        named = _parameter_bindings(model, optimizer)
+    except AssertionError as error:
+        raise ValueError("Clipping requires the fixed ordered live model bindings") from error
+    options = {name: value for name, value in optimizer.param_groups[0].items() if name != "params"}
+    if (type(optimizer) is not torch.optim.SGD or options.keys() != SGD_OPTIONS.keys()
+            or any(type(options[name]) is not type(value) or options[name] != value
+                   for name, value in SGD_OPTIONS.items())):
+        raise ValueError("Clipping requires the fixed ordinary SGD options")
+    dtype = next(iter(named.values())).dtype
+    gradients, momentum_before = {}, {}
+    parameter_storage = {value.untyped_storage().data_ptr() for value in named.values()}
+    if len(parameter_storage) != len(named):
+        raise ValueError("The five parameters must own independent storage")
+    for (name, value), shape in zip(named.items(), PARAMETER_SHAPES):
+        gradient = value.grad
+        if (value.dtype != dtype or dtype not in DTYPES.values() or tuple(value.shape) != shape
+                or not bool(torch.isfinite(value).all()) or gradient is None
+                or type(gradient) is not torch.Tensor or gradient.shape != value.shape
+                or gradient.dtype != dtype or gradient.device != value.device
+                or gradient.layout != torch.strided or not gradient.is_contiguous()
+                or gradient.requires_grad or torch.is_inference(gradient)
+                or gradient.is_conj() or gradient.is_neg()
+                or not bool(torch.isfinite(gradient).all())):
+            raise ValueError("All five clipping gradients must retain the finite dense contiguous CPU representation")
+        gradients[name] = gradient
+        state = optimizer.state.get(value, {})
+        if type(state) is not dict or set(state) not in (set(), {"momentum_buffer"}):
+            raise ValueError("Unexpected live SGD state before clipping")
+        if state:
+            buffer = state["momentum_buffer"]
+            if (type(buffer) is not torch.Tensor or buffer.shape != value.shape
+                    or buffer.dtype != dtype or buffer.device != value.device
+                    or buffer.layout != torch.strided or not buffer.is_contiguous()
+                    or not bool(torch.isfinite(buffer).all())):
+                raise ValueError("Momentum must retain its finite CPU representation before clipping")
+            momentum_before[name] = (buffer, buffer.detach().clone())
+    if any(value not in set(named.values()) for value in optimizer.state):
+        raise ValueError("The optimizer has state for a foreign parameter")
+    gradient_storage = [value.untyped_storage().data_ptr() for value in gradients.values()]
+    momentum_storage = {value[0].untyped_storage().data_ptr() for value in momentum_before.values()}
+    if (len(set(gradient_storage)) != len(gradient_storage)
+            or set(gradient_storage) & (parameter_storage | momentum_storage)):
+        raise ValueError("Clipping gradients must not share storage with each other, parameters or momentum")
+    before_parameters = copied(named)
+    before_gradients = copied(gradients)
+    bindings = {name: (id(value), value.data_ptr(), id(gradients[name]), gradients[name].data_ptr())
+                for name, value in named.items()}
+    # Probe the complete norm before any mutation. In particular, finite inputs
+    # can still overflow the dtype's norm and must not reach a scaling operation.
+    total_norm = torch.nn.utils.get_total_norm(list(gradients.values()), norm_type=2.0,
+                                              error_if_nonfinite=True, foreach=False)
+    coefficient_norm = total_norm.detach().clone()
+    scalar_collectives = 0
+    if rule == "replica_norm_control":
+        squared = total_norm.square()
+        if not bool(torch.isfinite(squared)):
+            raise ValueError("The deliberately replicated squared norm overflowed before clipping")
+        if distributed:
+            import torch.distributed as dist
+            dist.all_reduce(squared, op=dist.ReduceOp.SUM)
+            scalar_collectives = 1
+        else:
+            squared.mul_(WORLD_SIZE)
+        coefficient_norm = squared.sqrt()
+        if not bool(torch.isfinite(coefficient_norm)):
+            raise ValueError("The deliberately replicated norm overflowed before clipping")
+    coefficient = torch.clamp(max_norm / (coefficient_norm + 1e-6), max=1.0)
+    if rule == "global":
+        returned_norm = torch.nn.utils.clip_grad_norm_(
+            list(named.values()), max_norm, norm_type=2.0, error_if_nonfinite=True, foreach=False)
+        torch.testing.assert_close(returned_norm, total_norm, rtol=0, atol=0)
+    else:
+        torch.nn.utils.clip_grads_with_norm_(list(named.values()), max_norm,
+                                             coefficient_norm, foreach=False)
+        returned_norm = total_norm
+    post_gradients = copied(gradients)
+    post_norm = torch.nn.utils.get_total_norm(list(gradients.values()), norm_type=2.0,
+                                             error_if_nonfinite=True, foreach=False)
+    for name, parameter in named.items():
+        torch.testing.assert_close(parameter, before_parameters[name], rtol=0, atol=0)
+        if (id(parameter), parameter.data_ptr(), id(parameter.grad), parameter.grad.data_ptr()) != bindings[name]:
+            raise AssertionError("Clipping changed a parameter or gradient binding")
+        torch.testing.assert_close(post_gradients[name], before_gradients[name] * coefficient, rtol=0, atol=0)
+        if name in momentum_before:
+            buffer, before = momentum_before[name]
+            if optimizer.state[parameter]["momentum_buffer"] is not buffer:
+                raise AssertionError("Clipping replaced live momentum")
+            torch.testing.assert_close(buffer, before, rtol=0, atol=0)
+    return {"rule": rule, "max_norm": max_norm, "pre_clip_gradients": before_gradients,
+            "pre_clip_norm": returned_norm.detach().clone(), "coefficient_norm": coefficient_norm,
+            "coefficient": coefficient, "post_clip_gradients": post_gradients,
+            "post_clip_norm": post_norm, "norm_scalar_collectives": scalar_collectives,
+            "replica_norm_factor": WORLD_SIZE if rule == "replica_norm_control" else 1,
+            "bindings_unchanged": True, "parameters_and_momentum_unchanged": True}
+
+
 def _accumulation_step(model, optimizer, microbatches, window=0,
                        mode="global_window_mean", hook_state=None, route="native",
-                       distributed=False, global_groups=None, micro_global_groups=None):
+                       distributed=False, global_groups=None, micro_global_groups=None,
+                       clipping=None):
     """Accumulate exactly two connected backwards, then take one momentum update."""
     if len(microbatches) != 2:
         raise ValueError("Expected exactly two microbatches in one update")
@@ -355,6 +474,8 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
         raise ValueError("Expected accumulation window index zero or one")
     if mode not in ("global_window_mean", "eager_sync", "microbatch_mean_control"):
         raise ValueError("Unknown accumulation objective mode")
+    if clipping not in (None, "global", "replica_norm_control"):
+        raise ValueError("Unknown optional clipping rule")
     named = _parameter_bindings(model, optimizer)
     bindings = {name: (id(value), value.data_ptr()) for name, value in named.items()}
     before_parameters = copied(named)
@@ -435,6 +556,8 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
                               "global_groups": observed_micro_counts[micro],
                               "hook_calls": delta, "input_unchanged": True,
                               "parameters_and_momentum_unchanged_before_step": True})
+    clip_record = (clip_parameter_gradients(model, optimizer, CLIP_CAPS[window], clipping, distributed)
+                   if clipping is not None else None)
     gradients = {name: value.grad.detach().clone() for name, value in named.items()}
     if distributed:
         dist.all_reduce(metric_sum, op=dist.ReduceOp.SUM)
@@ -453,7 +576,7 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
         if torch.equal(value, before_parameters[name]):
             raise AssertionError(f"A window update did not change parameter block: {name}")
     _parameter_bindings(model, optimizer)
-    return {"microbatches": micro_records,
+    result = {"microbatches": micro_records,
             "first_micro_parameter_gradients": first_micro_gradients,
             "parameter_gradients": gradients, "parameters": after_parameters,
             "momentum": momentum, "global_groups": observed_groups,
@@ -463,6 +586,9 @@ def _accumulation_step(model, optimizer, microbatches, window=0,
             "optimizer_steps": 1, "zero_grad_calls": 1,
             "bindings_unchanged": True, "sgd_recurrence_exact": True,
             "all_parameter_blocks_changed": True}
+    if clip_record is not None:
+        result["clipping"] = clip_record
+    return result
 
 
 def _accumulation_oracle(initial, batches, route):
@@ -670,7 +796,7 @@ def installed_identity(wheel=None):
     return result
 
 
-def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulate=False):
+def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulate=False, clipping=False):
     # These are fresh interpreters. No shared parent tensors or work queues are used.
     log = Path(directory) / f"worker-{rank}.log"
     receipt = Path(directory) / f"worker-{rank}.json"
@@ -690,6 +816,11 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
             if not dist.is_available() or not dist.is_gloo_available():
                 raise RuntimeError("This pinned environment does not provide Gloo")
             identity = installed_identity(wheel)
+            if clipping:
+                if not accumulate:
+                    raise ValueError("The clipping protocol requires accumulation")
+                identity["clip_consumer_sha256"] = sha256(
+                    Path(__file__).resolve().with_name("clip_distributed.py").read_bytes()).hexdigest()
 
             def loopback_gloo(store, process_rank, size, timeout):
                 # register_backend is public. These Gloo options are pinned 2.9.1
@@ -718,8 +849,9 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
                                   for name, value in batch.items() if isinstance(value, torch.Tensor)}
             fixture_before = snapshot(fixture_inputs)
             routes, communication = {}, {}
-            modes = (("global_window_mean", "eager_sync", "microbatch_mean_control") if accumulate
-                     else ("global_group_mean", "local_mean_control"))
+            modes = (("global", "replica_norm_control") if clipping else
+                     (("global_window_mean", "eager_sync", "microbatch_mean_control") if accumulate
+                      else ("global_group_mean", "local_mean_control")))
             for mode in modes:
                 model = copy.deepcopy(initial)
                 ddp = DistributedDataParallel(model, device_ids=None,
@@ -732,7 +864,9 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
                     routes[mode] = [_accumulation_step(
                         ddp, optimizer,
                         [accumulation_rank_batch(batches, window, micro, rank) for micro in range(2)],
-                        window=window, mode=mode, hook_state=hook_state, distributed=True)
+                        window=window, mode="global_window_mean" if clipping else mode,
+                        hook_state=hook_state, distributed=True,
+                        clipping=mode if clipping else None)
                         for window in range(2)]
                     communication[mode] = hook_state["events"]
                 else:
@@ -750,6 +884,9 @@ def _worker(rank, dtype_name, directory, rendezvous, wheel, fail_rank, accumulat
             if accumulate:
                 result.update({"accumulation": True, "communication_hooks": communication,
                                "communication_scope": "official averaging hook calls for the fixed 25-scalar bucket"})
+            if clipping:
+                result.update({"global_clipping": True, "clipping_caps": CLIP_CAPS,
+                               "clipping_scope": "joint replicated parameter vector after the final synchronized backward"})
         except BaseException as error:
             traceback.print_exc()
             result.update({"error_type": type(error).__name__, "error": str(error)})
@@ -791,7 +928,7 @@ def _cleanup_owned(processes):
     return actions
 
 
-def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False):
+def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False, clipping=False):
     rendezvous = directory / "gloo-rendezvous"
     if rendezvous.exists():
         raise ValueError("The task-owned rendezvous path must not exist")
@@ -814,6 +951,8 @@ def _launch_workers(dtype_name, directory, wheel, fail_rank, accumulate=False):
     try:
         for rank in range(WORLD_SIZE):
             arguments = (rank, dtype_name, str(directory), str(rendezvous), wheel, fail_rank, accumulate)
+            if clipping:
+                arguments += (True,)
             code = ("import runpy; runpy.run_path(" + repr(str(Path(__file__).resolve()))
                     + ")['_worker'](*" + repr(arguments) + ")")
             with (directory / f"bootstrap-{rank}.log").open("xb") as stream:

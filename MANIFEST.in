@@ -61,3 +61,5 @@ include docs/results/distributed-cpu.json
 include docs/distributed-accumulation.md
 include examples/resume_distributed.py
 include docs/distributed-resume.md
+include examples/clip_distributed.py
+include docs/distributed-clipping.md

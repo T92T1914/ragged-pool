@@ -49,6 +49,7 @@ FIXED_FILES = (
     'docs/results/distributed-cpu.json',
     'docs/distributed-accumulation.md',
     'docs/distributed-resume.md',
+    'docs/distributed-clipping.md',
 )
 GENERATED_FILES = {
     'PKG-INFO', 'setup.cfg', 'src/ragged_pool.egg-info/PKG-INFO',
