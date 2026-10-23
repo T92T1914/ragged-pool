@@ -1,5 +1,6 @@
 include csrc/pool.cpp
 include docs/contract.md
+include docs/examples.md
 include requirements-dev.txt
 include requirements-lock.txt
 include examples/train_sets.py

@@ -18,7 +18,7 @@ FIXED_FILES = (
     'requirements-dev.txt', 'requirements-lock.txt',
     'LICENSE', 'NOTICE', 'third_party/PYTORCH-LICENSE', 'csrc/pool.cpp',
     'scripts/check_installed.py', 'scripts/check_sdist.py',
-    'docs/contract.md', 'docs/cpu-study.md', 'docs/results/cpu-study.json',
+    'docs/contract.md', 'docs/examples.md', 'docs/cpu-study.md', 'docs/results/cpu-study.json',
     'docs/exported-consumer.md', 'docs/results/export-roundtrip.json',
     'docs/linux-cpu.md',
     'docs/padded-batches.md',
