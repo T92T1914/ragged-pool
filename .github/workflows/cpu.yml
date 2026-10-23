@@ -322,6 +322,27 @@ jobs:
           & $python -I examples\predict_sets.py --directory $artifact --manifest-sha256 $exportReceipt.artifact.manifest_sha256 --output export-consumer.json
           if ($LASTEXITCODE -ne 0) { throw 'Fresh installed exported consumer failed' }
 
+      - name: Train the installed two-rank CPU consumer
+        working-directory: ${{ runner.temp }}/ragged-consumer
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = Join-Path $env:RUNNER_TEMP 'ragged-accept\Scripts\python.exe'
+          $revision = git -C $env:GITHUB_WORKSPACE rev-parse HEAD
+          $tree = git -C $env:GITHUB_WORKSPACE rev-parse 'HEAD^{tree}'
+          foreach ($dtype in @('float32', 'float64')) {
+            & $python -I -B examples\train_distributed.py --dtype $dtype --directory "distributed-$dtype" --output "distributed-$dtype.json" --wheel $env:RAGGED_WHEEL --source-revision $revision --source-tree $tree
+            if ($LASTEXITCODE -ne 0) { throw "Two-rank CPU training failed for $dtype" }
+          }
+
+      - name: Retain two-rank CPU receipts and worker logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: distributed-cpu-${{ github.sha }}
+          path: ${{ runner.temp }}/ragged-consumer/distributed-*
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Archive the exact tested source
         run: |
           $ErrorActionPreference = 'Stop'

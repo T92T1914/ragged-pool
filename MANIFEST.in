@@ -55,3 +55,6 @@ include docs/results/coinstallation-cu128.json
 include examples/resume_backends.py
 include docs/cross-device-resume.md
 include docs/results/cross-device-resume.json
+include examples/train_distributed.py
+include docs/distributed-cpu.md
+include docs/results/distributed-cpu.json
