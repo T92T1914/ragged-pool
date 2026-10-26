@@ -35,7 +35,9 @@ The native code uses maximum subtraction for stable softmax and float64 accumula
 
 ## Build and run
 
-The initial Windows target is x64, CPython 3.11.8, PyTorch 2.9.1+cpu and MSVC 19.44 with C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises ABI compatibility across versions or compatibility with other platforms. Building on Windows requires an existing Visual Studio C++ toolchain and Windows SDK. No CUDA toolchain is needed. Versioned package downloads belong to [this repository's releases](https://github.com/T92T1914/ragged-pool/releases); later source and CI artifacts can be newer than the published release.
+Start with the [v0.2.0 downloads and installed example](docs/install.md). The Windows CPU wheel installs without a compiler. It requires x64 CPython 3.11.8 and the exact PyTorch 2.9.1+cpu dependency. [Release notes](docs/releases/v0.2.0.md) explain what the assets contain and which results remain historical.
+
+Building the Windows extension requires an existing Visual Studio C++ toolchain and Windows SDK, using MSVC 19.44 and C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises ABI compatibility across versions or compatibility with other platforms. No CUDA toolchain is needed for the default CPU package.
 
 From PowerShell at the checkout, create an isolated environment. Replace the example environment paths as needed. Install PyTorch from its official CPU wheel index before building. The explicit `--no-build-isolation` uses that pinned environment, and `--no-deps` prevents the package build from choosing another framework wheel.
 
@@ -49,7 +51,7 @@ $env:MAX_JOBS = '2'
 & $python -m pip install -r requirements-lock.txt
 $build = 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" && set DISTUTILS_USE_SDK=1 && "C:\work\ragged-build\Scripts\python.exe" -m pip wheel . --no-build-isolation --no-deps --wheel-dir dist'
 cmd.exe /d /c $build
-& $python -m pip install --no-deps dist\ragged_pool-0.1.0-cp311-cp311-win_amd64.whl
+& $python -m pip install --no-deps dist\ragged_pool-0.2.0-cp311-cp311-win_amd64.whl
 & $python -m pytest -q
 & $python examples\train_sets.py
 ```
@@ -134,7 +136,9 @@ and limitations together. Use the route that matches the question:
 The separate [CUDA companion](docs/examples.md#cuda-companion) and
 [CPU/CUDA co-installation route](docs/examples.md#cpu-and-cuda-in-one-environment)
 have their own dependency pins, qualified Windows RTX 4090 execution and
-sanitizer limits. They do not expand the CPU wheel's contract.
+sanitizer limits. The co-installation and cross-device resume guides retain the
+exact 0.1.0 wheel pair and link immutable historical source recipes. The 0.2.0
+CPU release does not qualify a replacement pair or expand the CPU wheel's contract.
 
 ## What the checks mean
 

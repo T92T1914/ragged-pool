@@ -1,5 +1,7 @@
 include csrc/pool.cpp
 include docs/contract.md
+include docs/install.md
+include docs/releases/v0.2.0.md
 include docs/examples.md
 include requirements-dev.txt
 include requirements-lock.txt

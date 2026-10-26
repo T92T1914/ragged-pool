@@ -23,18 +23,30 @@ The target model is placed before optimizer construction. Admission validates al
 
 ## Run the installed consumer
 
-Use the fresh external environment and exact CPU `1cu128`/CUDA wheel pair from the [co-installation instructions](coinstallation.md). The default +cpu wheel is a different dependency contract. Keep both `examples/train_backends.py` and `examples/resume_backends.py` beside each other in a separate consumer folder. Do not put the checkout on `PYTHONPATH`. Each invocation needs a new scenario directory and output path. It retains subprocess logs, checkpoint bytes and full numerical receipts.
+Use the fresh external environment and exact 0.1.0 CPU `1cu128`/CUDA wheel pair from the [historical co-installation instructions](coinstallation.md). The default +cpu wheel is a different dependency contract, and the 0.2.0 CPU release is not admitted by this strict handoff. Preserve that refusal.
+
+Obtain both consumer files from the [immutable executed source at `3c471c30090050bbcf84107a11bede56c34835f7`](https://github.com/T92T1914/ragged-pool/tree/3c471c30090050bbcf84107a11bede56c34835f7). Use a new source extraction and consumer folder, rather than switching the current checkout. The helper's Git blob is identical to the earlier co-installation execution, while this snapshot also contains the executed resume consumer:
 
 ```powershell
+$resumeRevision = '3c471c30090050bbcf84107a11bede56c34835f7'
+$resumeArchive = 'C:\work\ragged-handoff-source.zip'
+$resumeExtract = 'C:\work\ragged-handoff-source'
+if ((Test-Path -LiteralPath $resumeArchive) -or (Test-Path -LiteralPath $resumeExtract)) { throw 'Use new source paths' }
+Invoke-WebRequest -Uri "https://github.com/T92T1914/ragged-pool/archive/$resumeRevision.zip" -OutFile $resumeArchive
+Expand-Archive -LiteralPath $resumeArchive -DestinationPath $resumeExtract
+$resumeSource = Join-Path $resumeExtract "ragged-pool-$resumeRevision"
+$consumer = 'C:\work\handoff-consumer'
+New-Item -ItemType Directory -Path $consumer | Out-Null
+Copy-Item -LiteralPath (Join-Path $resumeSource 'examples\train_backends.py'),(Join-Path $resumeSource 'examples\resume_backends.py') -Destination $consumer
 $acceptPython = 'C:\work\coinstall-accept\Scripts\python.exe'
 # Set $cpuWheel and $cudaWheel to the exact qualified wheel paths.
-& $acceptPython -I -B C:\work\coinstall-consumer\resume_backends.py --dtype float32 --direction cpu-to-cuda --directory C:\work\handoff-cpu-cuda-f32 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cpu-cuda-f32.json
-& $acceptPython -I -B C:\work\coinstall-consumer\resume_backends.py --dtype float64 --direction cpu-to-cuda --directory C:\work\handoff-cpu-cuda-f64 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cpu-cuda-f64.json
-& $acceptPython -I -B C:\work\coinstall-consumer\resume_backends.py --dtype float32 --direction cuda-to-cpu --directory C:\work\handoff-cuda-cpu-f32 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cuda-cpu-f32.json
-& $acceptPython -I -B C:\work\coinstall-consumer\resume_backends.py --dtype float64 --direction cuda-to-cpu --directory C:\work\handoff-cuda-cpu-f64 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cuda-cpu-f64.json
+& $acceptPython -I -B "$consumer\resume_backends.py" --dtype float32 --direction cpu-to-cuda --directory C:\work\handoff-cpu-cuda-f32 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cpu-cuda-f32.json
+& $acceptPython -I -B "$consumer\resume_backends.py" --dtype float64 --direction cpu-to-cuda --directory C:\work\handoff-cpu-cuda-f64 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cpu-cuda-f64.json
+& $acceptPython -I -B "$consumer\resume_backends.py" --dtype float32 --direction cuda-to-cpu --directory C:\work\handoff-cuda-cpu-f32 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cuda-cpu-f32.json
+& $acceptPython -I -B "$consumer\resume_backends.py" --dtype float64 --direction cuda-to-cpu --directory C:\work\handoff-cuda-cpu-f64 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\handoff-cuda-cpu-f64.json
 ```
 
-Run serially. The script uses one CPU/inter-op thread, completes the producer before launching the resumer, and runs parent numerical oracles after both children exit. It distinguishes Windows virtual-environment launcher IDs from actual Python process IDs. A timeout records a stop marker and terminates its direct launcher with a bounded cleanup wait. It does not claim arbitrary descendant process-tree cleanup. Inspect owned processes before retrying a timeout.
+Do not put either source tree on `PYTHONPATH`. Each invocation needs a new scenario directory and output path. It retains subprocess logs, checkpoint bytes and full numerical receipts. Run serially. The script uses one CPU/inter-op thread, completes the producer before launching the resumer, and runs parent numerical oracles after both children exit. It distinguishes Windows virtual-environment launcher IDs from actual Python process IDs. A timeout records a stop marker and terminates its direct launcher with a bounded cleanup wait. It does not claim arbitrary descendant process-tree cleanup. Inspect owned processes before retrying a timeout.
 
 ## Executed checks
 

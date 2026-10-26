@@ -508,23 +508,42 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Read release metadata with CPython 3.11.8
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11.8'
+          architecture: x64
+
       - name: Download the accepted wheel and source
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: windows-cpu-${{ github.sha }}
           path: ${{ runner.temp }}/ragged-release-assets
 
-      - name: Create a draft, upload both assets and publish
+      - name: Verify release identity, upload the draft payload and publish
         run: |
           $ErrorActionPreference = 'Stop'
           $tag = $env:RELEASE_TAG
-          if ($tag -ne 'v0.1.0') { throw 'This publication route is scoped to v0.1.0' }
-          $notes = Join-Path $env:GITHUB_WORKSPACE 'docs\releases\v0.1.0.md'
+          $version = & python -I -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version'])"
+          if ($LASTEXITCODE -ne 0 -or $version -cne '0.2.0') { throw 'This publication route requires the reviewed 0.2.0 project version' }
+          if ($tag -cne "v$version") { throw 'The release tag differs from the project version' }
+          $revision = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $revision -cne $env:RELEASE_SHA) { throw 'Release notes and artifacts must identify the same source revision' }
+          $notes = Join-Path $env:GITHUB_WORKSPACE "docs\releases\$tag.md"
           if (-not (Test-Path -LiteralPath $notes -PathType Leaf)) { throw 'Release notes are missing' }
           $assetDirectory = Join-Path $env:RUNNER_TEMP 'ragged-release-assets'
-          $expectedNames = @('ragged_pool-0.1.0-cp311-cp311-win_amd64.whl', "ragged_pool-source-$($env:RELEASE_SHA).zip")
+          $payloadNames = @("ragged_pool-$version-cp311-cp311-win_amd64.whl", "ragged_pool-source-$revision.zip")
           $files = @(Get-ChildItem -LiteralPath $assetDirectory -File)
-          if (Compare-Object $expectedNames @($files.Name)) { throw 'Release artifacts differ from the expected wheel and source archive' }
+          if (Compare-Object -CaseSensitive $payloadNames @($files.Name)) { throw 'Release artifacts differ from the expected wheel and source archive' }
+          $checksumLines = @($files | Sort-Object -Property Name | ForEach-Object {
+            $digest = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$digest  $($_.Name)"
+          })
+          $checksumPath = Join-Path $assetDirectory 'SHA256SUMS.txt'
+          [IO.File]::WriteAllText($checksumPath, ($checksumLines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+          $expectedNames = @($payloadNames) + @('SHA256SUMS.txt')
+          $files = @(Get-ChildItem -LiteralPath $assetDirectory -File)
+          if (Compare-Object -CaseSensitive $expectedNames @($files.Name)) { throw 'Release checksum payload differs from the expected asset set' }
           $existingTags = @(gh api --paginate "repos/$($env:GH_REPO)/releases" --jq '.[].tag_name')
           if ($LASTEXITCODE -ne 0) { throw 'Could not inspect existing releases' }
           if ($existingTags -contains $tag) { throw "A release or draft for $tag already exists. Inspect it before retrying. No assets were changed." }
@@ -541,10 +560,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the uploaded draft' }
           $draft = $draftJson | ConvertFrom-Json
           if (-not $draft.draft -or $draft.tag_name -ne $tag) { throw 'Unexpected release state before publication' }
-          if (Compare-Object $expectedNames @($draft.assets.name)) { throw 'Draft assets differ from the expected wheel and source archive' }
+          if (Compare-Object -CaseSensitive $expectedNames @($draft.assets.name)) { throw 'Draft assets differ from the expected release payload' }
           foreach ($file in $files) {
-            $asset = @($draft.assets | Where-Object { $_.name -eq $file.Name })
-            if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $file.Length) {
+            $asset = @($draft.assets | Where-Object { $_.name -ceq $file.Name })
+            $digest = 'sha256:' + (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $file.Length -or $asset[0].digest -cne $digest) {
               throw "Uploaded asset is incomplete: $($file.Name). The release remains a draft."
             }
           }
@@ -554,4 +574,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not verify published release state' }
           $published = $publishedJson | ConvertFrom-Json
           if ($published.isDraft -or $published.tagName -ne $tag) { throw 'Release publication was not verified' }
+          $readbackJson = gh api "repos/$($env:GH_REPO)/releases/$releaseId"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not verify published asset identities' }
+          $readback = $readbackJson | ConvertFrom-Json
+          if ($readback.draft -or $readback.tag_name -cne $tag -or (Compare-Object -CaseSensitive $expectedNames @($readback.assets.name))) { throw 'Published release identity or asset set differs' }
+          foreach ($file in $files) {
+            $asset = @($readback.assets | Where-Object { $_.name -ceq $file.Name })
+            $digest = 'sha256:' + (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $file.Length -or $asset[0].digest -cne $digest) { throw "Published asset differs: $($file.Name)" }
+          }
           Write-Output $published.url

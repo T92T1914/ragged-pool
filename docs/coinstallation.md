@@ -2,7 +2,9 @@
 
 The default CPU distribution requires `torch==2.9.1+cpu`. The CUDA companion requires `torch==2.9.1+cu128`. Those exact requirements cannot share an environment. Do not bypass the conflict with `--no-deps` when installing the two ordinary distributions.
 
-An explicit CPU build variant uses `RAGGED_POOL_TORCH_VARIANT=cu128`, compiles the CPU extension against that exact framework, and produces `ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl`. It still runs its pooling operations on CPU. The wheel build tag identifies its framework dependency separately from the project version. Both installed distributions then require the same cu128 framework. The CPU-only default and its wheel name remain unchanged.
+The accepted historical CPU build variant uses `RAGGED_POOL_TORCH_VARIANT=cu128`, compiles the CPU extension against that exact framework, and produces `ragged_pool-0.1.0-1cu128-cp311-cp311-win_amd64.whl`. It still runs its pooling operations on CPU. The wheel build tag identifies its framework dependency separately from the project version. Both installed distributions then require the same cu128 framework.
+
+This guide retains the qualified 0.1.0 pair. The current 0.2.0 checkout would build a 0.2.0 CPU wheel, which is outside that pair's acceptance and the strict cross-device resume admission. Use the immutable historical source below for this recipe. Do not rename a new wheel or weaken version checks to make it look like the accepted pair. The default 0.2.0 release remains CPU-only.
 
 The build checks the selected Torch version and CUDA runtime before importing the extension builder. Its generated `_build_config.json` lives in the wheel, rather than the source tree. Import checks that configuration against the active framework before loading the CPU native library. Native builds force recompilation so switching flavors cannot reuse an earlier object file. These checks are a compatibility boundary, not authentication of untrusted packages or a cross-version ABI guarantee.
 
@@ -10,7 +12,19 @@ The build checks the selected Torch version and CUDA runtime before importing th
 
 The [execution record](results/coinstallation-cu128.json) qualifies one Windows x64 / CPython 3.11.8 / Torch 2.9.1+cu128 / MSVC 19.44.35228, toolset 14.44.35207 route, with the unchanged accepted CUDA companion on an RTX 4090. CPU source compilation uses C++17 and the ATen/dispatcher API. The CPU C++ source is unchanged from the preceding revision, but this CPU binary was compiled afresh against cu128 from a checked source archive. The companion retains its accepted native and Python wheel bytes. No CUDA kernel change, new CUDA compiler result, performance result or broader platform compatibility is implied.
 
-Use a separate build environment with the exact cu128 framework already installed. From the repository root, in a qualified x64 Visual Studio child command environment, set these variables and build the CPU wheel. The child environment must expose the existing MSVC 14.44 compiler and Windows SDK. The root [Windows build example](../README.md#build-and-run) shows the `vcvars64.bat` route.
+Use a separate build environment with the exact cu128 framework already installed. The [CPU execution source at `4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4`](https://github.com/T92T1914/ragged-pool/tree/4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4) declares version 0.1.0. Download that immutable Git snapshot into new owned paths without changing the current checkout:
+
+```powershell
+$cpuRevision = '4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4'
+$cpuArchive = 'C:\work\ragged-coinstall-source.zip'
+$cpuExtract = 'C:\work\ragged-coinstall-source'
+if ((Test-Path -LiteralPath $cpuArchive) -or (Test-Path -LiteralPath $cpuExtract)) { throw 'Use new source paths' }
+Invoke-WebRequest -Uri "https://github.com/T92T1914/ragged-pool/archive/$cpuRevision.zip" -OutFile $cpuArchive
+Expand-Archive -LiteralPath $cpuArchive -DestinationPath $cpuExtract
+$cpuSource = Join-Path $cpuExtract "ragged-pool-$cpuRevision"
+```
+
+In a qualified x64 Visual Studio child command environment, build from `$cpuSource`, not `.` in the current checkout. The child environment must expose the existing MSVC 14.44 compiler and Windows SDK. The root [Windows build example](../README.md#build-and-run) shows the `vcvars64.bat` setup, while the immutable source above supplies this recipe's project version and code.
 
 ```powershell
 & $buildPython -m pip --isolated install torch==2.9.1+cu128 --index-url https://download.pytorch.org/whl/cu128
@@ -20,12 +34,12 @@ $env:DISTUTILS_USE_SDK = '1'
 $env:OMP_NUM_THREADS = '1'
 $env:MKL_NUM_THREADS = '1'
 $env:MAX_JOBS = '2'
-& $buildPython -m pip --isolated wheel . --no-build-isolation --no-deps --no-cache-dir --wheel-dir C:\work\coinstall-wheels
+& $buildPython -m pip --isolated wheel $cpuSource --no-build-isolation --no-deps --no-cache-dir --wheel-dir C:\work\coinstall-wheels
 ```
 
 `--no-build-isolation` deliberately uses this exact prepared framework. The default isolated build requirements still select +cpu. `--no-deps` applies to wheel construction here. Runtime installation below uses normal dependency resolution. No CUDA toolkit is needed to compile this CPU extension. Building the companion from source has its own [CUDA toolchain requirements](../cuda/README.md#one-explicit-installation-route).
 
-Create a new acceptance environment and consumer directory outside the checkout. Install cu128 from its official index, then install both exact wheel paths together. `$cpuWheel` must identify the new `1cu128` CPU wheel. `$cudaWheel` must identify the qualified companion. Do not use the original untagged +cpu wheel in that pair.
+Create a new acceptance environment and consumer directory outside both source trees. Install cu128 from its official index, then install both exact wheel paths together. `$cpuWheel` must identify the 0.1.0 `1cu128` CPU wheel. `$cudaWheel` must identify the qualified 0.1.0 companion. Do not use the untagged +cpu wheel or substitute the 0.2.0 package in that pair. A rebuild produces new artifact bytes and needs its own acceptance. It does not inherit the historical wheel hashes or results merely because the version matches.
 
 ```powershell
 py -3.11 -m venv C:\work\coinstall-accept
@@ -35,9 +49,11 @@ $acceptPython = 'C:\work\coinstall-accept\Scripts\python.exe'
 & $acceptPython -m pip check
 ```
 
-Copy `examples/train_backends.py` into the separate consumer directory, then run it there with no checkout added to `PYTHONPATH`:
+Copy [the immutable executed `train_backends.py`](https://github.com/T92T1914/ragged-pool/blob/4fd3553f93ab59be0b5cef845aeb9f7bbe88adf4/examples/train_backends.py) from `$cpuSource` into the separate consumer directory, then run it there with no checkout added to `PYTHONPATH`:
 
 ```powershell
+New-Item -ItemType Directory -Path C:\work\coinstall-consumer | Out-Null
+Copy-Item -LiteralPath (Join-Path $cpuSource 'examples\train_backends.py') -Destination C:\work\coinstall-consumer
 & $acceptPython -I C:\work\coinstall-consumer\train_backends.py --dtype float32 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\coinstall-consumer\float32.json
 & $acceptPython -I C:\work\coinstall-consumer\train_backends.py --dtype float64 --cpu-wheel $cpuWheel --cuda-wheel $cudaWheel --output C:\work\coinstall-consumer\float64.json
 ```

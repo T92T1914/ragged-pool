@@ -118,7 +118,7 @@ Build an ordinary wheel with the pinned route in the [README](../README.md), the
 ```powershell
 $python = 'C:\work\ragged-accept\Scripts\python.exe'
 $consumer = 'C:\work\ragged-consumer'
-$wheel = 'C:\work\ragged-pool\dist\ragged_pool-0.1.0-cp311-cp311-win_amd64.whl'
+$wheel = 'C:\work\ragged-pool\dist\ragged_pool-0.2.0-cp311-cp311-win_amd64.whl'
 $revision = git -C C:\work\ragged-pool rev-parse HEAD
 & $python -I "$consumer\learn_sets.py" --output "$consumer\study.json" --source-revision $revision --wheel $wheel
 & $python -I "$consumer\cpu_cost.py" --timing --output "$consumer\timing.json" --source-revision $revision --wheel $wheel --budget-seconds 300
