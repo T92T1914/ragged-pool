@@ -34,7 +34,7 @@ Build and install the ordinary wheel using the [Windows](../README.md#build-and-
 $python = 'C:\work\ragged-accept\Scripts\python.exe'
 $examples = 'C:\work\ragged-consumer\examples'
 $revision = 'FULL_40_CHARACTER_SOURCE_REVISION'
-$wheel = 'C:\work\dist\ragged_pool-0.1.0-cp311-cp311-win_amd64.whl'
+$wheel = 'C:\work\dist\ragged_pool-0.2.0-cp311-cp311-win_amd64.whl'
 & $python -I "$examples\export_padded.py" --dtype float32 --directory 'C:\work\padded-f32' --source-revision $revision --wheel $wheel --output 'C:\work\padded-producer-f32.json'
 $digest = (Get-Content 'C:\work\padded-producer-f32.json' -Raw | ConvertFrom-Json).manifest_sha256
 & $python -I "$examples\predict_padded.py" --directory 'C:\work\padded-f32' --manifest-sha256 $digest --output 'C:\work\padded-predictor-f32.json'

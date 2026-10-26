@@ -94,7 +94,7 @@ jobs:
           # Run the pinned PEP 517 backend hook in its own process.
           "$python" -I -c 'from setuptools.build_meta import build_sdist; import os; build_sdist(os.environ["RAGGED_DIST"])' 2>&1 | tee "$RAGGED_EVIDENCE/sdist-build.log"
           sdists=("$RAGGED_DIST"/*.tar.gz)
-          if (( ${#sdists[@]} != 1 )) || ! test -f "${sdists[0]}" || [[ "$(basename "${sdists[0]}")" != ragged_pool-0.1.0.tar.gz ]]; then
+          if (( ${#sdists[@]} != 1 )) || ! test -f "${sdists[0]}" || [[ "$(basename "${sdists[0]}")" != ragged_pool-0.2.0.tar.gz ]]; then
             echo 'Expected exactly the declared source distribution' >&2
             exit 1
           fi
@@ -114,7 +114,7 @@ jobs:
             exit 1
           fi
           wheels=("$RAGGED_DIST"/*.whl)
-          if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}" || [[ "$(basename "${wheels[0]}")" != ragged_pool-0.1.0-cp311-cp311-linux_x86_64.whl ]]; then
+          if (( ${#wheels[@]} != 1 )) || ! test -f "${wheels[0]}" || [[ "$(basename "${wheels[0]}")" != ragged_pool-0.2.0-cp311-cp311-linux_x86_64.whl ]]; then
             echo 'Expected exactly one CPython 3.11 Linux x86_64 wheel' >&2
             exit 1
           fi

@@ -43,9 +43,9 @@ Clear ignored raw padding before encoder/scorer arithmetic. Masking a NaN result
 
 ## CPU and CUDA in one environment
 
-An opt-in [CPU/CUDA co-installation route](coinstallation.md) builds the CPU extension against `torch==2.9.1+cu128` and gives its wheel the explicit `1cu128` build tag. It installs ordinarily beside the CUDA companion in one pinned environment. The default CPU wheel retains its exact +cpu dependency. `examples/train_backends.py` completes two matched SGD updates through CPU native, CUDA native and independent primitive routes in both dtypes, with explicit caller device placement and full gradient/parameter comparisons. This qualifies one Windows RTX 4090 environment, without expanding saved CPU artifact contracts or making a performance claim.
+The historical [CPU/CUDA co-installation route](coinstallation.md) uses an immutable source snapshot to build the 0.1.0 CPU extension against `torch==2.9.1+cu128`, with explicit `1cu128` wheel build tag. It installs ordinarily beside the accepted 0.1.0 CUDA companion in one pinned environment. Building the current checkout instead produces a 0.2.0 package, outside that pair's acceptance. The default CPU release retains its exact +cpu dependency. The immutable `examples/train_backends.py` consumer completes two matched SGD updates through CPU native, CUDA native and independent primitive routes in both dtypes, with explicit caller device placement and full gradient/parameter comparisons. This qualifies one Windows RTX 4090 environment, without expanding saved CPU artifact contracts or making a performance claim.
 
-The [cross-device training handoff](cross-device-resume.md) continues a fixed momentum-SGD run from CPU to CUDA0 or back in a fresh process. It restores weights and optimizer buffers after update two, then checks two further updates against native and independent primitive continuations. Both dtypes passed on the qualified wheel pair. Separate reset/swap momentum controls show why correct predictions alone do not establish a correct training resume.
+The [cross-device training handoff](cross-device-resume.md) uses its linked immutable consumer snapshot and that same 0.1.0 pair to continue a fixed momentum-SGD run from CPU to CUDA0 or back in a fresh process. It restores weights and optimizer buffers after update two, then checks two further updates against native and independent primitive continuations. Both dtypes passed on the qualified wheel pair. Separate reset/swap momentum controls show why correct predictions alone do not establish a correct training resume.
 
 ## Distributed CPU training
 
@@ -154,7 +154,7 @@ For installed execution, copy `learn_sets.py`, `pool_baselines.py` and `cpu_cost
 ```powershell
 $python = 'C:\work\ragged-accept\Scripts\python.exe'
 $consumer = 'C:\work\ragged-consumer'
-$wheel = 'C:\work\ragged-pool\dist\ragged_pool-0.1.0-cp311-cp311-win_amd64.whl'
+$wheel = 'C:\work\ragged-pool\dist\ragged_pool-0.2.0-cp311-cp311-win_amd64.whl'
 $revision = git -C C:\work\ragged-pool rev-parse HEAD
 & $python -I "$consumer\learn_sets.py" --output "$consumer\study.json" --source-revision $revision --wheel $wheel
 & $python -I "$consumer\cpu_cost.py" --timing --output "$consumer\timing.json" --source-revision $revision --wheel $wheel --budget-seconds 300

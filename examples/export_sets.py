@@ -222,7 +222,7 @@ def run(arguments):
         identity = learn._identity(arguments.source_revision, arguments.wheel)
         receipt["identity"] = identity
         actual_environment = predict.environment_identity()
-        required = {"python_version": "3.11.8", "torch_version": "2.9.1+cpu", "package_version": "0.1.0"}
+        required = {"python_version": "3.11.8", "torch_version": "2.9.1+cpu", "package_version": "0.2.0"}
         if any(actual_environment[key] != value for key, value in required.items()):
             raise RuntimeError("The producer requires the declared Python 3.11.8 / PyTorch 2.9.1+cpu environment")
         splits = {name: learn.make_split(*learn.SPLIT_SPECS[name]) for name in ("train", "validation")}

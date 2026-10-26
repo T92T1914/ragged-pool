@@ -18,9 +18,9 @@ build_python=/tmp/ragged-build/bin/python
 "$build_python" -m pip --isolated install 'torch==2.9.1+cpu' --index-url https://download.pytorch.org/whl/cpu
 "$build_python" -m pip --isolated install -r requirements-lock.txt
 "$build_python" -I -c 'from setuptools.build_meta import build_sdist; build_sdist("/tmp/ragged-sdist")'
-"$build_python" -I scripts/check_sdist.py --checkout "$PWD" --sdist /tmp/ragged-sdist/ragged_pool-0.1.0.tar.gz --extract /tmp/ragged-source --output /tmp/ragged-sdist.json
+"$build_python" -I scripts/check_sdist.py --checkout "$PWD" --sdist /tmp/ragged-sdist/ragged_pool-0.2.0.tar.gz --extract /tmp/ragged-source --output /tmp/ragged-sdist.json
 cd /tmp
-"$build_python" -m pip --isolated wheel /tmp/ragged-sdist/ragged_pool-0.1.0.tar.gz --no-build-isolation --no-deps --wheel-dir /tmp/ragged-wheels
+"$build_python" -m pip --isolated wheel /tmp/ragged-sdist/ragged_pool-0.2.0.tar.gz --no-build-isolation --no-deps --wheel-dir /tmp/ragged-wheels
 ```
 
 The backend call is the supported PEP 517 `build_sdist` hook in a fresh Python process, using the already installed pinned build requirements. Pip then builds from the archive. This is deliberately one route, without a custom backend or another build frontend. [PEP 517](https://peps.python.org/pep-0517/) and the [pinned setuptools backend](https://github.com/pypa/setuptools/blob/v80.9.0/setuptools/build_meta.py) describe those interfaces.

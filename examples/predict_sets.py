@@ -35,7 +35,7 @@ CONTRACT = {
 }
 GRAPH = {"pool_operator": "ragged_pool::pool", "pool_count": 1, "backward_count": 0}
 PINNED = {"python_version": "3.11.8", "torch_version": "2.9.1+cpu",
-          "package_version": "0.1.0"}
+          "package_version": "0.2.0"}
 FILE_LIMITS = {"manifest.json": 256 * 1024, "model.pt2": 16 * 1024**2,
                "weights.pt": 1024**2}
 TOLERANCE = {"rtol": 2e-5, "atol": 2e-6}

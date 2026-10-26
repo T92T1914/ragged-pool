@@ -18,7 +18,8 @@ FIXED_FILES = (
     'requirements-dev.txt', 'requirements-lock.txt',
     'LICENSE', 'NOTICE', 'third_party/PYTORCH-LICENSE', 'csrc/pool.cpp',
     'scripts/check_installed.py', 'scripts/check_sdist.py',
-    'docs/contract.md', 'docs/examples.md', 'docs/cpu-study.md', 'docs/results/cpu-study.json',
+    'docs/contract.md', 'docs/install.md', 'docs/releases/v0.2.0.md',
+    'docs/examples.md', 'docs/cpu-study.md', 'docs/results/cpu-study.json',
     'docs/exported-consumer.md', 'docs/results/export-roundtrip.json',
     'docs/linux-cpu.md',
     'docs/padded-batches.md',
@@ -94,9 +95,9 @@ def check_generated_configuration(data):
 def check(checkout, sdist, extract=None):
     checkout, sdist = Path(checkout).resolve(strict=True), Path(sdist).resolve(strict=True)
     project = tomllib.loads((checkout / 'pyproject.toml').read_text(encoding='utf-8'))['project']
-    require(project['name'] == 'ragged-pool' and project['version'] == '0.1.0',
-            'This checker is scoped to ragged-pool 0.1.0')
-    archive_root = 'ragged_pool-0.1.0'
+    require(project['name'] == 'ragged-pool' and project['version'] == '0.2.0',
+            'This checker is scoped to ragged-pool 0.2.0')
+    archive_root = 'ragged_pool-0.2.0'
     required = required_files(checkout)
     payloads, seen = {}, set()
     total = 0

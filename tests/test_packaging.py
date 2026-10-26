@@ -22,7 +22,7 @@ def load_checker(name):
 
 sdist_checker = load_checker('check_sdist')
 installed_checker = load_checker('check_installed')
-METADATA = (b'Metadata-Version: 2.4\nName: ragged-pool\nVersion: 0.1.0\n'
+METADATA = (b'Metadata-Version: 2.4\nName: ragged-pool\nVersion: 0.2.0\n'
             b'License-Expression: MIT\nLicense-File: LICENSE\nLicense-File: NOTICE\n'
             b'License-File: third_party/PYTORCH-LICENSE\nRequires-Dist: torch==2.9.1+cpu\n\n')
 
@@ -38,22 +38,22 @@ def source_fixture(tmp_path):
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(('source bytes for ' + name + '\r\n').encode())
-    (root / 'pyproject.toml').write_text('[project]\nname="ragged-pool"\nversion="0.1.0"\n', encoding='utf-8')
+    (root / 'pyproject.toml').write_text('[project]\nname="ragged-pool"\nversion="0.2.0"\n', encoding='utf-8')
     return root
 
 
 def source_members(root):
     members = []
     for name in sorted(sdist_checker.required_files(root)):
-        info = tarfile.TarInfo('ragged_pool-0.1.0/' + name)
+        info = tarfile.TarInfo('ragged_pool-0.2.0/' + name)
         data = (root / name).read_bytes()
         info.size = len(data)
         members.append((info, data))
-    info = tarfile.TarInfo('ragged_pool-0.1.0/setup.cfg')
+    info = tarfile.TarInfo('ragged_pool-0.2.0/setup.cfg')
     data = b'[egg_info]\ntag_build = \ntag_date = 0\n\n'
     info.size = len(data)
     members.append((info, data))
-    info = tarfile.TarInfo('ragged_pool-0.1.0/PKG-INFO')
+    info = tarfile.TarInfo('ragged_pool-0.2.0/PKG-INFO')
     info.size = len(METADATA)
     members.append((info, METADATA))
     return members
@@ -75,7 +75,7 @@ def test_sdist_contains_adjacent_helpers_and_extracts_verified_bytes(source_fixt
         expected = (source_fixture / name).read_bytes()
         assert (destination / name).read_bytes() == expected
         assert receipt['required_file_sha256'][name] == sha256(expected).hexdigest()
-    assert not (destination / 'ragged_pool-0.1.0').exists()
+    assert not (destination / 'ragged_pool-0.2.0').exists()
 
 
 @pytest.mark.parametrize('fault', ['missing_helper', 'changed_source', 'duplicate', 'absolute',
@@ -93,18 +93,18 @@ def test_bad_archive_is_rejected_before_any_extraction(source_fixture, tmp_path,
     elif fault == 'duplicate':
         members.append(members[0])
     elif fault == 'metadata':
-        info = tarfile.TarInfo('ragged_pool-0.1.0/PKG-INFO')
+        info = tarfile.TarInfo('ragged_pool-0.2.0/PKG-INFO')
         data = METADATA.replace(b'License-Expression: MIT', b'License-Expression: BSD-3-Clause')
         info.size = len(data)
         members[-1] = info, data
     else:
         name = {
-            'absolute': '/outside.py', 'traversal': 'ragged_pool-0.1.0/../outside.py',
-            'backslash': 'ragged_pool-0.1.0/..\\outside.py', 'root': 'wrong-0.1.0/source.py',
-            'binary': 'ragged_pool-0.1.0/src/ragged_pool/_C.so',
-            'build_directory': 'ragged_pool-0.1.0/build/stale.txt',
-            'unknown': 'ragged_pool-0.1.0/unreviewed.py',
-        }.get(fault, 'ragged_pool-0.1.0/link')
+            'absolute': '/outside.py', 'traversal': 'ragged_pool-0.2.0/../outside.py',
+            'backslash': 'ragged_pool-0.2.0/..\\outside.py', 'root': 'wrong-0.2.0/source.py',
+            'binary': 'ragged_pool-0.2.0/src/ragged_pool/_C.so',
+            'build_directory': 'ragged_pool-0.2.0/build/stale.txt',
+            'unknown': 'ragged_pool-0.2.0/unreviewed.py',
+        }.get(fault, 'ragged_pool-0.2.0/link')
         info = tarfile.TarInfo(name)
         if fault in ('symlink', 'hardlink', 'fifo'):
             info.type = {'symlink': tarfile.SYMTYPE, 'hardlink': tarfile.LNKTYPE, 'fifo': tarfile.FIFOTYPE}[fault]
@@ -168,29 +168,29 @@ def installed_fixture(tmp_path, monkeypatch, request):
         path = checkout / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(('notice ' + name).encode())
-        files['ragged_pool-0.1.0.dist-info/licenses/' + name] = path.read_bytes()
+        files['ragged_pool-0.2.0.dist-info/licenses/' + name] = path.read_bytes()
     source = checkout / 'src/ragged_pool/__init__.py'
     source.parent.mkdir(parents=True)
     source.write_bytes(files['ragged_pool/__init__.py'])
     source.with_name('_build.py').write_bytes(helper)
-    files['ragged_pool-0.1.0.dist-info/METADATA'] = METADATA.replace(
+    files['ragged_pool-0.2.0.dist-info/METADATA'] = METADATA.replace(
         b'torch==2.9.1+cpu', ('torch==' + config['torch_version']).encode())
     platform = 'win_amd64' if sys.platform == 'win32' else 'linux_x86_64'
     tag = 'cp311-cp311-' + platform
     wheel_metadata = 'Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: ' + tag + '\n'
     if config['wheel_build_tag']:
         wheel_metadata += 'Build: ' + config['wheel_build_tag'] + '\n'
-    files['ragged_pool-0.1.0.dist-info/WHEEL'] = wheel_metadata.encode()
+    files['ragged_pool-0.2.0.dist-info/WHEEL'] = wheel_metadata.encode()
     for name, data in files.items():
         path = prefix / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     build = ('-' + config['wheel_build_tag']) if config['wheel_build_tag'] else ''
-    wheel = tmp_path / ('ragged_pool-0.1.0' + build + '-' + tag + '.whl')
+    wheel = tmp_path / ('ragged_pool-0.2.0' + build + '-' + tag + '.whl')
     with ZipFile(wheel, 'w') as archive:
         for name, data in files.items():
             archive.writestr(name, data)
-    distribution = SimpleNamespace(version='0.1.0', locate_file=lambda name: prefix / name)
+    distribution = SimpleNamespace(version='0.2.0', locate_file=lambda name: prefix / name)
     monkeypatch.setattr(installed_checker, 'distribution', lambda name: distribution)
     package = SimpleNamespace(__file__=str(prefix / 'ragged_pool/__init__.py'))
     torch = SimpleNamespace(__version__=config['torch_version'],
@@ -208,6 +208,17 @@ def test_installed_check_identifies_exact_wheel_and_loaded_library(installed_fix
     assert receipt['native_library'] == fixture.native
     assert receipt['native_library_loaded'] is True
     assert receipt['package_file_sha256'][fixture.native] == sha256(b'owned native bytes').hexdigest()
+
+
+@pytest.mark.parametrize('other_version', ['0.1.0', '0.3.0'])
+def test_installed_checker_rejects_another_release_even_when_metadata_agrees(installed_fixture, monkeypatch, other_version):
+    fixture = installed_fixture
+    replace_wheel_member(fixture.wheel, 'ragged_pool-0.2.0.dist-info/METADATA',
+                         METADATA.replace(b'Version: 0.2.0', ('Version: ' + other_version).encode()))
+    monkeypatch.setattr(installed_checker, 'distribution', lambda name: SimpleNamespace(
+        version=other_version, locate_file=lambda entry: fixture.prefix / entry))
+    with pytest.raises(AssertionError, match='scoped to ragged-pool 0.2.0'):
+        installed_checker.check(fixture.checkout, fixture.wheel)
 
 
 @pytest.mark.parametrize('installed_fixture', ['cu128'], indirect=True)
@@ -248,15 +259,15 @@ def test_installed_variant_identity_rejects_substitution(installed_fixture, faul
     elif fault == 'installed_config':
         (fixture.prefix / 'ragged_pool/_build_config.json').write_bytes(b'{}\n')
     elif fault == 'dependency':
-        metadata = (fixture.prefix / 'ragged_pool-0.1.0.dist-info/METADATA').read_bytes()
-        replace_wheel_member(fixture.wheel, 'ragged_pool-0.1.0.dist-info/METADATA', metadata.replace(
+        metadata = (fixture.prefix / 'ragged_pool-0.2.0.dist-info/METADATA').read_bytes()
+        replace_wheel_member(fixture.wheel, 'ragged_pool-0.2.0.dist-info/METADATA', metadata.replace(
             ('torch==' + fixture.config['torch_version']).encode(), b'torch>=2.9'))
     elif fault == 'build_tag':
-        metadata = (fixture.prefix / 'ragged_pool-0.1.0.dist-info/WHEEL').read_bytes()
+        metadata = (fixture.prefix / 'ragged_pool-0.2.0.dist-info/WHEEL').read_bytes()
         metadata = metadata.replace(b'Build: 1cu128\n', b'') + b'Build: 2unreviewed\n'
-        replace_wheel_member(fixture.wheel, 'ragged_pool-0.1.0.dist-info/WHEEL', metadata)
+        replace_wheel_member(fixture.wheel, 'ragged_pool-0.2.0.dist-info/WHEEL', metadata)
     elif fault == 'filename':
-        destination = fixture.wheel.with_name('ragged_pool-0.1.0-2unreviewed-cp311-cp311-any.whl')
+        destination = fixture.wheel.with_name('ragged_pool-0.2.0-2unreviewed-cp311-cp311-any.whl')
         fixture.wheel.rename(destination)
         fixture.wheel = destination
     else:

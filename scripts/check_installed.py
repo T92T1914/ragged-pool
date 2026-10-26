@@ -53,12 +53,12 @@ def check(checkout, wheel, expected_variant='cpu'):
         metadata = BytesParser().parsebytes(archive.read(metadata_name))
         require(metadata['Name'] == 'ragged-pool', 'Unexpected wheel distribution')
         require(metadata['Version'] == installed.version, 'Installed and wheel versions differ')
-        require(metadata['Version'] == '0.1.0', 'This checker is scoped to ragged-pool 0.1.0')
+        require(metadata['Version'] == '0.2.0', 'This checker is scoped to ragged-pool 0.2.0')
         require(metadata.get_all('Requires-Dist', []) == ['torch==' + expected_config['torch_version']],
                 'The wheel must require its exact declared Torch build')
         require(metadata['License-Expression'] == 'MIT', 'The wheel must declare the MIT license')
         filename = wheel.name.removesuffix('.whl').split('-')
-        expected_prefix = ['ragged_pool', '0.1.0']
+        expected_prefix = ['ragged_pool', '0.2.0']
         if expected_config['wheel_build_tag']:
             expected_prefix.append(expected_config['wheel_build_tag'])
         require(wheel.suffix == '.whl' and len(filename) == len(expected_prefix) + 3
