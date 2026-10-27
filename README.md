@@ -8,12 +8,15 @@ This is a small framework integration and learning project. Ordinary PyTorch com
 
 [Read in another language](https://github.com/T92T1914/T92T1914/blob/main/TRANSLATION.md).
 
+[Follow the pooling example in the project explainer](https://t92t1914.github.io/ragged-pool/),
+then use the [installed CPU example](docs/install.md) to run it locally.
+
+<a href="https://t92t1914.github.io/ragged-pool/#worked-example">
 <picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 680px)" srcset="docs/ragged-pool-obscur-narrow.png">
-  <source media="(max-width: 680px)" srcset="docs/ragged-pool-clair-narrow.png">
-  <source media="(prefers-color-scheme: dark)" srcset="docs/ragged-pool-obscur.png">
-  <img src="docs/ragged-pool-clair.png" alt="Groups with two, three and no items produce one summary vector per group. Softmax weights determine the weighted sum. Empty groups produce zeros. Training sends gradients back to values and scores. Conceptual CPU example, not a benchmark." width="1600">
+  <source media="(max-width: 680px)" srcset="docs/ragged-pool-obscur-narrow.png">
+  <img src="docs/ragged-pool-obscur.png" alt="Groups with two, three and no items produce one summary vector per group. Softmax weights determine the weighted sum. Empty groups produce zeros. Training sends gradients back to values and scores. Conceptual CPU example, not a benchmark." width="1600">
 </picture>
+</a>
 
 Different group sizes produce one summary vector each. This is a conceptual illustration of the CPU layer, not a benchmark. [Diagram source](docs/render_pooling_example.py).
 
