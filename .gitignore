@@ -6,3 +6,4 @@ dist/
 *.pyd
 *.so
 .venv/
+_site/

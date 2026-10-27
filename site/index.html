@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" data-appearance="obscur">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="See how unequal groups become weighted summary vectors, then inspect the bounded PyTorch layer, native gradients and installed training example.">
+  <title>Ragged Pooling for PyTorch | Trinidy Farris</title>
+  <link rel="canonical" href="https://t92t1914.github.io/ragged-pool/">
+  <script src="appearance.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the pooling example</a>
+<div class="wrap">
+  <nav aria-label="Project navigation">
+    <a href="https://github.com/T92T1914">Portfolio</a>
+    <a href="https://github.com/T92T1914/ragged-pool">README and source</a>
+    <a href="https://github.com/T92T1914/T92T1914/blob/main/TRANSLATION.md">Read in another language</a>
+  </nav>
+  <div class="appearance-control">
+    <label for="appearance">Appearance</label>
+    <select id="appearance" disabled>
+      <option value="auto">Auto</option>
+      <option value="clair">Clair</option>
+      <option value="obscur" selected>Obscur</option>
+    </select>
+    <noscript><small>Obscur appearance. Enable JavaScript to choose Clair or Auto.</small></noscript>
+  </div>
+  <main id="main">
+    <header>
+      <p class="eyebrow">Python, C++ and framework integration</p>
+      <h1>Different group sizes. <br>One summary each.</h1>
+      <p class="lead">A model can receive two items in one group, three in another and none in the next.
+        This small PyTorch layer turns each group into one vector, using learned scores to decide how much each item contributes.</p>
+      <p>C++ implements the CPU forward and backward operations. Python supplies a readable reference and connects the native operation to training.
+        This is a learning and integration project, with no new algorithm, production need or general speed advantage claimed.</p>
+      <div class="actions">
+        <a class="button" href="#worked-example">Follow the numbers</a>
+        <a class="button" href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/install.md">Install the CPU release</a>
+      </div>
+    </header>
+
+    <figure id="pooling-figure">
+      <a href="ragged-pool-obscur.png" aria-label="Open the full-size conceptual pooling diagram">
+        <picture>
+          <source media="(max-width:680px)" srcset="ragged-pool-obscur-narrow.png">
+          <img src="ragged-pool-obscur.png" width="1600" height="1120" alt="Conceptual CPU example: groups with two, three and no items produce one summary vector each. Softmax converts scores to weights for a weighted sum. The empty group produces zeros. Training sends gradients to values and scores. This is not a benchmark.">
+        </picture>
+      </a>
+      <figcaption>The nonempty groups use softmax weights; the empty group returns a zero vector.
+        The backward arrow illustrates first-order training through values and scores, while offsets describe group boundaries and receive no gradients.
+        This is a conceptual illustration, with no measured speed or model-quality result.
+        <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/render_pooling_example.py">Diagram source</a>;
+        <a href="ragged-pool-obscur-narrow.png">full-size narrow edition</a>.</figcaption>
+    </figure>
+
+    <section id="worked-example" class="panel" aria-labelledby="numbers-title">
+      <p class="eyebrow">A small arithmetic example</p>
+      <h2 id="numbers-title">Two vectors, one weighted result</h2>
+      <p>Take one group with vectors <code>[2, 0]</code> and <code>[0, 4]</code>.
+        Give them scores <code>0</code> and <code>log(3)</code>. Softmax produces weights
+        <code>0.25</code> and <code>0.75</code>.</p>
+      <ol class="steps">
+        <li><strong>Normalize within the group.</strong> Maximum subtraction keeps the softmax calculation stable without changing its weights.</li>
+        <li><strong>Weight the features.</strong> One quarter of <code>[2, 0]</code> is <code>[0.5, 0]</code>.
+          Three quarters of <code>[0, 4]</code> is <code>[0, 3]</code>.</li>
+        <li><strong>Add them.</strong> The group's summary is <code>[0.5, 3]</code>.
+          An additional empty group has summary <code>[0, 0]</code> and zero input gradients.</li>
+      </ol>
+      <pre><code>values  = [[2, 0], [0, 4]]
+logits  = [0, log(3)]
+offsets = [0, 2, 2]
+output  ≈ [[0.5, 3], [0, 0]]</code></pre>
+      <p>This worked example has group sizes two and zero. The diagram also shows a separate three-item group.
+        These numbers explain the operation; this page performs no native calculation or training in your browser.</p>
+      <p>The Python version of this example is in the
+        <a href="https://github.com/T92T1914/ragged-pool#ragged-pool">README</a>.
+        <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/src/ragged_pool/reference.py">Inspect the pure PyTorch reference</a>
+        and <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/csrc/pool.cpp">native CPU implementation</a>.</p>
+    </section>
+
+    <section aria-labelledby="training-title">
+      <h2 id="training-title">Follow it into a real model</h2>
+      <div class="grid">
+        <article class="panel">
+          <h3>One optimizer step</h3>
+          <p>The seeded installed example compares native and reference outputs, input gradients and updated model parameters from the same starting state.
+            It actually performs an optimizer step. Its synthetic loss demonstrates integration, not real-world accuracy.</p>
+          <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/examples/train_sets.py">Read the training example</a>
+        </article>
+        <article class="panel">
+          <h3>Qualified routes have separate boundaries</h3>
+          <p>The simple diagram illustrates first-order CPU training. Eager packed and padded CPU routes also have separately qualified second derivatives.
+            Compiled training, functional transforms, export, optional CUDA and Linux distributed examples each keep their own admitted compositions and limits.</p>
+          <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/examples.md">Choose an advanced example</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="limits" class="panel" aria-labelledby="limits-title">
+      <h2 id="limits-title">The bounded CPU contract</h2>
+      <p><code>ragged_pool(values, logits, offsets)</code> accepts contiguous CPU float32 or float64 values
+        <code>[N,D]</code>, matching logits <code>[N]</code> and contiguous int64 offsets <code>[B+1]</code>.
+        Offsets start at zero, end at N and never decrease. Empty groups and an entirely empty batch are supported.</p>
+      <p>The declared bounds are <code>N ≤ 4096</code>, <code>B ≤ 128</code> and <code>1 ≤ D ≤ 128</code>.
+        Values and scores must be finite and within <code>[-1000,1000]</code>. Outputs use fresh storage.
+        Inputs are neither changed nor moved between devices.</p>
+      <p>The native CPU calculation uses float64 accumulation for either input dtype and casts back to that dtype.
+        Its rounding can differ from the ordinary PyTorch reference.
+        This does not promise cross-version ABI compatibility, every platform or every derivative composition.</p>
+      <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/contract.md">Read the complete contract and excluded behavior</a>
+    </section>
+
+    <section id="inspect" aria-labelledby="inspect-title">
+      <h2 id="inspect-title">Install, reproduce and inspect</h2>
+      <ul class="routes">
+        <li><a href="https://github.com/T92T1914/ragged-pool/releases/tag/v0.2.0">v0.2.0 downloads</a>:
+          Windows x64 CPython 3.11.8 wheel, source archive and checksums. The wheel requires exactly PyTorch 2.9.1+cpu.</li>
+        <li><a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/install.md">Ordinary installed consumer</a>:
+          new environment and consumer directory outside the checkout.</li>
+        <li><a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/releases/v0.2.0.md">Release scope and evidence</a>:
+          selected downloadable bytes, source identity and historical qualifications stay distinct.</li>
+        <li><a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/acceptance.md">Initial CPU acceptance</a> and
+          <a href="https://github.com/T92T1914/ragged-pool/actions">exact-revision CI</a>:
+          mathematical, registration, build and installed-consumer checks answer different questions.</li>
+      </ul>
+      <p>Optional GPU and responsive-rank Linux CPU work do not inherit new qualification from this static page.
+        Retained adverse results and narrower platform claims remain attached to their original evidence.
+        No general performance, model-quality, crash-recovery or production-security claim is added.</p>
+    </section>
+  </main>
+  <footer>
+    <p>Built by <a href="https://github.com/T92T1914">Trinidy Farris</a>.
+      <a href="https://github.com/T92T1914/ragged-pool">Project README</a> ·
+      <a href="site-record.json">Page source and asset record</a></p>
+    <p class="fine">The page uses local Inter when available, with system-font fallbacks for other visitors.
+      The existing diagrams contain painted Inter glyphs. No font download, analytics or browser training is required.</p>
+  </footer>
+</div>
+</body>
+</html>
+
