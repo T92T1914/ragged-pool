@@ -2,9 +2,11 @@ ragged-pool
 
 The project-specific source in this repository is offered under the MIT
 license in LICENSE. T92T1914 selected the project scope and acceptance
-requirements. Codex assisted with implementation, test authoring, command
-execution, review and publication preparation. Commit history and acceptance
-records distinguish those activities from T's unaided work.
+requirements. AI coding tools assisted with implementation, test authoring,
+command execution, review and publication preparation. Earlier commits that
+carry a tool's name as author mark assisted work from that period. Later
+commits, and some from that period, carry T's name whether or not a tool
+assisted.
 
 PyTorch is a separately installed dependency and retains its own license.
 The native extension is compiled against PyTorch headers and dynamically
