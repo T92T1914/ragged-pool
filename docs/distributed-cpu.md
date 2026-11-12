@@ -61,7 +61,7 @@ Native and independent primitive global models compare complete predictions, poo
 
 The final consumer additionally pins child TCP/lazy init settings after the initial qualification. That record keeps its original source identity. Final head and actual main CI separately execute the published source, rather than relabeling the initial run. Mathematical fixtures are separate from real distributed execution, and operator registration checks remain separate from gradient evidence.
 
-The injected rank-one failure happens before process-group initialization. CI requires exit1, its exact deliberate RuntimeError, no completed numerical oracles, and both directly owned nonzero workers reaped. The parent has a 120-second deadline and bounded terminate/kill waits. Successful workers destroy their group before exit. This qualifies one error path, without a promise of arbitrary descendant cleanup, crash recovery or fault tolerance.
+The injected rank-one failure happens before process-group initialization. CI requires exit 1, its exact deliberate RuntimeError, no completed numerical oracles, and both directly owned nonzero workers reaped. The parent has a 120-second deadline and bounded terminate/kill waits. Successful workers destroy their group before exit. This qualifies one error path, without a promise of arbitrary descendant cleanup, crash recovery or fault tolerance.
 
 ## Windows result and limits
 
