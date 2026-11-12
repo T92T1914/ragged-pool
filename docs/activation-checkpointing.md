@@ -64,5 +64,5 @@ Chen and colleagues' [Training Deep Nets with Sublinear Memory Cost](https://arx
 
 This route is eager first-order CPU training. It excludes compilation, CUDA, custom-generator or worker replay, distributed execution, reentrant/selective checkpoint policies, higher-order checkpointing, pending accumulation recovery and inference export. In compiler mode, the RNG-preservation flag does not supply the same negative control. Existing [fresh-process training recovery](stochastic-resume.md) keeps its separate contract.
 
-Implementation and verification use Codex assistance, consistent with [NOTICE](../NOTICE). The declared checks do not establish cross-platform replay, production readiness, security certification, employer qualification or operational defense experience.
+Implementation and verification use AI coding assistance, consistent with [NOTICE](../NOTICE). The declared checks do not establish cross-platform replay, production readiness, security certification, employer qualification or operational defense experience.
 

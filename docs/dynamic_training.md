@@ -57,4 +57,4 @@ Receipts identify the installed package/native library, own script bytes, precis
 
 This addition retains earlier fixed-shape packed/padded compilation and eager second-order, JVP, functional-map, HVP and damped-solve routes. It does not compile those transforms or broaden padded dynamic shapes, compiled double backward, export, GPU or other toolchains. Other models, stochastic forwards, changing dtype/feature widths and general shape portability are outside this declared consumer.
 
-Implementation and verification used Codex assistance, consistent with [NOTICE](../NOTICE). The execution record establishes component behavior, without unaided-expertise, model-quality, robustness, privacy, security or employer qualification claims.
+Implementation and verification use AI coding assistance, consistent with [NOTICE](../NOTICE). The execution record establishes component behavior, without unaided-expertise, model-quality, robustness, privacy, security or employer qualification claims.
