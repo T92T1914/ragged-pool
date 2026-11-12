@@ -11,7 +11,7 @@ the supported environment, commands, evidence and exclusions.
 | Which functional derivatives are qualified? | [Input direction](#follow-an-input-direction), [functional gradients](#functional-model-gradients), [loss HVP](#inspect-loss-curvature-in-one-direction), [fixed curvature solve](#solve-one-fixed-curvature-system) |
 | How do cooperating distributed workers preserve the update? | [Linux CPU training and its continuation guides](#distributed-cpu-training) |
 | What requires the separate GPU package? | [CUDA companion](#cuda-companion), [CPU/CUDA co-installation](#cpu-and-cuda-in-one-environment) |
-| What do the study, export and checks establish? | [Synthetic study](#one-synthetic-training-study-and-cpu-cost-comparison), [packed export](#export-the-trained-consumer), [padded export](#export-a-trained-padded-model), [verification](#what-the-checks-mean) |
+| What do the study, export and checks establish? | [Synthetic study](#one-synthetic-training-study-and-cpu-cost-comparison), [packed export](#export-the-trained-consumer), [padded export](#export-a-trained-padded-model), [verification](#what-the-checks-mean), [commands and records](#commands-and-records) |
 
 Source paths such as `examples/train_sets.py` are relative to the repository root.
 Run source commands from that root unless a guide explicitly switches to an
@@ -197,3 +197,56 @@ The [Windows CPU workflow](../.github/workflows/cpu.yml) rebuilds the wheel, ins
 The [ordinary Linux workflow](../.github/workflows/linux-cpu.yml) first checks the source distribution against the source and builds its optimized wheel from that archive outside the checkout. A separate environment runs installed checks, both examples with an optimizer step, the study smoke and the full trained export round trip. It records compiler/runtime facts and the identities of its archive, wheel and loaded libraries. Its plain `linux_x86_64` wheel tag is limited to the tested environment; it is not a manylinux compatibility claim or a bitwise reproducible build result.
 
 [Native boundary checks](native-robustness.md) describe generated mathematical/admission cases, a layout bug involving a combined negative view, and a separate Linux AddressSanitizer workflow. Generated second-order checks qualify the accepted packed/padded eager derivative paths with independent reference math, relations, directional differences and a sensitive omitted-`dg` control. Fixed seeds establish the declared categories, while a separate short timed campaign adds repeated cases. The workflow instruments the production extension and checks its loaded identity. It supplies bounded evidence from memory diagnostics when executed successfully, with prebuilt framework and limits of leak detection stated explicitly. Ordinary Windows wheel acceptance remains separate.
+
+## Commands and records
+
+Each route above appears once below with the command that runs it and the record that accepted it. Commands are source paths from the repository root. Unless a row says otherwise, each route runs in float32 and again in float64, chosen with `--dtype` on the script that trains or exports. Several scripts also require directory, receipt, revision or wheel arguments. The linked guide for each route gives the complete installed commands.
+
+Many routes have no retained file under `docs/results` or `cuda/evidence`. Their record is the set of default branch runs at revision `ec54900807f474f304be12afc34a1097fbe1c299`, all three of which passed on November 11, 2026:
+
+- [Windows CPU package run 42983160132](https://github.com/T92T1914/ragged-pool/actions/runs/42983160132), shortened to Windows below.
+- [Linux CPU source distribution run 42983160051](https://github.com/T92T1914/ragged-pool/actions/runs/42983160051), shortened to Linux.
+- [Native CPU AddressSanitizer run 42983160157](https://github.com/T92T1914/ragged-pool/actions/runs/42983160157), shortened to ASan.
+
+Their uploaded receipts are kept for 14 days, until November 25, 2026. Their logs are kept for 90 days. After those dates the runs still show that they passed, but their receipts and then their logs can no longer be inspected. A later passing run of the same workflow on the default branch then serves as the record for these rows.
+
+No workflow runs the CUDA routes, the co-installation route or the cross-device route, because each one needs the graphics card. Their records are the retained files named in their rows.
+
+| Route | Command | Record |
+| --- | --- | --- |
+| [First training example](../README.md) | `examples/train_sets.py` | [Local 0.1.0 acceptance](acceptance.md), then Windows, Linux and ASan |
+| [Padded batch](#pool-a-padded-batch) | `examples/train_padded.py`, then the same with `--compiled` | Windows, Linux and ASan, for both forms |
+| [CPU/CUDA co-installation](#cpu-and-cuda-in-one-environment) | `examples/train_backends.py` from the snapshot that [its guide](coinstallation.md) names | [`results/coinstallation-cu128.json`](results/coinstallation-cu128.json) |
+| [Cross-device resume](#cpu-and-cuda-in-one-environment) | `examples/resume_backends.py` from the snapshot that [its guide](cross-device-resume.md) names | [`results/cross-device-resume.json`](results/cross-device-resume.json) |
+| [Two-rank distributed training](#distributed-cpu-training) | `examples/train_distributed.py`, on Linux only | [`results/distributed-cpu.json`](results/distributed-cpu.json), then Linux. The [Windows Gloo failure](distributed-cpu.md#windows-result-and-limits) has no passing record. |
+| [Distributed accumulation](#distributed-cpu-training) | `examples/train_distributed.py --accumulate`, on Linux only | Linux |
+| [Distributed resume](#distributed-cpu-training) | `examples/resume_distributed.py`, on Linux only | Linux |
+| [Distributed clipping](#distributed-cpu-training) | `examples/clip_distributed.py`, on Linux only | Linux |
+| [Shared update admission](#distributed-cpu-training) | `examples/admit_distributed.py`, on Linux only | Linux |
+| [Changing packed shapes](#train-across-packed-shapes) | `examples/train_dynamic.py` | Windows, Linux and ASan |
+| [CUDA eager training](../cuda/README.md) | `cuda/examples/train_cuda.py` | [`cuda/evidence/windows-sm89-20261021.json`](../cuda/evidence/windows-sm89-20261021.json) |
+| [CUDA fixed-shape compiled training](../cuda/README.md) | `cuda/examples/train_compiled.py` | [`cuda/evidence/compiled-windows-sm89-20261021.json`](../cuda/evidence/compiled-windows-sm89-20261021.json) |
+| [CUDA inference handoff](../cuda/EXPORT.md) | `cuda/examples/export_cuda.py` with and without `--dynamic`, then `cuda/examples/predict_cuda.py` on each artifact | [`cuda/evidence/export-windows-sm89-20261021.json`](../cuda/evidence/export-windows-sm89-20261021.json) and [`cuda/evidence/dynamic-export-windows-sm89-20261022.json`](../cuda/evidence/dynamic-export-windows-sm89-20261022.json) |
+| [Changing packed CUDA shapes](../cuda/DYNAMIC.md) | `cuda/examples/train_compiled.py --dynamic` | [`cuda/evidence/dynamic-windows-sm89-20261021.json`](../cuda/evidence/dynamic-windows-sm89-20261021.json) |
+| [Masked CUDA API](../cuda/PADDED.md) | `cuda/examples/train_padded.py` | [`cuda/evidence/padded-windows-sm89-20261021.json`](../cuda/evidence/padded-windows-sm89-20261021.json) |
+| [CUDA training resume](../cuda/RESUME.md) | `cuda/examples/resume_training.py` | [`cuda/evidence/resume-windows-sm89-20261022.json`](../cuda/evidence/resume-windows-sm89-20261022.json) |
+| [Stochastic CUDA continuation](../cuda/STOCHASTIC.md) | `cuda/examples/resume_stochastic.py` | [`cuda/evidence/stochastic-resume-windows-sm89-20261022.json`](../cuda/evidence/stochastic-resume-windows-sm89-20261022.json) |
+| [CUDA functional reverse bridge](../cuda/FUNCTIONAL.md) | `cuda/examples/train_functional.py`, then the same with `--models 3` for the map route | [`cuda/evidence/functional-windows-sm89-20261022.json`](../cuda/evidence/functional-windows-sm89-20261022.json) and [`cuda/evidence/functional-map-windows-sm89-20261022.json`](../cuda/evidence/functional-map-windows-sm89-20261022.json) |
+| [CUDA per-group clipping](../cuda/CLIPPING.md) | `cuda/examples/train_clipped.py` | [`cuda/evidence/clipping-windows-sm89-20261022.json`](../cuda/evidence/clipping-windows-sm89-20261022.json) |
+| [CUDA input direction](../cuda/FORWARD_AD.md) | `cuda/examples/train_forward_ad.py` | [`cuda/evidence/forward-ad-windows-sm89-20261022.json`](../cuda/evidence/forward-ad-windows-sm89-20261022.json) |
+| [CUDA second reverse](../cuda/SECOND_ORDER.md) | `cuda/examples/train_second_order.py` | [`cuda/evidence/second-order-windows-sm89-20261022.json`](../cuda/evidence/second-order-windows-sm89-20261022.json) |
+| [Packed training resume](#resume-packed-training-in-a-fresh-process) | `examples/resume_training.py` | Windows, Linux and ASan |
+| [Stochastic training resume](#resume-packed-training-in-a-fresh-process) | `examples/resume_stochastic.py` | Windows, Linux and ASan |
+| [Activation recomputation](#recompute-activations-during-backward) | `examples/train_checkpointed.py` | Windows, Linux and ASan |
+| [Input-gradient penalty](#train-with-an-input-gradient-penalty) | `examples/train_gradient_penalty.py` | Windows, Linux and ASan |
+| [Padded input-gradient penalty](#train-with-an-input-gradient-penalty) | `examples/train_padded_gradient_penalty.py` | Windows, Linux and ASan |
+| [Per-example clipping, backward chunks](#train-with-per-example-clipped-gradients) | `examples/train_clipped.py` | No workflow runs this command and no receipt is retained. Inside the test suite of all three runs, `tests/test_clipped.py` calls the same `run` function with chunk sizes 1, 2, 3, 5 and 9. |
+| [Per-example clipping, forward microbatches](#train-with-per-example-clipped-gradients) | `examples/train_clipped.py --aggregation forward-microbatches --chunk-size 2` | Windows, Linux and ASan |
+| [Input direction](#follow-an-input-direction) | `examples/train_forward_ad.py` | Windows, Linux and ASan |
+| [Functional model gradients](#functional-model-gradients) | `examples/train_functional_models.py` | Windows, Linux and ASan |
+| [Loss curvature in one direction](#inspect-loss-curvature-in-one-direction) | `examples/train_curvature.py` | Windows, Linux and ASan |
+| [Fixed curvature solve](#solve-one-fixed-curvature-system) | `examples/solve_curvature.py` | Windows, Linux and ASan |
+| [Synthetic training study](#one-synthetic-training-study-and-cpu-cost-comparison) | `examples/learn_sets.py`, float32 only, with no dtype option | [`results/cpu-study.json`](results/cpu-study.json). Windows, Linux and ASan run only `--smoke`, which never reaches the held out sets. |
+| [CPU cost comparison](#one-synthetic-training-study-and-cpu-cost-comparison) | `examples/cpu_cost.py --timing`, with no dtype option. Each case fixes its own dtype, float32 or float64. | [`results/cpu-study.json`](results/cpu-study.json). No workflow runs it. |
+| [Packed export](#export-the-trained-consumer) | `examples/export_sets.py`, then `examples/predict_sets.py`, float32 only, with no dtype option | [`results/export-roundtrip.json`](results/export-roundtrip.json), then Linux in full and Windows with a `--smoke` producer. ASan does not run it. |
+| [Padded export](#export-a-trained-padded-model) | `examples/export_padded.py`, then `examples/predict_padded.py` | Windows, Linux and ASan |
