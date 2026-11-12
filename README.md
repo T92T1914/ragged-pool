@@ -70,13 +70,13 @@ For an installed consumer check, create a second fresh virtual environment outsi
 | What to inspect | Example and evidence |
 | --- | --- |
 | A native operation inside an ordinary model | `examples/train_sets.py` takes a real optimizer step and compares outputs, gradients and updated parameters with the readable reference. Begin with [the tensor contract](docs/contract.md) and [initial acceptance](docs/acceptance.md). |
-| Derivatives and framework integration | [Native second derivatives](docs/second-order.md) support an input-gradient penalty. The separate [functional HVP example](docs/hessian-vector-products.md) checks how a trained loss gradient changes along a direction. Each route has its own admitted composition. |
-| A distributed training update | Start with [two-rank Linux CPU training](docs/distributed-cpu.md), then follow the [shared numerical admission example](docs/distributed-admission.md). Unequal groups, wrong-objective controls and a deliberate post-backward fault expose different correctness questions. |
+| Derivatives and framework integration | [Native second derivatives](docs/second-order.md) support an input gradient penalty. The separate [functional HVP example](docs/hessian-vector-products.md) checks how a trained loss gradient changes along a direction. Each route has its own admitted composition. |
+| A distributed training update | Start with [two rank Linux CPU training](docs/distributed-cpu.md), then follow the [shared numerical admission example](docs/distributed-admission.md). Unequal groups, wrong objective controls and a deliberate fault after backward expose different correctness questions. |
 
 The distributed examples use cooperating CPU workers on one qualified Linux
 host. Windows Gloo failed before training and remains adverse evidence.
 Numerical agreement between live ranks does not establish crash recovery,
-malicious-peer protection, secure transport or multi-node/GPU training.
+malicious peer protection, secure transport or multinode/GPU training.
 
 ## More examples
 
@@ -101,15 +101,15 @@ and limitations together. Use the route that matches the question:
 
 <a id="train-with-an-input-gradient-penalty"></a>
 
-- [Train with an input-gradient penalty](docs/examples.md#train-with-an-input-gradient-penalty).
+- [Train with an input gradient penalty](docs/examples.md#train-with-an-input-gradient-penalty).
 
 <a id="train-with-per-example-clipped-gradients"></a>
 
-- [Train with per-example clipped gradients](docs/examples.md#train-with-per-example-clipped-gradients).
+- [Train with per example clipped gradients](docs/examples.md#train-with-per-example-clipped-gradients).
 
 <a id="follow-an-input-direction"></a>
 
-- [Follow an input direction](docs/examples.md#follow-an-input-direction) with first-order forward AD.
+- [Follow an input direction](docs/examples.md#follow-an-input-direction) with first order forward AD.
 
 <a id="functional-model-gradients"></a>
 
@@ -117,7 +117,7 @@ and limitations together. Use the route that matches the question:
 
 <a id="inspect-loss-curvature-in-one-direction"></a>
 
-- [Inspect loss curvature](docs/examples.md#inspect-loss-curvature-in-one-direction) with a Hessian-vector product.
+- [Inspect loss curvature](docs/examples.md#inspect-loss-curvature-in-one-direction) with a Hessian vector product.
 
 <a id="solve-one-fixed-curvature-system"></a>
 
@@ -126,7 +126,7 @@ and limitations together. Use the route that matches the question:
 <a id="one-set-learning-and-cpu-cost-study"></a>
 <a id="one-synthetic-training-study-and-cpu-cost-comparison"></a>
 
-- [Read the synthetic study and CPU cost comparison](docs/examples.md#one-synthetic-training-study-and-cpu-cost-comparison), including the weaker longer-bag accuracy and compiler result.
+- [Read the synthetic study and CPU cost comparison](docs/examples.md#one-synthetic-training-study-and-cpu-cost-comparison), including the weaker longer bag accuracy and compiler result.
 
 <a id="export-the-trained-consumer"></a>
 
@@ -137,9 +137,9 @@ and limitations together. Use the route that matches the question:
 - [Export a trained padded model](docs/examples.md#export-a-trained-padded-model).
 
 The separate [CUDA companion](docs/examples.md#cuda-companion) and
-[CPU/CUDA co-installation route](docs/examples.md#cpu-and-cuda-in-one-environment)
+[CPU/CUDA coinstallation route](docs/examples.md#cpu-and-cuda-in-one-environment)
 have their own dependency pins, qualified Windows RTX 4090 execution and
-sanitizer limits. The co-installation and cross-device resume guides retain the
+sanitizer limits. The coinstallation and cross device resume guides retain the
 exact 0.1.0 wheel pair and link immutable historical source recipes. The 0.2.0
 CPU release does not qualify a replacement pair or expand the CPU wheel's contract.
 
@@ -148,7 +148,7 @@ CPU release does not qualify a replacement pair or expand the CPU wheel's contra
 Mathematical tests compare native outputs and input derivatives with independent
 PyTorch composition and float64 finite differences. Operator registration checks
 use `torch.library.opcheck` separately. Contract tests cover malformed inputs,
-empty groups, storage and saved-input rules, and strided or expanded upstream
+empty groups, storage and saved input rules, and strided or expanded upstream
 gradients.
 
 The declared `aot_eager` paths exercise graph capture and autograd integration.
@@ -158,11 +158,11 @@ generation or a speed advantage. The [full verification notes](docs/examples.md#
 retain the separate Inductor outcome, generated cases and native diagnostic limits.
 
 The [Windows wheel](.github/workflows/cpu.yml),
-[Linux source-to-wheel](.github/workflows/linux-cpu.yml) and
+[Linux source to wheel](.github/workflows/linux-cpu.yml) and
 [Linux AddressSanitizer](.github/workflows/native-asan.yml) workflows each record
 their actual tested revision, environment and result. Installed consumers run
 outside the checkout. A workflow definition is not an executed result, and a
-successful pinned build is not cross-version ABI or platform qualification.
+successful pinned build is not cross version ABI or platform qualification.
 
 Load only trusted model artifacts. Byte digests identify contents but do not
 authenticate the publisher, and exported graphs are not a sandbox. The
