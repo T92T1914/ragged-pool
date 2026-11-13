@@ -1,4 +1,5 @@
 """Negative admission checks for the static page, with no native/PyTorch import."""
+import importlib.util
 import unittest
 
 from build_site import FILES, ROOT, validate_page, validate_sources
@@ -11,6 +12,13 @@ class StaticPageTests(unittest.TestCase):
 
     def test_actual_sources_keep_retained_diagrams_and_local_routes(self):
         self.assertEqual(set(validate_sources()), set(FILES.values()))
+
+    def test_rendering_receipt_matches_the_renderer_and_outputs(self):
+        spec = importlib.util.spec_from_file_location(
+            "render_pooling_example", ROOT / "docs/render_pooling_example.py")
+        renderer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(renderer)
+        self.assertEqual(renderer.check_receipt(), [])
 
     def test_missing_image_alternative_is_refused(self):
         changed = self.page.replace('alt="Conceptual CPU example:', 'data-description="Conceptual CPU example:')

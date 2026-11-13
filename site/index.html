@@ -44,14 +44,15 @@
       <a href="ragged-pool-obscur.png" aria-label="Open the full-size conceptual pooling diagram">
         <picture>
           <source media="(max-width:680px)" srcset="ragged-pool-obscur-narrow.png">
-          <img src="ragged-pool-obscur.png" width="1600" height="1120" alt="Conceptual CPU example: groups with two, three and no items produce one summary vector each. Softmax converts scores to weights for a weighted sum. The empty group produces zeros. Training sends gradients to values and scores. This is not a benchmark.">
+          <img src="ragged-pool-obscur.png" width="1800" height="897" alt="Conceptual CPU example: groups with two items, three items or none produce one summary vector each. Softmax turns the scores in a group into weights for a weighted sum. The empty group produces zeros. Gradients reach values and scores. This is not a benchmark.">
         </picture>
       </a>
-      <figcaption>The nonempty groups use softmax weights; the empty group returns a zero vector.
-        The backward arrow illustrates first-order training through values and scores, while offsets describe group boundaries and receive no gradients.
-        This is a conceptual illustration, with no measured speed or model-quality result.
-        <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/render_pooling_example.py">Diagram source</a>;
-        <a href="ragged-pool-obscur-narrow.png">full-size narrow edition</a>.</figcaption>
+      <figcaption>The nonempty groups use softmax weights and the empty group returns a zero vector.
+        First order training reaches values and scores, while offsets describe group boundaries and receive no gradients.
+        This is a conceptual illustration, with no measured speed or model quality result.
+        <a href="https://github.com/T92T1914/ragged-pool/blob/bb59fe1aba6297458bed1478c43aabe72c220c64/docs/render_pooling_example.py">Diagram source</a>,
+        <a href="https://github.com/T92T1914/ragged-pool/blob/bb59fe1aba6297458bed1478c43aabe72c220c64/docs/ragged-pool-rendering.json">rendering receipt</a> and
+        <a href="ragged-pool-obscur-narrow.png">full size narrow edition</a>.</figcaption>
     </figure>
 
     <section id="worked-example" class="panel" aria-labelledby="numbers-title">
