@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "kind": "conceptual diagram",
+  "application_or_scientific_execution": false,
+  "tokens": {
+    "source": "https://github.com/T92T1914/clair-obscur-themes/blob/4693831b51f2b3fa268d830fd9b977fb70c83e3d/tokens-monochrome.json",
+    "values": {
+      "canvas": "#000000",
+      "control": "#151515",
+      "text": "#ffffff",
+      "muted": "#cccccc",
+      "border": "#999999"
+    }
+  },
+  "inputs_sha256_lf": {
+    "docs/render_pooling_example.py": "16138ebb80f2f251ec77f6336913ab22e70841681308a9828321643edef35455"
+  },
+  "fonts": {
+    "Regular": {
+      "filename": "Inter-Regular.ttf",
+      "weight": 400,
+      "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
+    },
+    "SemiBold": {
+      "filename": "Inter-SemiBold.ttf",
+      "weight": 600,
+      "sha256": "78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3"
+    },
+    "Bold": {
+      "filename": "Inter-Bold.ttf",
+      "weight": 700,
+      "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f"
+    }
+  },
+  "renderer": {
+    "pillow": "12.0.0",
+    "fonttools": "4.60.1",
+    "uharfbuzz": "0.51.1",
+    "features": {
+      "kern": true,
+      "liga": false,
+      "calt": false,
+      "clig": false
+    },
+    "supersample": 4
+  },
+  "layouts": {
+    "wide": {
+      "width": 1800,
+      "height": 897,
+      "labels_within_canvas": 20,
+      "rendered_card_lines": [
+        [
+          "Two items, three items",
+          "or none.",
+          "Each item has a value",
+          "and a score."
+        ],
+        [
+          "Scores in a group",
+          "become weights.",
+          "An empty group has",
+          "no weights."
+        ],
+        [
+          "One vector per group.",
+          "An empty group gives",
+          "zeros.",
+          "Gradients reach",
+          "values and scores."
+        ]
+      ],
+      "height_rule": "wrapping by measured width, 1.3 line spacing and fixed padding and gaps",
+      "minimum_font_points": 30
+    },
+    "narrow": {
+      "width": 960,
+      "height": 1576,
+      "labels_within_canvas": 17,
+      "rendered_card_lines": [
+        [
+          "Two items, three items or none.",
+          "Each item has a value and a score."
+        ],
+        [
+          "Scores in a group become weights.",
+          "An empty group has no weights."
+        ],
+        [
+          "One vector per group.",
+          "An empty group gives zeros.",
+          "Gradients reach values and scores."
+        ]
+      ],
+      "height_rule": "wrapping by measured width, 1.3 line spacing and fixed padding and gaps",
+      "minimum_font_points": 33
+    }
+  },
+  "outputs_sha256": {
+    "docs/ragged-pool-obscur-narrow.png": "60265dca1630e7821cdee39f380a857e81f18cf91c7ebd1fa827c38edc4d8d8a",
+    "docs/ragged-pool-obscur-narrow.svg": "263c300db009a846ad1250e30222de7fefc20b48466212316963631c9b73556d",
+    "docs/ragged-pool-obscur.png": "326819856e97d9489970a70eb7625b270e0dd6847088945c51c4b2650dc183eb",
+    "docs/ragged-pool-obscur.svg": "9b6189fb2b1717181fa68ffaa35925c0164d2fd4f13b9fecb9f42848428d1e95"
+  }
+}

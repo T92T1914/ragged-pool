@@ -14,11 +14,11 @@ then use the [installed CPU example](docs/install.md) to run it locally.
 <a href="https://t92t1914.github.io/ragged-pool/#worked-example">
 <picture>
   <source media="(max-width: 680px)" srcset="docs/ragged-pool-obscur-narrow.png">
-  <img src="docs/ragged-pool-obscur.png" alt="Groups with two, three and no items produce one summary vector per group. Softmax weights determine the weighted sum. Empty groups produce zeros. Training sends gradients back to values and scores. Conceptual CPU example, not a benchmark." width="1600">
+  <img src="docs/ragged-pool-obscur.png" alt="Groups with two, three and no items produce one summary vector per group. Softmax weights determine the weighted sum. Empty groups produce zeros. Training sends gradients back to values and scores. Conceptual CPU example, not a benchmark." width="1800">
 </picture>
 </a>
 
-Different group sizes produce one summary vector each. This is a conceptual illustration of the CPU layer, not a benchmark. [Diagram source](docs/render_pooling_example.py).
+Different group sizes produce one summary vector each. This is a conceptual illustration of the CPU layer, not a benchmark. [Diagram source](docs/render_pooling_example.py) and its [rendering receipt](docs/ragged-pool-rendering.json).
 
 ```python
 import torch
