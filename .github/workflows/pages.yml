@@ -3,10 +3,10 @@ name: Project explainer
 on:
   pull_request:
     branches: [main]
-    paths: ['site/**', 'tools/build_site.py', 'tools/test_site.py', 'docs/ragged-pool-*', '.github/workflows/pages.yml']
+    paths: ['site/**', 'tools/build_site.py', 'tools/test_site.py', 'docs/ragged-pool-*', 'docs/render_pooling_example.py', '.github/workflows/pages.yml']
   push:
     branches: [main]
-    paths: ['site/**', 'tools/build_site.py', 'tools/test_site.py', 'docs/ragged-pool-*', '.github/workflows/pages.yml']
+    paths: ['site/**', 'tools/build_site.py', 'tools/test_site.py', 'docs/ragged-pool-*', 'docs/render_pooling_example.py', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:

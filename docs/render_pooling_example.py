@@ -1,243 +1,431 @@
-"""Render a conceptual pooling diagram without running the operator or a study.
+"""Render the conceptual pooling diagram on Obscur without running the operator.
 
-Run from any directory. The standard library produces the SVG files. Add
---font-dir pointing to official static Inter TTF files to also produce PNGs.
-PNG rendering requires Pillow and fonttools. Font files are not distributed.
-SVG visitors may use a sans serif fallback when Inter is not available.
-Use --check to compare the selected outputs without changing them.
+The diagram is a title, a subtitle, three numbered cards and a footer, in a
+wide edition and a narrow edition. Each edition is written as PNG and as SVG.
+The SVG draws every letter as an outline, so it needs no installed font.
+
+Rendering needs Pillow, fonttools, uharfbuzz and the static Inter Regular,
+SemiBold and Bold TTF files, which are not distributed here:
+
+    python docs/render_pooling_example.py --font-dir <folder with Inter TTFs>
+
+Add --check to compare against the committed files without writing them.
+Run with --check-receipt and nothing else to recompute the hashes in
+ragged-pool-rendering.json with the standard library only.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import math
 from html import escape
 from io import BytesIO
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
+RECEIPT = ROOT / "ragged-pool-rendering.json"
 TOKEN_SOURCE = (
     "https://github.com/T92T1914/clair-obscur-themes/blob/"
-    "7a57fe750ff50205a17e1d342106a0d3f2777159/tokens.json"
+    "4693831b51f2b3fa268d830fd9b977fb70c83e3d/tokens-monochrome.json"
 )
-SOURCE_REVISION = "18c0d8f3f9750dd18e97940bde905bec08e6176e"
-THEMES = {
-    "clair": {
-        "canvas": "#f8f7f3", "panel": "#fdfcf8", "text": "#242424",
-        "muted": "#595854", "divider": "#b8b6ae", "accent": "#365f78",
-        "on_accent": "#ffffff", "border": "#7f7d76",
+# The Obscur values a figure may use. No other color is drawn.
+TOKENS = {
+    "canvas": "#000000",
+    "control": "#151515",
+    "text": "#ffffff",
+    "muted": "#cccccc",
+    "border": "#999999",
+}
+FACES = (("Regular", 400), ("SemiBold", 600), ("Bold", 700))
+POINT = 100 / 72  # Sizes are points at 100 dpi.
+LINE = 1.3
+SUPERSAMPLE = 4
+# Kerning only. Ligatures and contextual forms stay off, so one letter is one glyph.
+FEATURES = {"kern": True, "liga": False, "calt": False, "clig": False}
+
+TITLE = "Ragged Pooling for PyTorch"
+SUBTITLE = "One summary vector per group"
+CARDS = (
+    ("1. Groups", ("Two items, three items or none.",
+                   "Each item has a value and a score.")),
+    ("2. Softmax", ("Scores in a group become weights.",
+                    "An empty group has no weights.")),
+    ("3. Weighted sum", ("One vector per group.",
+                         "An empty group gives zeros.",
+                         "Gradients reach values and scores.")),
+)
+FOOTER = ("CPU layer in C++ for PyTorch, with packed and padded inputs and "
+          "first order gradients. A conceptual example, not a benchmark or a model "
+          "quality result.")
+DESCRIPTION = (
+    "Groups with two items, three items or none. Softmax turns the scores in "
+    "each nonempty group into weights. A weighted sum gives one vector per "
+    "group, and an empty group gives zeros. Gradients reach values and scores. "
+    "A conceptual example of the CPU layer, not a benchmark or a model quality "
+    "result."
+)
+EDITIONS = {
+    "wide": {
+        "name": "ragged-pool-obscur", "width": 1800, "min_height": 800,
+        "direction": "row", "arrow_head": (14, 8),
+        "margin": 72, "card_width": 500, "card_gap": 78,
+        "title": 40, "subtitle": 30, "card_title": 32, "body": 30, "footer": 30,
     },
-    "obscur": {
-        "canvas": "#090909", "panel": "#151515", "text": "#f4f4f4",
-        "muted": "#bcbcbc", "divider": "#494949", "accent": "#b3c8d8",
-        "on_accent": "#15212c", "border": "#858585",
+    "narrow": {
+        "name": "ragged-pool-obscur-narrow", "width": 960, "min_height": 0,
+        "direction": "column", "arrow_head": (10, 6),
+        "margin": 48, "card_width": 864, "card_gap": 24,
+        "title": 40, "subtitle": 33, "card_title": 34, "body": 33, "footer": 33,
     },
 }
-TITLE = "Ragged Pooling for PyTorch"
-DESCRIPTION = (
-    "A conceptual example with groups of two items, three items and no items. "
-    "Softmax turns each nonempty group's scores into weights. A weighted sum "
-    "produces one vector per group. Empty groups produce a zero vector. "
-    "Training sends gradients back to values and scores. CPU implementation. "
-    "This illustration does not report a benchmark or model quality result."
-)
+PAD_SIDE, PAD_TOP, PAD_BOTTOM = 28, 32, 28
+BODY_GAP, TITLE_GAP = 14, 20
+RADIUS, OUTLINE, CONNECTOR = 18, 2, 2.5
+INSET = 12
+AFTER_TITLE, AFTER_SUBTITLE, BEFORE_FOOTER, AFTER_FOOTER = 8, 48, 48, 49
 
 
-def font_files(directory: Path):
-    """Check real Inter faces and glyph coverage before rendering PNG text."""
-    from fontTools.ttLib import TTFont
+def sha256_lf(path: Path) -> str:
+    """Hash a text file with LF line endings, so a Windows checkout agrees."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
-    faces = {}
-    glyphs = set(range(32, 127))
-    for name, weight in (("Regular", 400), ("SemiBold", 600), ("Bold", 700)):
-        path = directory / f"Inter-{name}.ttf"
-        with TTFont(path) as face:
-            if (face["name"].getDebugName(6) != f"Inter-{name}"
-                    or face["OS/2"].usWeightClass != weight
-                    or face["OS/2"].fsSelection & 1
-                    or not glyphs.issubset(face.getBestCmap())):
-                raise ValueError(f"Incorrect Inter face or missing glyphs: {path.name}")
-        faces[weight] = path
-    return faces
+
+def sha256_output(path: Path) -> str:
+    return sha256_lf(path) if path.suffix == ".svg" else hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class Face:
+    """One static Inter face, checked before anything is drawn."""
+
+    def __init__(self, path: Path, name: str, weight: int):
+        from fontTools.ttLib import TTFont
+
+        self.path, self.weight = path, weight
+        self.font = TTFont(path)
+        cmap = self.font.getBestCmap()
+        if (self.font["name"].getDebugName(6) != f"Inter-{name}"
+                or self.font["OS/2"].usWeightClass != weight
+                or self.font["OS/2"].fsSelection & 1
+                or "fvar" in self.font
+                or not set(range(32, 127)).issubset(cmap)):
+            raise ValueError(f"Not a static upright Inter {name} face with Latin coverage: {path.name}")
+        self.cmap = cmap
+        self.glyphs = self.font.getGlyphSet()
+        self.upem = self.font["head"].unitsPerEm
+        self.ascent = self.font["hhea"].ascent
+        self.descent = self.font["hhea"].descent
+        import uharfbuzz as hb
+
+        self.hb = hb.Font(hb.Face(hb.Blob(path.read_bytes())))
+        self.outline, self.bounds = {}, {}
+
+    def shape(self, text: str):
+        """Return each letter with its glyph name and pen position in font units."""
+        import uharfbuzz as hb
+
+        buffer = hb.Buffer()
+        buffer.add_str(text)
+        buffer.guess_segment_properties()
+        hb.shape(self.hb, buffer, FEATURES)
+        infos, positions = buffer.glyph_infos, buffer.glyph_positions
+        if [info.cluster for info in infos] != list(range(len(text))):
+            raise ValueError(f"Shaping merged or split letters: {text}")
+        placed, pen = [], 0
+        for ch, info, position in zip(text, infos, positions):
+            name = self.font.getGlyphName(info.codepoint)
+            if name != self.cmap[ord(ch)]:
+                # The PNG draws letters, so a substituted glyph would differ from the SVG.
+                raise ValueError(f"Shaping substituted a glyph for {ch!r} in: {text}")
+            placed.append((ch, name, pen + position.x_offset))
+            pen += position.x_advance
+        return placed, pen
+
+    def width(self, text: str, px: float) -> float:
+        return self.shape(text)[1] * px / self.upem
+
+    def glyph(self, name: str):
+        """Return the SVG path data and the bounds of one glyph in font units."""
+        if name not in self.outline:
+            from fontTools.pens.boundsPen import BoundsPen
+            from fontTools.pens.svgPathPen import SVGPathPen
+
+            pen = SVGPathPen(self.glyphs)
+            self.glyphs[name].draw(pen)
+            bounds = BoundsPen(self.glyphs)
+            self.glyphs[name].draw(bounds)
+            self.outline[name], self.bounds[name] = pen.getCommands(), bounds.bounds
+        return self.outline[name], self.bounds[name]
+
+
+def wrap(face: Face, text: str, px: float, width: float) -> list[str]:
+    """Wrap by measured width. Type never shrinks to fit."""
+    lines, current = [], ""
+    for word in text.split():
+        trial = f"{current} {word}".strip()
+        if current and face.width(trial, px) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = trial
+        if face.width(current, px) > width:
+            raise ValueError(f"A word does not fit, change the layout: {word}")
+    return lines + [current]
 
 
 class Canvas:
-    """Share geometry and labels across vector and raster output."""
+    """Draw the same marks into an SVG and a supersampled PNG."""
 
-    def __init__(self, width, height, theme, faces=None):
-        self.width, self.height, self.t = width, height, theme
+    def __init__(self, width: int, height: int):
+        from PIL import Image, ImageDraw
+
+        self.width, self.height = width, height
         self.svg = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
             f'<title id="title">{escape(TITLE)}</title>',
             f'<desc id="desc">{escape(DESCRIPTION)}</desc>',
-            f'<!-- Family roles: {TOKEN_SOURCE}. Conceptual source: {SOURCE_REVISION}. -->',
+            f'<!-- Obscur tokens: {TOKEN_SOURCE}. Text is drawn as outlines. -->',
+            f'<rect width="{width}" height="{height}" fill="{TOKENS["canvas"]}"/>',
         ]
-        self.image, self.draw, self.faces = None, None, faces
+        self.image = Image.new("RGB", (width*SUPERSAMPLE, height*SUPERSAMPLE), TOKENS["canvas"])
+        self.draw = ImageDraw.Draw(self.image)
         self.fonts = {}
-        self.text_bounds = []
-        if faces:
-            from PIL import Image, ImageDraw
-            self.image = Image.new("RGB", (width, height), theme["canvas"])
-            self.draw = ImageDraw.Draw(self.image)
-        self.rect(0, 0, width, height, "canvas", radius=0)
+        self.labels = 0
 
-    def color(self, role):
-        return self.t.get(role, role)
+    def card(self, x, y, w, h):
+        # Pillow draws the outline inside the box, so the SVG stroke is inset to match.
+        half = OUTLINE / 2
+        self.svg.append(f'<rect x="{x + half}" y="{y + half:.2f}" width="{w - OUTLINE}" '
+                        f'height="{h - OUTLINE:.2f}" rx="{RADIUS - half}" '
+                        f'fill="{TOKENS["control"]}" stroke="{TOKENS["border"]}" '
+                        f'stroke-width="{OUTLINE}"/>')
+        s = SUPERSAMPLE
+        self.draw.rounded_rectangle((x*s, y*s, (x+w)*s, (y+h)*s), RADIUS*s,
+                                    TOKENS["control"], TOKENS["border"], OUTLINE*s)
 
-    def rect(self, x, y, w, h, fill, stroke=None, radius=16, line=2):
-        f, s = self.color(fill), self.color(stroke) if stroke else "none"
-        self.svg.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{radius}" '
-                        f'fill="{f}" stroke="{s}" stroke-width="{line}"/>')
-        if self.draw:
-            self.draw.rounded_rectangle((x, y, x+w, y+h), radius, f,
-                                        None if s == "none" else s, width=line)
+    def arrow(self, x1, y1, x2, y2, head, half):
+        """A connector in text with a filled head. It shows direction only."""
+        length = math.hypot(x2 - x1, y2 - y1)
+        ux, uy = (x2 - x1) / length, (y2 - y1) / length
+        bx, by = x2 - ux*head, y2 - uy*head
+        points = [(x2, y2), (bx - uy*half, by + ux*half), (bx + uy*half, by - ux*half)]
+        self.svg.append(f'<path d="M {x1:.2f} {y1:.2f} L {bx:.2f} {by:.2f}" '
+                        f'stroke="{TOKENS["text"]}" stroke-width="{CONNECTOR}" fill="none"/>')
+        self.svg.append('<path d="M ' + " L ".join(f"{px:.2f} {py:.2f}" for px, py in points)
+                        + f' Z" fill="{TOKENS["text"]}"/>')
+        s = SUPERSAMPLE
+        self.draw.line((x1*s, y1*s, bx*s, by*s), TOKENS["text"], round(CONNECTOR*s))
+        self.draw.polygon([(px*s, py*s) for px, py in points], TOKENS["text"])
 
-    def line(self, x1, y1, x2, y2, role="accent", width=4):
-        color = self.color(role)
-        self.svg.append(f'<path d="M {x1} {y1} L {x2} {y2}" stroke="{color}" '
-                        f'stroke-width="{width}" fill="none" stroke-linecap="round"/>')
-        if self.draw:
-            self.draw.line((x1, y1, x2, y2), color, width)
+    def text(self, face: Face, x: float, baseline: float, value: str, px: float, role: str):
+        """Place glyphs by their advances, as outlines in SVG and pixels in PNG."""
+        from PIL import ImageFont
 
-    def arrow(self, x1, y1, x2, y2, role="accent", width=4):
-        self.line(x1, y1, x2, y2, role, width)
-        direction = 1 if x2 > x1 else -1
-        self.line(x2 - direction*12, y2-9, x2, y2, role, width)
-        self.line(x2 - direction*12, y2+9, x2, y2, role, width)
-
-    def text(self, x, y, value, size=32, weight=400, role="text", anchor="start"):
-        color = self.color(role)
-        self.svg.append(
-            f'<text x="{x}" y="{y}" font-family="Inter, Arial, sans-serif" '
-            f'font-size="{size}" font-weight="{weight}" fill="{color}" '
-            f'text-anchor="{anchor}">{escape(value)}</text>')
-        if self.draw:
-            from PIL import ImageFont
-            key = (size, weight)
-            if key not in self.fonts:
-                self.fonts[key] = ImageFont.truetype(str(self.faces[weight]), size)
-            font = self.fonts[key]
-            pil_anchor = {"start": "ls", "middle": "ms", "end": "rs"}[anchor]
-            box = self.draw.textbbox((x, y), value, font=font, anchor=pil_anchor)
-            self.text_bounds.append((value, box))
-            if box[0] < 0 or box[1] < 0 or box[2] > self.width or box[3] > self.height:
-                raise ValueError(f"Text exceeds the canvas: {value}")
-            self.draw.text((x, y), value, color, font=font, anchor=pil_anchor)
-
-    def vector(self, x, y, zero=False, scale=1):
-        w, h = round(116*scale), round(44*scale)
-        self.rect(x, y, w, h, "panel", "accent", radius=round(9*scale))
-        for i in range(3):
-            cx = x + (20 + i*38)*scale
-            if zero:
-                self.text(cx, y+30*scale, "0", round(26*scale), anchor="middle", role="accent")
-            else:
-                self.line(cx-4*scale, y+22*scale, cx+4*scale, y+22*scale,
-                          "accent", round(7*scale))
-
-    def weight(self, x, y, width=98):
-        self.rect(x, y, width, 22, "panel", "accent", radius=8)
-        self.line(x+12, y+11, x+width-12, y+11, "accent", 5)
+        color, scale = TOKENS[role], px / face.upem
+        key = (face.weight, px)
+        if key not in self.fonts:
+            self.fonts[key] = ImageFont.truetype(str(face.path), px*SUPERSAMPLE,
+                                                 layout_engine=ImageFont.Layout.BASIC)
+        paths, box = [], [math.inf, math.inf, -math.inf, -math.inf]
+        placed, _ = face.shape(value)
+        for ch, name, pen_x in placed:
+            outline, bounds = face.glyph(name)
+            if outline:
+                paths.append(f'<path transform="translate({pen_x})" d="{outline}"/>')
+            if bounds:
+                gx = x + pen_x*scale
+                box = [min(box[0], gx + bounds[0]*scale), min(box[1], baseline - bounds[3]*scale),
+                       max(box[2], gx + bounds[2]*scale), max(box[3], baseline - bounds[1]*scale)]
+            self.draw.text(((x + pen_x*scale)*SUPERSAMPLE, baseline*SUPERSAMPLE), ch,
+                           color, font=self.fonts[key], anchor="ls")
+        self.svg.append(f'<g fill="{color}" transform="translate({x:.2f} {baseline:.2f}) '
+                        f'scale({scale:.6f} {-scale:.6f})">' + "".join(paths) + "</g>")
+        self.labels += 1
+        return box
 
     def finish(self):
+        from PIL import Image
+
         svg = ("\n".join(self.svg + ["</svg>"]) + "\n").encode("utf-8")
-        png = None
-        if self.image:
-            stream = BytesIO()
-            self.image.save(stream, "PNG", optimize=False, compress_level=9)
-            png = stream.getvalue()
-        return svg, png
+        stream = BytesIO()
+        self.image.reduce(SUPERSAMPLE).save(stream, "PNG", optimize=False, compress_level=9)
+        return svg, stream.getvalue()
 
 
-def render(edition, narrow=False, faces=None):
-    c = Canvas(900 if narrow else 1600, 1590 if narrow else 1120, THEMES[edition], faces)
-    if narrow:
-        c.text(54, 93, "Ragged Pooling", 58, 600)
-        c.text(54, 155, "for PyTorch", 58, 600)
-        c.text(54, 217, "Different group sizes.", 35, role="muted")
-        c.text(54, 260, "One summary vector per group.", 35, role="muted")
-        c.rect(40, 301, 820, 946, "panel", "divider", 22)
-        c.text(72, 355, "Values and scores", 34, 600)
-        c.text(72, 398, "Softmax weights feed a weighted sum.", 29, role="muted")
-        for row, (label, count) in enumerate((("Group A", 2), ("Group B", 3), ("Empty group", 0))):
-            y = 448 + row*240
-            c.text(72, y, label, 31, 600)
-            if count:
-                for item in range(count):
-                    c.vector(72 + item*143, y+23)
-                    c.weight(81 + item*143, y+80)
-                c.text(72, y+143, "Items and their weights", 27, role="muted")
-            else:
-                c.text(72, y+73, "No items", 32, role="muted")
-            c.arrow(520, y+66, 636, y+66)
-            c.vector(686, y+44, zero=not count)
-            c.text(744, y+143, "Zero vector" if not count else "One vector", 27,
-                   anchor="middle", role="muted")
-            if row < 2:
-                c.line(72, y+187, 828, y+187, "divider", 2)
-        c.arrow(790, 1201, 110, 1201)
-        c.text(450, 1167, "Gradients reach values and scores", 31, 600,
-               anchor="middle", role="accent")
-        c.text(54, 1324, "CPU computation in C++.", 34, 600)
-        c.text(54, 1375, "Python integration with PyTorch.", 32)
-        c.text(54, 1424, "Packed and padded inputs.", 32)
-        c.text(54, 1473, "First order gradients.", 32)
-        c.text(54, 1542, "Conceptual example. Not a benchmark.", 29, role="muted")
+def inside(box, left, top, right, bottom, what):
+    if box[0] < left or box[1] < top or box[2] > right or box[3] > bottom:
+        raise ValueError(f"A label leaves its {what}: {box}")
+
+
+def layout(edition: dict, faces: dict):
+    """Measure every line first, so card and canvas heights come from the text."""
+    regular, semibold, bold = faces[400], faces[600], faces[700]
+    width, margin, card_w = edition["width"], edition["margin"], edition["card_width"]
+    inner = card_w - 2*PAD_SIDE
+    px = {role: edition[role]*POINT for role in ("title", "subtitle", "card_title", "body", "footer")}
+    title = wrap(bold, TITLE, px["title"], width - 2*margin)
+    subtitle = wrap(regular, SUBTITLE, px["subtitle"], width - 2*margin)
+    if len(subtitle) != 1:
+        raise ValueError("The subtitle must stay on one line")
+    cards = [(wrap(semibold, head, px["card_title"], inner),
+              [wrap(regular, line, px["body"], inner) for line in body]) for head, body in CARDS]
+    footer = wrap(semibold, FOOTER, px["footer"], width - 2*margin)
+
+    def block(lines, size):
+        return len(lines) * size * LINE
+
+    def card_height(head, body):
+        return (PAD_TOP + block(head, px["card_title"]) + TITLE_GAP
+                + sum(block(lines, px["body"]) for lines in body)
+                + BODY_GAP*(len(body) - 1) + PAD_BOTTOM)
+
+    heights = [card_height(head, body) for head, body in cards]
+    wide = edition["direction"] == "row"
+    if wide and card_w*len(cards) + edition["card_gap"]*(len(cards) - 1) + 2*margin != width:
+        raise ValueError("A row of cards must fill the width between the margins")
+    top = margin + block(title, px["title"]) + AFTER_TITLE + block(subtitle, px["subtitle"]) + AFTER_SUBTITLE
+    if wide:
+        card_h = max(heights)
+        boxes = [(margin + i*(card_w + edition["card_gap"]), top, card_w, card_h) for i in range(len(cards))]
+        cards_bottom = top + card_h
     else:
-        c.text(70, 116, TITLE, 66, 600)
-        c.text(70, 184, "Different group sizes. One summary vector per group.", 36, role="muted")
-        c.rect(56, 238, 1488, 585, "panel", "divider", 22)
-        c.text(94, 300, "Values and scores", 32, 600)
-        c.text(700, 300, "Softmax weights", 32, 600)
-        c.text(1246, 300, "Weighted sum", 32, 600)
-        for row, (label, count) in enumerate((("Group A", 2), ("Group B", 3), ("Empty group", 0))):
-            y = 342 + row*146
-            c.text(94, y+36, label, 29, 600)
-            if count:
-                for item in range(count):
-                    c.vector(282 + item*131, y+6)
-                    c.weight(710 + item*137, y+17, width=108)
-            else:
-                c.text(340, y+36, "No items", 30, role="muted")
-                c.text(710, y+36, "No weights", 30, role="muted")
-            c.arrow(1160, y+28, 1225, y+28)
-            c.vector(1314, y+6, zero=not count)
-            if row < 2:
-                c.line(94, y+90, 1505, y+90, "divider", 2)
-        c.text(800, 868, "Training sends gradients back to values and scores", 34,
-               600, "accent", "middle")
-        c.arrow(1395, 910, 220, 910)
-        c.text(70, 969, "CPU computation in C++. Python integration with PyTorch.", 34, 600)
-        c.text(70, 1024, "Packed and padded inputs. First order gradients.", 33)
-        c.text(70, 1080, "Conceptual example. Not a benchmark.", 29, role="muted")
-    return c.finish()
+        boxes, y = [], top
+        for h in heights:
+            boxes.append((margin, y, card_w, h))
+            y += h + edition["card_gap"]
+        cards_bottom = y - edition["card_gap"]
+    footer_top = cards_bottom + BEFORE_FOOTER
+    height = max(edition["min_height"], math.ceil(footer_top + block(footer, px["footer"]) + AFTER_FOOTER))
+    return {"px": px, "title": title, "subtitle": subtitle, "cards": cards, "footer": footer,
+            "boxes": boxes, "wide": wide, "top": margin, "footer_top": footer_top, "height": height}
+
+
+def render(edition: dict, faces: dict):
+    plan = layout(edition, faces)
+    px, margin, width, height = plan["px"], edition["margin"], edition["width"], plan["height"]
+    canvas = Canvas(width, height)
+
+    def lines(face, values, size, x, top, role, limits):
+        for value in values:
+            baseline = top + (size*LINE - (face.ascent - face.descent)*size/face.upem)/2 + face.ascent*size/face.upem
+            inside(canvas.text(face, x, baseline, value, size, role), *limits)
+            top += size*LINE
+        return top
+
+    page = (0, 0, width, height, "canvas")
+    y = lines(faces[700], plan["title"], px["title"], margin, plan["top"], "text", page)
+    lines(faces[400], plan["subtitle"], px["subtitle"], margin, y + AFTER_TITLE, "muted", page)
+    for (x, top, w, h), (head, body) in zip(plan["boxes"], plan["cards"]):
+        canvas.card(x, top, w, h)
+        limits = (x + INSET, top + INSET, x + w - INSET, top + h - INSET, "card")
+        y = lines(faces[600], head, px["card_title"], x + PAD_SIDE, top + PAD_TOP, "text", limits)
+        y += TITLE_GAP
+        for index, statement in enumerate(body):
+            y = lines(faces[400], statement, px["body"], x + PAD_SIDE, y, "text", limits)
+            y += BODY_GAP if index < len(body) - 1 else 0
+    for (x1, y1, w1, h1), (x2, y2, _, _) in zip(plan["boxes"], plan["boxes"][1:]):
+        if plan["wide"]:
+            mid = y1 + h1/2
+            canvas.arrow(x1 + w1 + 10, mid, x2 - 10, mid, *edition["arrow_head"])
+        else:
+            canvas.arrow(x1 + w1/2, y1 + h1 + 3, x2 + w1/2, y2 - 3, *edition["arrow_head"])
+    lines(faces[600], plan["footer"], px["footer"], margin, plan["footer_top"], "muted", page)
+    svg, png = canvas.finish()
+    record = {
+        "width": width, "height": height, "labels_within_canvas": canvas.labels,
+        "rendered_card_lines": [[line for statement in body for line in statement] for _, body in plan["cards"]],
+        "height_rule": "wrapping by measured width, 1.3 line spacing and fixed padding and gaps",
+        "minimum_font_points": min(edition[role] for role in ("subtitle", "body", "footer")),
+    }
+    return svg, png, record
+
+
+def load_faces(directory: Path) -> dict:
+    return {weight: Face(directory / f"Inter-{name}.ttf", name, weight) for name, weight in FACES}
+
+
+def build(directory: Path):
+    from PIL import __version__ as pillow
+    from fontTools import version as fonttools
+    from uharfbuzz import __version__ as harfbuzz
+
+    faces = load_faces(directory)
+    outputs, layouts = {}, {}
+    for key, edition in EDITIONS.items():
+        svg, png, layouts[key] = render(edition, faces)
+        outputs[f"{edition['name']}.png"] = png
+        outputs[f"{edition['name']}.svg"] = svg
+    receipt = {
+        "schema_version": 1,
+        "kind": "conceptual diagram",
+        "application_or_scientific_execution": False,
+        "tokens": {"source": TOKEN_SOURCE, "values": TOKENS},
+        "inputs_sha256_lf": {"docs/render_pooling_example.py": sha256_lf(Path(__file__))},
+        "fonts": {name: {"filename": f"Inter-{name}.ttf", "weight": weight,
+                         "sha256": hashlib.sha256(faces[weight].path.read_bytes()).hexdigest()}
+                  for name, weight in FACES},
+        "renderer": {"pillow": pillow, "fonttools": fonttools, "uharfbuzz": harfbuzz,
+                     "features": FEATURES, "supersample": SUPERSAMPLE},
+        "layouts": layouts,
+        "outputs_sha256": {f"docs/{name}": hashlib.sha256(
+                               data.replace(b"\r\n", b"\n") if name.endswith(".svg") else data
+                           ).hexdigest() for name, data in sorted(outputs.items())},
+    }
+    outputs[RECEIPT.name] = (json.dumps(receipt, indent=2) + "\n").encode("utf-8")
+    return outputs
+
+
+def check_receipt() -> list[str]:
+    """Recompute every hash the receipt names, with the standard library only."""
+    receipt = json.loads(RECEIPT.read_text(encoding="utf-8"))
+    problems = []
+    for name, expected in receipt["inputs_sha256_lf"].items():
+        path = ROOT.parent / name
+        if not path.is_file() or sha256_lf(path) != expected:
+            problems.append(f"Renderer changed since the receipt: {name}")
+    for name, expected in receipt["outputs_sha256"].items():
+        path = ROOT.parent / name
+        if not path.is_file() or sha256_output(path) != expected:
+            problems.append(f"Output does not match the receipt: {name}")
+    if receipt["tokens"]["values"] != TOKENS:
+        problems.append("Receipt tokens differ from the renderer")
+    return problems
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--font-dir", type=Path, help="Directory with static Inter TTF files for PNGs")
-    parser.add_argument("--check", action="store_true", help="Compare selected files without changing them")
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--font-dir", type=Path, help="Folder with static Inter TTF files")
+    parser.add_argument("--check", action="store_true", help="Compare with the committed files")
+    parser.add_argument("--check-receipt", action="store_true",
+                        help="Recompute the receipt hashes without rendering")
     args = parser.parse_args()
-    faces = font_files(args.font_dir) if args.font_dir else None
-    outputs = {}
-    for edition in THEMES:
-        for narrow in (False, True):
-            name = f"ragged-pool-{edition}{'-narrow' if narrow else ''}"
-            svg, png = render(edition, narrow, faces)
-            outputs[ROOT / f"{name}.svg"] = svg
-            if png is not None:
-                outputs[ROOT / f"{name}.png"] = png
-    stale = [path.name for path, data in outputs.items()
-             if not path.is_file() or path.read_bytes() != data]
+    if args.check_receipt:
+        problems = check_receipt()
+        if problems:
+            parser.exit(1, "\n".join(problems) + "\n")
+        print("Every hash in the rendering receipt matches.")
+        return
+    if not args.font_dir:
+        parser.error("--font-dir is required to render")
+    outputs = build(args.font_dir)
     if args.check:
+        def same(path, data):
+            if path.suffix == ".png":
+                return path.read_bytes() == data
+            return path.read_bytes().replace(b"\r\n", b"\n") == data
+        stale = [name for name, data in outputs.items()
+                 if not (ROOT / name).is_file() or not same(ROOT / name, data)]
         if stale:
             parser.exit(1, "Out of date: " + ", ".join(stale) + "\n")
-        print(f"All {len(outputs)} selected diagram files match the renderer.")
-    else:
-        for path, data in outputs.items():
-            path.write_bytes(data)
-        print(f"Rendered {len(outputs)} conceptual diagram files.")
+        print(f"All {len(outputs)} diagram files match the renderer.")
+        return
+    for name, data in outputs.items():
+        (ROOT / name).write_bytes(data)
+    print(f"Rendered {len(outputs)} diagram files.")
 
 
 if __name__ == "__main__":
