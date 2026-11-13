@@ -41,7 +41,7 @@
     </header>
 
     <figure id="pooling-figure">
-      <a href="ragged-pool-obscur.png" aria-label="Open the full-size conceptual pooling diagram">
+      <a href="ragged-pool-obscur.png" aria-label="Open the full size conceptual pooling diagram">
         <picture>
           <source media="(max-width:680px)" srcset="ragged-pool-obscur-narrow.png">
           <img src="ragged-pool-obscur.png" width="1800" height="897" alt="Conceptual CPU example: groups with two items, three items or none produce one summary vector each. Softmax turns the scores in a group into weights for a weighted sum. The empty group produces zeros. Gradients reach values and scores. This is not a benchmark.">
@@ -72,8 +72,8 @@
 logits  = [0, log(3)]
 offsets = [0, 2, 2]
 output  ≈ [[0.5, 3], [0, 0]]</code></pre>
-      <p>This worked example has group sizes two and zero. The diagram also shows a separate three-item group.
-        These numbers explain the operation; this page performs no native calculation or training in your browser.</p>
+      <p>This worked example has group sizes two and zero. The diagram also names a separate group of three items.
+        These numbers explain the operation. This page performs no native calculation or training in your browser.</p>
       <p>The Python version of this example is in the
         <a href="https://github.com/T92T1914/ragged-pool#ragged-pool">README</a>.
         <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/src/ragged_pool/reference.py">Inspect the pure PyTorch reference</a>
@@ -86,12 +86,12 @@ output  ≈ [[0.5, 3], [0, 0]]</code></pre>
         <article class="panel">
           <h3>One optimizer step</h3>
           <p>The seeded installed example compares native and reference outputs, input gradients and updated model parameters from the same starting state.
-            It actually performs an optimizer step. Its synthetic loss demonstrates integration, not real-world accuracy.</p>
+            It actually performs an optimizer step. Its synthetic loss demonstrates integration, not real world accuracy.</p>
           <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/examples/train_sets.py">Read the training example</a>
         </article>
         <article class="panel">
           <h3>Qualified routes have separate boundaries</h3>
-          <p>The simple diagram illustrates first-order CPU training. Eager packed and padded CPU routes also have separately qualified second derivatives.
+          <p>The simple diagram illustrates first order CPU training. Eager packed and padded CPU routes also have separately qualified second derivatives.
             Compiled training, functional transforms, export, optional CUDA and Linux distributed examples each keep their own admitted compositions and limits.</p>
           <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/examples.md">Choose an advanced example</a>
         </article>
@@ -108,7 +108,7 @@ output  ≈ [[0.5, 3], [0, 0]]</code></pre>
         Inputs are neither changed nor moved between devices.</p>
       <p>The native CPU calculation uses float64 accumulation for either input dtype and casts back to that dtype.
         Its rounding can differ from the ordinary PyTorch reference.
-        This does not promise cross-version ABI compatibility, every platform or every derivative composition.</p>
+        This does not promise ABI compatibility across versions, every platform or every derivative composition.</p>
       <a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/contract.md">Read the complete contract and excluded behavior</a>
     </section>
 
@@ -122,19 +122,19 @@ output  ≈ [[0.5, 3], [0, 0]]</code></pre>
         <li><a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/releases/v0.2.0.md">Release scope and evidence</a>:
           selected downloadable bytes, source identity and historical qualifications stay distinct.</li>
         <li><a href="https://github.com/T92T1914/ragged-pool/blob/ddf8002cfd351723ff7a9e6c7471a966b8fe33db/docs/acceptance.md">Initial CPU acceptance</a> and
-          <a href="https://github.com/T92T1914/ragged-pool/actions">exact-revision CI</a>:
-          mathematical, registration, build and installed-consumer checks answer different questions.</li>
+          <a href="https://github.com/T92T1914/ragged-pool/actions">CI on the exact revision</a>:
+          mathematical, registration, build and installed consumer checks answer different questions.</li>
       </ul>
-      <p>Optional GPU and responsive-rank Linux CPU work do not inherit new qualification from this static page.
+      <p>Optional GPU and Linux CPU work with responsive ranks do not inherit new qualification from this static page.
         Retained adverse results and narrower platform claims remain attached to their original evidence.
-        No general performance, model-quality, crash-recovery or production-security claim is added.</p>
+        No general performance, model quality, crash recovery or production security claim is added.</p>
     </section>
   </main>
   <footer>
     <p>Built by <a href="https://github.com/T92T1914">Trinidy Farris</a>.
       <a href="https://github.com/T92T1914/ragged-pool">Project README</a> ·
       <a href="site-record.json">Page source and asset record</a></p>
-    <p class="fine">The page uses local Inter when available, with system-font fallbacks for other visitors.
+    <p class="fine">The page uses local Inter when available, with system font fallbacks for other visitors.
       The existing diagrams contain painted Inter glyphs. No font download, analytics or browser training is required.</p>
   </footer>
 </div>
