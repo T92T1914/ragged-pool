@@ -175,4 +175,4 @@ claim.
 
 Project source is licensed under [MIT](LICENSE). [NOTICE](NOTICE) records implementation assistance, upstream guidance and the separate PyTorch dependency license. The full PyTorch v2.9.1 main notice is retained with the wheel and source distribution. No PyTorch dependency binaries are bundled.
 
-T set the project scope and acceptance requirements. The implementation, test authoring, source review and local command execution in this initial version used Codex assistance. The execution record establishes component behavior, not unaided expertise.
+T set the project scope and acceptance requirements. AI coding tools assisted with implementation, test authoring, command execution, review and publication preparation. Earlier commits that carry a tool's name as author mark assisted work from that period. Later commits, and some from that period, carry T's name whether or not a tool assisted. The execution record establishes component behavior, not unaided expertise.
