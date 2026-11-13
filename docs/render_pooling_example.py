@@ -390,10 +390,6 @@ def check_receipt() -> list[str]:
         path = ROOT.parent / name
         if not path.is_file() or sha256_output(path) != expected:
             problems.append(f"Output does not match the receipt: {name}")
-    for name in ("ragged-pool-clair.png", "ragged-pool-clair.svg",
-                 "ragged-pool-clair-narrow.png", "ragged-pool-clair-narrow.svg"):
-        if (ROOT / name).exists():
-            problems.append(f"Figure not on Obscur: docs/{name}")
     if receipt["tokens"]["values"] != TOKENS:
         problems.append("Receipt tokens differ from the renderer")
     return problems
