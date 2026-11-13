@@ -39,4 +39,4 @@ The command orchestrates the producer and resumer without running their numerica
 
 The scope excludes pending gradient accumulation, general RNG restoration, DataLoader workers, dropout, schedulers, compiled cache persistence, distributed recovery, GPU, crash consistent power loss recovery, authenticated storage and cross version/platform/ABI compatibility. Earlier inference export and dynamic compiled training retain their separate contracts. This example continues one declared local trajectory, rather than claiming a general checkpoint service.
 
-Implementation and verification use Codex assistance, consistent with [NOTICE](../NOTICE). Executed records establish component behavior and preserve the distinction from unaided expertise, security certification or employer qualification.
+Implementation and verification use AI coding assistance, consistent with [NOTICE](../NOTICE). Executed records establish component behavior and preserve the distinction from unaided expertise, security certification or employer qualification.
