@@ -4,7 +4,7 @@ The [v0.2.0 release](https://github.com/T92T1914/ragged-pool/releases/tag/v0.2.0
 
 - `ragged_pool-0.2.0-cp311-cp311-win_amd64.whl` contains the Python package and native CPU extension.
 - `ragged_pool-source-<full-release-commit>.zip` contains the tracked source, examples, guides and license notices. Its actual filename contains the full release commit. This is a Git source archive, not a Python source distribution.
-- `SHA256SUMS.txt` identifies the wheel and source-archive bytes. Compare it with `Get-FileHash -Algorithm SHA256` before using the files. A matching hash identifies bytes and does not authenticate an unknown publisher.
+- `SHA256SUMS.txt` identifies the wheel and source archive bytes. Compare it with `Get-FileHash -Algorithm SHA256` before using the files. A matching hash identifies bytes and does not authenticate an unknown publisher.
 
 Use Windows x64 and CPython 3.11.8. The wheel requires exactly `torch==2.9.1+cpu`, installed separately from the official PyTorch index. It needs no compiler at installation. Other Python, PyTorch and platform combinations have not been qualified by this wheel.
 
@@ -44,14 +44,14 @@ Set-Location -LiteralPath $consumer
 & $python -I .\train_sets.py --dtype float64
 ```
 
-Stop if a command fails. Each successful example checks native/reference outputs, loss, input and parameter gradients, then performs one SGD step and compares updated parameters. The JSON result reports the installed module path, package version, dtype and actual optimizer-step count. The package path should be under `installed-env\Lib\site-packages`, outside the extracted source. This is synthetic training integration, with no accuracy or performance claim.
+Stop if a command fails. Each successful example checks native/reference outputs, loss, input and parameter gradients, then performs one SGD step and compares updated parameters. The JSON result reports the installed module path, package version, dtype and actual optimizer step count. The package path should be under `installed-env\Lib\site-packages`, outside the extracted source. This is synthetic training integration, with no accuracy or performance claim.
 
-The README's [two-item pooling example](../README.md#ragged-pool) also works with this installation. The empty second group returns a zero vector, and `backward()` sends gradients to values and logits.
+The README's [two item pooling example](../README.md#ragged-pool) also works with this installation. The empty second group returns a zero vector, and `backward()` sends gradients to values and logits.
 
 ## Source builds and other capabilities
 
-The [Windows build recipe](../README.md#build-and-run) uses an existing MSVC 14.44 x64 toolchain and C++17. The separate [Linux source-to-wheel recipe](linux-cpu.md) qualifies Ubuntu 24.04 x86-64, GCC 13, CPython 3.11.8 and PyTorch 2.9.1+cpu. A wheel named `linux_x86_64` is not a manylinux compatibility claim.
+The [Windows build recipe](../README.md#build-and-run) uses an existing MSVC 14.44 x64 toolchain and C++17. The separate [Linux source to wheel recipe](linux-cpu.md) qualifies Ubuntu 24.04 x86-64, GCC 13, CPython 3.11.8 and PyTorch 2.9.1+cpu. A wheel named `linux_x86_64` is not a manylinux compatibility claim.
 
-The default CPU wheel contains no CUDA extension and requires the CPU PyTorch build. The [CUDA companion](examples.md#cuda-companion) and [historical co-installation route](coinstallation.md) identify their own accepted 0.1.0 packages, framework variant, Windows hardware and diagnostic limits. Those older package identities remain part of those routes. This release does not qualify a new CUDA wheel or a new mixed CPU/CUDA pair.
+The default CPU wheel contains no CUDA extension and requires the CPU PyTorch build. The [CUDA companion](examples.md#cuda-companion) and [historical coinstallation route](coinstallation.md) identify their own accepted 0.1.0 packages, framework variant, Windows hardware and diagnostic limits. Those older package identities remain part of those routes. This release does not qualify a new CUDA wheel or a new mixed CPU/CUDA pair.
 
-The source and wheel retain MIT, NOTICE and the full retained PyTorch license. PyTorch dependency binaries are not bundled. See the [release notes](releases/v0.2.0.md) for the current snapshot and the [contract](contract.md) for supported tensors, derivatives and exclusions. Trusted model artifacts keep exact environment and native-byte identities. A newly installed release does not automatically accept an artifact produced by another binary.
+The source and wheel retain MIT, NOTICE and the full retained PyTorch license. PyTorch dependency binaries are not bundled. See the [release notes](releases/v0.2.0.md) for the current snapshot and the [contract](contract.md) for supported tensors, derivatives and exclusions. Trusted model artifacts keep exact environment and native byte identities. A newly installed release does not automatically accept an artifact produced by another binary.
