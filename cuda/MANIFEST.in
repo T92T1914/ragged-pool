@@ -8,6 +8,7 @@ include CLIPPING.md
 include FORWARD_AD.md
 include SECOND_ORDER.md
 include STOCHASTIC.md
+include FORWARD_KERNEL.md
 include third_party/PYTORCH-LICENSE
 include csrc/pool.cu
 include evidence/windows-sm89-20261021.json
