@@ -479,8 +479,10 @@ def compiler_cache(output, candidate, cache_root):
 
     On Windows, Inductor in PyTorch 2.9.1 puts the generated source and output
     paths into the MSVC command without quotes, so a space anywhere in the cache
-    path splits them. The cache goes beside the output, or under --cache-root,
-    when that path holds no space. Otherwise it goes into a new temporary folder.
+    path splits them. Under --cache-root the cache goes there, and main refuses
+    a path with a space before the run starts. Otherwise the cache goes beside
+    the output when that path holds no space, and into a new temporary folder
+    when it holds one.
     """
     if cache_root is not None:
         cache = Path(cache_root) / (output.stem + "-" + candidate + "-cache")
@@ -492,7 +494,7 @@ def compiler_cache(output, candidate, cache_root):
         return cache, choice
     if cache_root is not None:
         raise ValueError("On Windows the Inductor cache path must hold no space: " + str(cache))
-    temporary = Path(tempfile.gettempdir()).resolve()
+    temporary = Path(tempfile.gettempdir())
     if " " in str(temporary):
         raise ValueError("The output path and the temporary folder both hold a space. Pass --cache-root with a folder whose path holds none")
     folder = Path(tempfile.mkdtemp(prefix="ragged-pool-inductor-", dir=temporary))
@@ -571,12 +573,14 @@ def main():
     if arguments.cache_root is not None:
         if not arguments.compile:
             parser.error("--cache-root applies only to --compile")
-        arguments.cache_root = str(Path(arguments.cache_root).resolve())
+        arguments.cache_root = os.path.abspath(arguments.cache_root)
         if not Path(arguments.cache_root).is_dir():
             parser.error("--cache-root must name an existing folder")
         if sys.platform == "win32" and " " in arguments.cache_root:
             parser.error("On Windows the --cache-root path must hold no space")
     output = Path(arguments.output).resolve()
+    if arguments.cache_root is not None and sys.platform == "win32" and " " in output.stem:
+        parser.error("On Windows the --output file name must hold no space when --cache-root is used")
     if output.exists():
         raise FileExistsError(f"Refusing to overwrite {output}")
     if not output.parent.is_dir():
