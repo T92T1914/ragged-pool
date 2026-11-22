@@ -72,7 +72,7 @@ ragged_pool_cuda::_forward_study(Tensor values, Tensor logits, Tensor offsets,
                                  int kernel, int switch_length, int repeats) -> (Tensor, Tensor)
 ```
 
-`kernel` is 0 for the existing kernel and 1 for the new one. Groups with `L <= switch_length` take the warp path. The public `pool` and the study's `N` use 32, 0 sends every nonempty group down the block path and 4096 sends every nonempty group down the warp path. The operation runs the same admission as `pool`. With `repeats` at 0 it launches the chosen kernel once and returns an empty timing tensor. Otherwise it launches the kernel `repeats` times with a pair of CUDA events around each launch and returns the output with a CPU float64 tensor. That tensor holds the milliseconds of each launch, then one last entry for the span from the first start to the last stop. It has no autograd formula and no fake rule, because it exists for the study and the tests only.
+`kernel` is 0 for the existing kernel and 1 for the new one. Groups with `L <= switch_length` take the warp path. The study's `N` uses 32, and so did the public `pool` until [A switch that follows the width](#a-switch-that-follows-the-width) gave it a switch that depends on `D`. 0 sends every nonempty group down the block path and 4096 sends every nonempty group down the warp path. The operation runs the same admission as `pool`. With `repeats` at 0 it launches the chosen kernel once and returns an empty timing tensor. Otherwise it launches the kernel `repeats` times with a pair of CUDA events around each launch and returns the output with a CPU float64 tensor. That tensor holds the milliseconds of each launch, then one last entry for the span from the first start to the last stop. It has no autograd formula and no fake rule, because it exists for the study and the tests only.
 
 Whether the new kernel becomes the default for `pool` is a decision for after the study and after a Compute Sanitizer run of the new binary, which on this Windows machine needs the elevated helper the [README](README.md) describes. Until then the README's sentence about one thread per group stays true of the default.
 
@@ -271,3 +271,64 @@ Two expectations in [What carries over](#what-carries-over-and-what-changes) did
 ### What this shows
 
 On this card the new kernel's own time is lower than the existing kernel's on 11 of the 14 shapes, from 1.9 times on Many short to 117 times on One full group, and it changes no float32 output. A complete call is now mostly time outside the kernel, which the limits above expected the single thread admission scan to take, and above about 16384 values the eager composition still finishes first. Nothing here is a general speed claim. It is one card in one machine, one driver, one toolkit, the bounded sizes above and other work on the card during the run. Whether the new kernel becomes the default for `pool` still waits on a Compute Sanitizer run of this binary.
+
+## A switch that follows the width
+
+The sweep above put the block path ahead at 32 items with 128 columns, where the switch at 32 still sent each group down the warp path, and the shape of Full batch float32 sits right there. This section gives `pool` a switch that depends on the width and fixes how the next run measures it. Everything in it above its own Results was written and committed before that run.
+
+### What the sweep showed
+
+Count the rows one lane of the lone warp walks in the accumulation. The warp runs `32 / R` item slots side by side, where `R` is the number of lanes that share a row, so a group of `L` items gives each lane `ceil(L * R / 32)` rows. `R` is 8 with 8 columns and 32 with 128 columns. Set the two halves of the sweep side by side by that count, in microseconds from the record above:
+
+| Rows per lane | 8 columns: L | W | K | 128 columns: L | W | K |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2 | 8 | 6.1 | 7.2 | | | |
+| 4 | 16 | 6.1 | 7.2 | | | |
+| 8 | 32 | 7.2 | 7.2 | 8 | 7.2 | 7.2 |
+| 16 | 64 | 9.2 | 8.2 | 16 | 9.2 | 8.2 |
+| 32 | 128 | 13.3 | 9.2 | 32 | 12.3 | 9.2 |
+| 64 | 256 | 20.5 | 13.3 | 64 | 19.5 | 11.3 |
+| 128 | | | | 128 | 33.8 | 16.4 |
+| 256 | | | | 256 | 62.5 | 27.6 |
+
+At the same number of rows the warp path takes the same time at both widths, or one timer step more with 8 columns, although each lane holds one column there and four with 128 columns. Both widths tie at 8 rows and put the block path ahead from 16 rows on. Past that the warp path adds about 0.22 microseconds a row at both widths: 7.2 microseconds over the 32 rows from 128 to 256 items with 8 columns, and 28.7 over the 128 rows from 128 to 256 items with 128 columns. That is about 640 cycles at the recorded 2865 MHz. My reading is that a lone warp waits on the loads and the dependent double additions of each row, so the number of columns a lane holds matters little and the number of rows it walks decides. No profile ran, so that cause is not shown.
+
+The same table says the maximum and the weights cost the warp path little at these sizes. At 64 rows the warp walks 8 items a lane in those phases with 8 columns and 2 with 128 columns, and the two times differ by one step.
+
+### The rule
+
+`pool` with `adaptive` now sends a group down the warp path while each lane walks at most 8 rows and the group holds at most 32 items:
+
+```text
+switch(D) = min(32, 8 * 32 / R)    with R = row_lanes(D)
+```
+
+That is 32 for `D <= 8`, 16 for `9 <= D <= 16` and 8 for `D >= 17`. The cap at 32 keeps the property the first design chose, that the maximum and the weights give each lane at most one item. The table above suggests those two phases cost the warp path little even when a lane walks several items, so the cap may be stricter than it needs to be. But no row in it has the warp path ahead while a lane walks more than one item in those phases, so I keep the cap and let the sweep test it. Nothing changes for `D <= 8`. `_forward_study` keeps its explicit `switch_length`, so the switch at 32 can still be run and every comparison above can be repeated.
+
+Of the fourteen shapes, three change path: Balanced, with 32 columns and groups of 32, and both Full batches, with 128 columns and groups of 32, move to the block path. Every other shape keeps its paths.
+
+The CUDA suite checks `pool` against this rule for every width from 1 to 128. `test_public_pool_takes_the_path_the_width_rule_names` builds one float64 group whose result shows which path ran: 1000, -1000 and `2**-50` placed so that one path adds the tiny value to 1000, where it rounds away, and the other lets 1000 and -1000 cancel first. It checks one item past the switch for every width and the switch itself for widths 2 to 16. For `D = 1` and for `D >= 17`, both paths add the items of a group at the switch in the same order, so the choice there cannot change any output and the test cannot see it.
+
+### How the next run measures it
+
+The same script and protocol as above: the same seed, warmups, rounds and samples, event pairs behind the stream hold, and the same refusal to time when any of five utilization readings before the start exceeds 30 percent. Three things are added.
+
+1. A new candidate `A`, the new kernel with the switch `pool` now uses for the case's width, is timed kernel only beside `E` and `N` on the fourteen shapes. The rotation now runs over three candidates. The complete call still times `E`, `N` and `C`.
+2. The sweep gains widths 1, 16, 32 and 64 at the same six lengths, so it has 36 rows. The new rows are drawn after every earlier case, so the twelve rows above get the same values and logits they had.
+3. The record is a new file under `evidence` with schema 2. No existing evidence file changes. The predictions of 95b00b8 are judged again on the same cases and counted apart from the predictions below.
+
+### Predictions for the switch
+
+1. On every one of the 36 sweep rows, the path the rule picks is no slower than the other path: its median is at most the other median, judged in twentieths of a microsecond, so a tie holds. This is the check the queue item names.
+2. Kernel only, `A < N` on Balanced, Full batch float32 and Full batch float64, the three shapes the rule moves to the block path. The sweep row at 32 items with 128 columns gave 9.2 against 12.3 microseconds.
+3. Kernel only, `A ≈ N` on the ten other shapes where a kernel runs. There `A` and `N` launch the same kernel with the same paths, so these ten are a control that shows how far two identical launches land apart.
+
+Where I expect a miss to come from, if one comes. The rows at the switch itself sit near a tie: 32 items with 1 and 8 columns, 16 items with 16 columns, and 8 items with 32, 64 and 128 columns. Moving one timer step there fails the first prediction, and the Results will say whether a step is all it was. The rows with one column are the other risk. A lone warp there walks only 2 rows at 64 items, so if rows were the whole story the warp path would win, and the cap sends those groups to the block path. If the warp path wins at 64 items or more with one column, the cap is too low for narrow rows, and lifting it is a later item. The control in prediction 3 has kernels of 4 to 6 microseconds on several shapes, where one step already breaks the 10 percent band, so a miss there would be the timer and not the kernel.
+
+### Limits of the switch
+
+The sweep covers float32 and the widths 1, 8, 16, 32, 64 and 128, so `R` of 2 and 4 is not measured, and neither is any width between the ones listed. The rule rests on one card and one run of the sweep, with the conditions the first run states. It changes only which path the new kernel takes. The existing kernel stays the default for `pool`, and the backward kernels stay as they are.
+
+### Results of the switch
+
+Not measured yet.

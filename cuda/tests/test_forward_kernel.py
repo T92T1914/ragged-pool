@@ -15,7 +15,7 @@ from ragged_pool_cuda import ragged_pool
 
 DTYPES = (torch.float32, torch.float64)
 EXISTING, ADAPTIVE = 0, 1
-SWITCHES = (0, 32, 4096)  # every nonempty group on the block path, the default, the warp path
+SWITCHES = (0, 32, 4096)  # every nonempty group on the block path, the first study's switch, the warp path
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -206,11 +206,80 @@ def test_the_two_kernels_add_in_their_documented_orders():
         assert study(values, logits, offsets, ADAPTIVE, switch_length)[0].item() == 0.0
 
 
+def row_lanes(width):
+    lanes = 1
+    while lanes < 32 and lanes < width:
+        lanes *= 2
+    return lanes
+
+
+def switch_for_width(width):
+    """The switch pool uses with adaptive, written out the way pool.cu computes it."""
+    return min(32, 8 * (32 // row_lanes(width)))
+
+
 def test_public_pool_matches_the_kernel_this_process_selected():
     values, logits, offsets = batch([3, 0, 40, 1], 9, torch.float64, seed=72600)
     chosen = ADAPTIVE if os.environ.get("RAGGED_POOL_CUDA_FORWARD") == "adaptive" else EXISTING
-    expected, _ = study(values, logits, offsets, chosen, 32)
+    expected, _ = study(values, logits, offsets, chosen, switch_for_width(9))
     assert same_bytes(ragged_pool(values, logits, offsets), expected)
+
+
+def path_witness(width, length):
+    """One float64 group whose result shows which path of the adaptive kernel ran.
+
+    Equal logits give every item the same weight. Column 0 holds 1000, -1000
+    and t = 2**-50, and every other entry is 0. A lone warp runs
+    32 / row_lanes(width) item slots side by side. When there are at least two,
+    1000 and -1000 sit in slots 0 and 1, and t sits in slot 0 after 1000, where
+    it rounds away, so the warp path returns 0. The block path gives that item
+    to warp 1, the warp 0 pair cancels first and the result is t times the
+    weight. With one slot the warp walks the items in order, so t follows 1000
+    directly and -1000 comes at item 8, which the block path gives to warp 0
+    beside item 0.
+    """
+    slots = 32 // row_lanes(width)
+    tiny = 2.0 ** -50
+    values = torch.zeros(length, width, dtype=torch.float64)
+    values[0, 0] = 1000.0
+    if slots >= 2:
+        values[1, 0], values[slots, 0] = -1000.0, tiny
+    else:
+        values[1, 0], values[8, 0] = tiny, -1000.0
+    logits = torch.zeros(length, dtype=torch.float64)
+    offsets = torch.tensor([0, length], dtype=torch.int64)
+    return values.cuda(), logits.cuda(), offsets.cuda()
+
+
+def witness_length(width):
+    """The shortest group in which path_witness tells the two paths apart."""
+    slots = 32 // row_lanes(width)
+    return slots + 1 if slots >= 2 else 9
+
+
+@pytest.mark.parametrize("width", range(1, 129))
+def test_public_pool_takes_the_path_the_width_rule_names(width):
+    # One item past the switch the block path must run. At the switch the warp
+    # path must run, wherever the witness can tell the paths apart there. For
+    # D = 1 and D > 16 it cannot, because both paths add those items in the
+    # same order, so the choice cannot change the result.
+    switch = switch_for_width(width)
+    adaptive = os.environ.get("RAGGED_POOL_CUDA_FORWARD") == "adaptive"
+    checked = 0
+    for length in (switch + 1, switch):
+        if length < witness_length(width):
+            continue
+        values, logits, offsets = path_witness(width, length)
+        warp, _ = study(values, logits, offsets, ADAPTIVE, 4096)
+        block, _ = study(values, logits, offsets, ADAPTIVE, 0)
+        assert warp[0, 0].item() == 0.0 and block[0, 0].item() != 0.0
+        if adaptive:
+            expected = block if length > switch else warp
+        else:
+            expected, _ = study(values, logits, offsets, EXISTING)
+        assert same_bytes(ragged_pool(values, logits, offsets), expected)
+        checked += 1
+    assert checked == (2 if 2 <= width <= 16 else 1)
 
 
 @pytest.mark.parametrize("kernel", (EXISTING, ADAPTIVE))
