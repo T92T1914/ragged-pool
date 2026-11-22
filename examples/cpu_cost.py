@@ -17,6 +17,7 @@ import signal
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 
@@ -473,6 +474,31 @@ def windows_compiler_job(child):
     return lambda: kernel.CloseHandle(job)
 
 
+def compiler_cache(output, candidate, cache_root):
+    """Pick the Inductor cache folder for one compiler attempt.
+
+    On Windows, Inductor in PyTorch 2.9.1 puts the generated source and output
+    paths into the MSVC command without quotes, so a space anywhere in the cache
+    path splits them. The cache goes beside the output, or under --cache-root,
+    when that path holds no space. Otherwise it goes into a new temporary folder.
+    """
+    if cache_root is not None:
+        cache = Path(cache_root) / (output.stem + "-" + candidate + "-cache")
+        choice = "under --cache-root"
+    else:
+        cache = output.with_name(output.stem + "-" + candidate + "-cache")
+        choice = "beside the output"
+    if sys.platform != "win32" or " " not in str(cache):
+        return cache, choice
+    if cache_root is not None:
+        raise ValueError("On Windows the Inductor cache path must hold no space: " + str(cache))
+    temporary = Path(tempfile.gettempdir()).resolve()
+    if " " in str(temporary):
+        raise ValueError("The output path and the temporary folder both hold a space. Pass --cache-root with a folder whose path holds none")
+    folder = Path(tempfile.mkdtemp(prefix="ragged-pool-inductor-", dir=temporary))
+    return folder / (candidate + "-cache"), "new temporary folder, because the path beside the output holds a space"
+
+
 def run_compile(arguments, receipt, output, started):
     receipt["scope"] = "At most two isolated fullgraph Inductor forward/backward attempts, dynamic=False, one compilation worker, 120 seconds each"
     receipt["attempts"] = []
@@ -481,16 +507,18 @@ def run_compile(arguments, receipt, output, started):
         child_output = output.with_name(output.stem + "-" + candidate + ".json")
         stdout_path = output.with_name(output.stem + "-" + candidate + ".stdout.log")
         stderr_path = output.with_name(output.stem + "-" + candidate + ".stderr.log")
-        cache = output.with_name(output.stem + "-" + candidate + "-cache")
         gate = output.with_name(output.stem + "-" + candidate + ".ready")
-        if any(path.exists() for path in (child_output, stdout_path, stderr_path, cache, gate)):
+        if any(path.exists() for path in (child_output, stdout_path, stderr_path, gate)):
+            raise FileExistsError("Compiler evidence/cache destination already exists")
+        cache, cache_choice = compiler_cache(output, candidate, arguments.cache_root)
+        if cache.exists():
             raise FileExistsError("Compiler evidence/cache destination already exists")
         environment_variables = dict(os.environ, TORCHINDUCTOR_CACHE_DIR=str(cache), TORCHINDUCTOR_COMPILE_THREADS="1", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", RAGGED_POOL_COMPILER_START_GATE=str(gate))
         command = [sys.executable, "-I", str(Path(__file__).resolve()), "--compile-child", candidate, "--output", str(child_output), "--source-revision", arguments.source_revision, "--budget-seconds", "120"]
         if arguments.wheel:
             command += ["--wheel", arguments.wheel]
         lifecycle = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {"start_new_session": True}
-        row = {"candidate": candidate, "receipt": str(child_output), "stdout": str(stdout_path), "stderr": str(stderr_path), "status": "running", "timeout_seconds": 120}
+        row = {"candidate": candidate, "receipt": str(child_output), "stdout": str(stdout_path), "stderr": str(stderr_path), "cache": str(cache), "cache_choice": cache_choice, "status": "running", "timeout_seconds": 120}
         receipt["attempts"].append(row)
         checkpoint(output, receipt)
         with stdout_path.open("x", encoding="utf-8") as standard_output, stderr_path.open("x", encoding="utf-8") as standard_error:
@@ -536,9 +564,18 @@ def main():
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--wheel", required=True)
     parser.add_argument("--budget-seconds", type=float, default=300)
+    parser.add_argument("--cache-root", help="Existing folder for the Inductor caches of --compile. On Windows its path must hold no space")
     arguments = parser.parse_args()
     if not 0 < arguments.budget_seconds <= 300:
         parser.error("--budget-seconds must be in (0,300]")
+    if arguments.cache_root is not None:
+        if not arguments.compile:
+            parser.error("--cache-root applies only to --compile")
+        arguments.cache_root = str(Path(arguments.cache_root).resolve())
+        if not Path(arguments.cache_root).is_dir():
+            parser.error("--cache-root must name an existing folder")
+        if sys.platform == "win32" and " " in arguments.cache_root:
+            parser.error("On Windows the --cache-root path must hold no space")
     output = Path(arguments.output).resolve()
     if output.exists():
         raise FileExistsError(f"Refusing to overwrite {output}")
