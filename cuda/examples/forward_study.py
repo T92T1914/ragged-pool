@@ -314,7 +314,10 @@ def time_complete(case, names, plan, references, expected):
         for round_index in range(plan["rounds"]):
             for name in rotated(list(names), round_index):
                 call = COMPLETE[name]
+                output = None
                 for _ in range(plan["samples"]):
+                    # Free the last output before the clock starts, not inside the timed call.
+                    output = None
                     torch.cuda.synchronize()
                     start = time.perf_counter_ns()
                     output = call(values, logits, offsets)
@@ -362,6 +365,11 @@ def judge(chain, medians):
     must satisfy "<" when any link between them is "<", and "~" when every
     link between them is "~". So "C < N ~ E" needs C below N and below E, and
     N ~ E ~ C needs all three within 10 percent of each other.
+
+    Every stored sample is a multiple of 0.1 microseconds, so every median is
+    a multiple of 0.05. The comparison runs on whole twentieths of a
+    microsecond, so a pair exactly 10 percent apart is judged the way the
+    note defines it and not by the rounding of a float product.
     """
     tokens = chain.split()
     names, links = tokens[0::2], tokens[1::2]
@@ -373,7 +381,10 @@ def judge(chain, medians):
             right = names[j]
             relation = "<" if "<" in links[i:j] else "~"
             a, b = medians[left], medians[right]
-            held = a < (1.0 - BAND) * b if relation == "<" else abs(a - b) <= BAND * min(a, b)
+            x, y = round(a * 20), round(b * 20)
+            # BAND is 0.10, so "more than 10 percent below" is 10x < 9y and
+            # "within 10 percent of the smaller" is 10|x-y| <= min(x,y).
+            held = 10 * x < 9 * y if relation == "<" else 10 * abs(x - y) <= min(x, y)
             relations.append({"relation": f"{left} {relation} {right}",
                               "ratio": a / b if b else None, "held": held})
     return {"predicted": chain, "relations": relations, "held": all(item["held"] for item in relations)}
@@ -382,7 +393,11 @@ def judge(chain, medians):
 def numeric_predictions(entries):
     """The three predictions about the numbers in the Predictions section of FORWARD_KERNEL.md."""
     timed = [entry for entry in entries if entry["group"] != "sweep"]
-    repeats = all(entry["correctness"]["N_repeat_identical_bytes"] for entry in timed)
+    # Every N output counts: the repeated launch in the check and every timed block and round.
+    repeats = all(entry["correctness"]["N_repeat_identical_bytes"]
+                  and entry["kernel_only"]["N"]["output_of_each_block_identical_bytes"]
+                  and entry["complete_call"]["N"]["last_output_of_each_round_identical_bytes"]
+                  for entry in timed)
     float32 = max((entry["correctness"]["E_N_largest_ulps"] for entry in timed if entry["dtype"] == "float32"), default=0.0)
     float64 = max((entry["correctness"]["E_N_largest_difference"] for entry in timed if entry["dtype"] == "float64"), default=0.0)
     return [
@@ -452,14 +467,19 @@ def installed_identity(script, wheel):
         raise AssertionError("Expected one recorded and loaded installed CUDA native library")
     library_sha256 = sha256(libraries[0].read_bytes()).hexdigest()
     with zipfile.ZipFile(wheel) as archive:
-        members = [name for name in archive.namelist() if re.fullmatch(r"ragged_pool_cuda/_C[^/]*\.(pyd|so)", name)]
-        if len(members) != 1 or sha256(archive.read(members[0])).hexdigest() != library_sha256:
-            raise AssertionError("The --wheel file does not hold the installed native library")
+        members = [name for name in archive.namelist() if name.startswith("ragged_pool_cuda/") and not name.endswith("/")]
+        if sum(1 for name in members if re.fullmatch(r"ragged_pool_cuda/_C[^/]*\.(pyd|so)", name)) != 1:
+            raise AssertionError("The --wheel file must hold exactly one native library")
+        # Every package file the study runs, the native library and _validation.py among them.
+        for name in members:
+            installed_file = Path(installed.locate_file(name))
+            if not installed_file.is_file() or installed_file.read_bytes() != archive.read(name):
+                raise AssertionError(f"The installed {name} differs from the --wheel file")
     if any((parent / "pyproject.toml").is_file() for parent in script.parents):
         raise AssertionError("Copy the study outside every source checkout")
     # Local paths stay out of the record. The checks above ran against them.
     return {"installed_wheel_not_editable": True, "import_matches_distribution": True,
-            "native_library_recorded_and_loaded": True, "wheel_holds_installed_library": True,
+            "native_library_recorded_and_loaded": True, "installed_package_files_match_wheel": True,
             "package_version": package.__version__, "native_library": libraries[0].name,
             "native_library_sha256": library_sha256,
             "script_sha256": sha256(script.read_bytes()).hexdigest()}
@@ -489,9 +509,11 @@ def run(arguments):
         "description": "Kernel only and complete call times of the existing and adaptive forward kernels and the "
                        "eager composition on one card. One machine, one driver, one toolkit, bounded sizes. "
                        "No general speed claim.",
-        "limits": "One RTX 4090 with unlocked clocks in one Windows machine, the CUDA 12.8.1 toolkit and the sizes "
-                  "N<=4096, 1<=D<=128 and 0<=B<=128. Backward kernels are unchanged and untimed. Times are from "
-                  "event pairs and from the host clock as the protocol in FORWARD_KERNEL.md describes.",
+        "limits": "One RTX 4090 with unlocked clocks in one Windows machine, torch 2.9.1 with its CUDA 12.8 runtime "
+                  "and the sizes N<=4096, 1<=D<=128 and 0<=B<=128. This script checks the card, the platform and "
+                  "torch. The toolkit that compiled the wheel is named by the build log, not checked here. Backward "
+                  "kernels are unchanged and untimed. Times are from event pairs and from the host clock as the "
+                  "protocol in FORWARD_KERNEL.md describes.",
         "smoke": bool(arguments.smoke),
         "source_revision": arguments.source_revision,
         "wheel": {"name": arguments.wheel.name, "sha256": sha256(arguments.wheel.read_bytes()).hexdigest()},
@@ -584,6 +606,8 @@ def main():
         parser.error("The output record must be new")
     if not arguments.wheel.is_file():
         parser.error("The wheel must be an existing file")
+    if not 0 <= arguments.busy_limit < 100:
+        parser.error("The busy limit must be a percent from 0 to 99")
     record = run(arguments)
     text = json.dumps(record, indent=1, allow_nan=False) + "\n"
     # Each list of numbers goes on one line, so the samples do not take one line each.
