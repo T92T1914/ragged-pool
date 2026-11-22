@@ -331,4 +331,87 @@ The sweep covers float32 and the widths 1, 8, 16, 32, 64 and 128, so `R` of 2 an
 
 ### Results of the switch
 
-Not measured yet.
+The run took place once, on November 22, 2026 at 23:28 UTC, from `examples/forward_study.py` at revision 14980dc, the commit that holds the rule and the predictions above. Its record is [evidence/forward-switch-study-windows-sm89-20261122.json](evidence/forward-switch-study-windows-sm89-20261122.json). The build and test log of the same run, which the record does not hold, shows the wheel built with NVCC 12.8.93 and the Visual Studio 2022 Build Tools, and the whole CUDA suite passed twice before the study started: 1103 passed and 4 skipped with no `RAGGED_POOL_CUDA_` variable, and the same with `RAGGED_POOL_CUDA_FORWARD=adaptive`. The 128 tests beyond the first run's 975 are the width rule test, one for each width. The five utilization readings before the start were 19, 15, 18, 16 and 20 percent, under the limit of 30, so desktop work was on the card again, as in the first run. All 26 cases of the first record drew the same data here, by their `data_sha256`. The record's `default_switch` field still reads 32. It names the switch of `N`, not the switch `pool` uses now.
+
+46 of the 49 switch predictions held. All three `A < N` held, 9 of the 10 controls held, and the rule's check held on 34 of the 36 sweep rows.
+
+Kernel only, microseconds, the median with the 5th and 95th percentiles in brackets.
+
+| Case | N | A | Predicted | Result |
+| --- | --- | --- | --- | --- |
+| Empty batch | 2.0 (1.0 to 8.3) | 2.0 (1.0 to 9.3) | no kernel runs | |
+| Empty groups | 4.1 (3.1 to 189.7) | 4.1 (3.1 to 202.8) | `A ≈ N` | held |
+| Singletons | 6.1 (5.1 to 252.5) | 6.1 (5.1 to 207.4) | `A ≈ N` | held |
+| Many short | 6.1 (5.1 to 204.8) | 6.1 (5.1 to 205.3) | `A ≈ N` | held |
+| Balanced | 11.3 (11.3 to 210.2) | 9.2 (8.2 to 225.4) | `A < N` | held |
+| Skewed | 89.1 (88.6 to 89.2) | 89.1 (88.1 to 89.1) | `A ≈ N` | held |
+| One long | 133.1 (132.1 to 133.1) | 133.1 (132.1 to 133.1) | `A ≈ N` | held |
+| Wide | 10.2 (9.2 to 298.1) | 10.2 (9.2 to 298.2) | `A ≈ N` | held |
+| Full batch float32 | 12.3 (11.3 to 392.0) | 9.2 (8.2 to 557.5) | `A < N` | held |
+| Full batch float64 | 11.3 (11.3 to 439.5) | 8.2 (8.2 to 573.4) | `A < N` | held |
+| One full group | 245.8 (244.7 to 245.8) | 245.8 (244.7 to 246.8) | `A ≈ N` | held |
+| Narrowest full batch | 6.1 (5.1 to 223.8) | 6.1 (5.1 to 202.5) | `A ≈ N` | held |
+| Skewed full batch | 340.0 (338.9 to 341.5) | 340.0 (338.9 to 341.0) | `A ≈ N` | held |
+| Widest singletons | 5.2 (5.1 to 207.1) | 6.1 (5.1 to 294.0) | `A ≈ N` | missed |
+
+The sweep, kernel only, by width and then length. Rows a lane counts what one lane of the lone warp walks on the warp path, and the rule picks the warp path `W` when `L` is at most the switch.
+
+| D | L | Rows a lane | Switch | W | K | Rule picks | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 8 | 1 | 32 | 6.1 (5.1 to 205.9) | 7.8 (7.2 to 183.0) | W | held |
+| 1 | 16 | 1 | 32 | 6.1 (5.1 to 212.5) | 8.1 (7.2 to 212.6) | W | held |
+| 1 | 32 | 1 | 32 | 6.1 (5.1 to 219.4) | 8.2 (7.2 to 205.8) | W | held |
+| 1 | 64 | 2 | 32 | 6.1 (6.1 to 208.5) | 7.3 (7.2 to 212.5) | K | missed |
+| 1 | 128 | 4 | 32 | 7.3 (7.2 to 225.8) | 8.2 (7.2 to 217.7) | K | missed |
+| 1 | 256 | 8 | 32 | 10.2 (9.2 to 218.0) | 9.2 (8.2 to 207.4) | K | held |
+| 8 | 8 | 2 | 32 | 6.1 (5.1 to 205.8) | 7.2 (6.1 to 209.1) | W | held |
+| 8 | 16 | 4 | 32 | 6.1 (6.1 to 222.8) | 7.2 (6.1 to 262.0) | W | held |
+| 8 | 32 | 8 | 32 | 7.2 (6.1 to 194.6) | 7.2 (7.2 to 214.8) | W | held |
+| 8 | 64 | 16 | 32 | 9.2 (8.2 to 257.2) | 8.2 (7.2 to 298.2) | K | held |
+| 8 | 128 | 32 | 32 | 22.5 (16.4 to 316.4) | 16.4 (11.3 to 540.6) | K | held |
+| 8 | 256 | 64 | 32 | 20.5 (19.5 to 238.6) | 13.3 (12.3 to 301.2) | K | held |
+| 16 | 8 | 4 | 16 | 6.1 (5.1 to 205.8) | 7.2 (6.1 to 194.1) | W | held |
+| 16 | 16 | 8 | 16 | 7.2 (6.1 to 210.2) | 7.2 (6.1 to 222.2) | W | held |
+| 16 | 32 | 16 | 16 | 9.2 (8.2 to 226.3) | 8.2 (7.2 to 264.3) | K | held |
+| 16 | 64 | 32 | 16 | 12.3 (11.3 to 229.9) | 9.2 (8.2 to 206.1) | K | held |
+| 16 | 128 | 64 | 16 | 18.5 (18.4 to 239.1) | 12.3 (11.3 to 229.4) | K | held |
+| 16 | 256 | 128 | 16 | 32.8 (32.8 to 33.8) | 17.4 (17.4 to 234.5) | K | held |
+| 32 | 8 | 8 | 8 | 7.2 (6.1 to 193.2) | 7.2 (6.1 to 206.5) | W | held |
+| 32 | 16 | 16 | 8 | 8.2 (8.2 to 224.8) | 8.2 (7.2 to 224.8) | K | held |
+| 32 | 32 | 32 | 8 | 11.3 (11.3 to 383.8) | 9.2 (8.2 to 291.2) | K | held |
+| 32 | 64 | 64 | 8 | 18.4 (17.4 to 230.5) | 11.3 (10.2 to 277.0) | K | held |
+| 32 | 128 | 128 | 8 | 31.7 (30.7 to 31.7) | 16.4 (15.4 to 239.4) | K | held |
+| 32 | 256 | 256 | 8 | 58.4 (57.3 to 58.4) | 26.6 (26.6 to 27.6) | K | held |
+| 64 | 8 | 8 | 8 | 7.2 (6.1 to 192.8) | 7.2 (6.1 to 223.2) | W | held |
+| 64 | 16 | 16 | 8 | 9.2 (8.2 to 244.0) | 8.2 (7.2 to 224.4) | K | held |
+| 64 | 32 | 32 | 8 | 12.3 (11.3 to 520.1) | 9.2 (8.2 to 413.2) | K | held |
+| 64 | 64 | 64 | 8 | 19.5 (18.4 to 237.7) | 11.3 (11.3 to 291.7) | K | held |
+| 64 | 128 | 128 | 8 | 32.8 (32.8 to 33.8) | 16.4 (16.4 to 261.3) | K | held |
+| 64 | 256 | 256 | 8 | 61.4 (60.4 to 61.4) | 27.6 (26.6 to 27.6) | K | held |
+| 128 | 8 | 8 | 8 | 7.2 (6.1 to 255.4) | 7.2 (6.2 to 261.5) | W | held |
+| 128 | 16 | 16 | 8 | 9.2 (8.2 to 548.0) | 8.2 (7.2 to 292.5) | K | held |
+| 128 | 32 | 32 | 8 | 12.3 (11.3 to 575.3) | 9.2 (8.2 to 519.5) | K | held |
+| 128 | 64 | 64 | 8 | 19.5 (18.4 to 587.8) | 11.3 (11.3 to 568.1) | K | held |
+| 128 | 128 | 128 | 8 | 33.8 (32.8 to 33.8) | 16.4 (16.4 to 261.3) | K | held |
+| 128 | 256 | 256 | 8 | 62.5 (61.4 to 62.5) | 27.6 (26.6 to 28.7) | K | held |
+
+On the twelve rows of the first sweep, the rule picked the faster or tied path every time, including the two rows where the switch at 32 had picked the slower one. Seven rows here are ones where the rule and the switch at 32 pick different paths: 32 items with 16 columns, and 16 and 32 items with 32, 64 and 128 columns. On six of them the block path the rule picks is one to three timer steps faster, and on the seventh, 16 items with 32 columns, the two tie.
+
+Rows a lane held up as the axis for every width from 8 to 128. At 64 rows the warp path takes 18.4 to 20.5 microseconds at every one of those widths, and at each width that reaches them it takes 31.7 to 33.8 at 128 rows and 58.4 to 62.5 at 256 rows. One column is the exception, named in the first miss below.
+
+### The misses of the switch and their reasons
+
+1. One column at 64 and at 128 items, the rule's check. The rule picks the block path at 7.3 and 8.2 microseconds where the warp path took 6.1 and 7.3, about one timer step each time. At 256 items the block path leads again, 9.2 against 10.2. The rule keeps the first design's switch at 32 for one column because of its cap, so this is the miss the predictions named in advance: the cap is too low for one column. The same rows also show where rows alone stop explaining the warp path. At 8 rows the warp path takes 7.2 microseconds with 8, 16, 32, 64 and 128 columns, where each lane walks one item in the maximum and the weights, but 10.2 with one column at 256 items, where it walks 8. So those two phases cost the warp path about three timer steps once a lane walks 8 items in them. That corrects a sentence above, written before this run, which said they cost the warp path little. A switch that counts the items a lane walks in those phases as well as its rows would be a later item, with its own predictions and run.
+2. Widest singletons, `A ≈ N`. `A` and `N` launch the same kernel with the same paths there, and their medians are 6.1 and 5.2, one timer step apart. The medians of single rounds run from 5.1 to 6.1 for both. This is the timer, as the control was meant to show, and not the kernel.
+
+One row needs a word although its prediction held. At 128 items with 8 columns the medians are 22.5 and 16.4 microseconds, against 13.3 and 9.2 in the first record. The record shows why: the SM clock read 1365 MHz before that row and 2085 MHz after it, which was also the reading before the next row, while every other reading of the run was 2865 MHz. The next row, 128 items with 128 columns, repeated its first medians. The clocks are not locked, so this row ran slower than its neighbors, and the rule still picked the faster path there.
+
+### The first predictions, judged again
+
+The same run judged the 42 predictions of 95b00b8 again on the same inputs. 32 held, as in the first run, and the same ten cases missed. Widest singletons missed on `N ≈ C` and `E ≈ C` this time, where the first run missed on `N ≈ E` and `N ≈ C`, which again sits inside the scatter between rounds that its miss describes. Eleven of the twelve rows of the first sweep repeated both medians to the tenth of a microsecond. The twelfth is the row at 128 items with 8 columns above.
+
+On every float32 shape `A` gave the same bytes as `N`, including Balanced and Full batch float32, where it takes the other path. On Full batch float64 the two differ by at most 5.6e-16, and `A` stays within 5.6e-16 of the same computation in float64 on the CPU, far inside the documented tolerance.
+
+### What the switch shows
+
+On this card, a switch that follows the width moved the three shapes with groups of 32 and 32 or more columns to the block path and cut their kernel times from 11.3 to 9.2, 12.3 to 9.2 and 11.3 to 8.2 microseconds, without changing a float32 output. Across the sweep the rule picked the faster or tied path on all 30 rows with 8 or more columns. With one column it gives up about one timer step at 64 and 128 items, which its cap causes. The run shares the first run's conditions: one card in one machine, desktop work on the card, unlocked clocks and one run. The lengths where the rule switches inside a width were not measured between the sweep's powers of two, so for 17 or more columns nothing here times 9 to 15 items, and for 9 to 16 columns nothing times 17 to 31. The existing kernel is still the default for `pool`, and the Compute Sanitizer run that decision waits on has not happened.
