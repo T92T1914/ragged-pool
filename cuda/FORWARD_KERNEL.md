@@ -415,3 +415,54 @@ On every float32 shape `A` gave the same bytes as `N`, including Balanced and Fu
 ### What the switch shows
 
 On this card, a switch that follows the width moved the three shapes with groups of 32 and 32 or more columns to the block path and cut their kernel times from 11.3 to 9.2, 12.3 to 9.2 and 11.3 to 8.2 microseconds, without changing a float32 output. Across the sweep the rule picked the faster or tied path on all 30 rows with 8 or more columns. With one column it gives up about one timer step at 64 and 128 items, which its cap causes. The run shares the first run's conditions: one card in one machine, other work on the card that the record does not name, unlocked clocks and one run. The lengths where the rule switches inside a width were not measured between the sweep's powers of two, so for 17 or more columns nothing here times 9 to 15 items, for 9 to 16 columns nothing times 17 to 31, and for 1 to 8 columns nothing times 33 to 63, the range around the one column miss. The existing kernel is still the default for `pool`, and the Compute Sanitizer run that decision waits on has not happened.
+
+## A switch for narrow rows
+
+The width rule's own record put the warp path ahead at one column with 64 and 128 items, where its cap at 32 items sent those groups down the block path. This section lifts the cap for narrow rows, adds the sweep rows that measure the change and fixes the predictions. Everything in it above its own Results was written and committed before the run that measures it.
+
+### What the width rule's record showed
+
+With one column, a lane of the lone warp walks as many rows in the accumulation as items in the maximum and the weights, `ceil(L / 32)` of each. From the record of the width rule, kernel only, medians in microseconds:
+
+| L | Rows a lane | Items a lane | W | K |
+| --- | --- | --- | --- | --- |
+| 32 | 1 | 1 | 6.1 | 8.2 |
+| 64 | 2 | 2 | 6.1 | 7.3 |
+| 128 | 4 | 4 | 7.3 | 8.2 |
+| 256 | 8 | 8 | 10.2 | 9.2 |
+
+At 4 rows and one item a lane, 8 columns at 16 items and 16 columns at 8 items both took 6.1 on the warp path. At 8 rows and one item, each of the widths 8, 16, 32, 64 and 128 took 7.2. My reading is that at one column the items in the maximum and the weights cost the warp path about one timer step at 4 a lane and about three at 8. No profile ran, so that cause is not shown. The block path stayed between 7.3 and 9.2 microseconds at one column across all six lengths. The crossover for one column therefore sits somewhere between 128 and 256 items, and the cap at 32 put it four to eight times too low.
+
+### The narrow rule
+
+`pool` with `adaptive` now keeps a group on the warp path while a lane walks at most 8 rows in the accumulation and at most 4 items in the maximum and the weights:
+
+```text
+switch(D) = min(128, 8 * 32 / R)    with R = row_lanes(D)
+```
+
+That is 128 for `D <= 2`, 64 for `D = 3` and `D = 4`, and the width rule's 32, 16 and 8 above that. Only widths 1 to 4 change. At two columns a lane walks 8 rows and 4 items at 128 items, and at four columns it walks 8 rows and 2 items at 64. Neither width has been timed, so for them the rule rests on the one column rows and on the rows of the wider widths. No shape among the fourteen changes path. Narrowest full batch is the only one with fewer than five columns, and its groups of 32 take the warp path under both rules. `_forward_study` keeps its explicit `switch_length`, so the earlier switches can still be run.
+
+The path test now checks both the switch and one item past it for every width up to 16. With one column the witness tells the two paths apart at 128 and 129 items, where the width rule's switch at 32 sat below the shortest group that could show it.
+
+### How the third run measures it
+
+The same script and protocol as the two runs above: the same seed, warmups, rounds and samples, event pairs behind the stream hold, and the same refusal to time when any of five utilization readings before the start exceeds 30 percent. Four things change.
+
+1. The sweep gains widths 2 and 4 at the six lengths, and for each of the widths 1, 2, 4, 8, 16, 32, 64 and 128 the five lengths `3S/4`, `S + 1`, `5S/4`, `3S/2` and `7S/4` around its switch `S`. That is 52 new rows and 88 in all. They are drawn after every earlier case, so the 50 cases of the second run keep their values and logits.
+2. The candidate `A` uses the narrow rule. On the fourteen shapes it launches the same paths the width rule's `A` launched.
+3. Each sweep row also records the path the width rule would pick there and whether that pick would have held. That comparison is recorded and not judged.
+4. The record is a new file under `evidence` with schema 3. No existing evidence file changes. As in the second run, the predictions of 95b00b8 are judged again and counted apart.
+
+### Predictions for the narrow rule
+
+1. On every one of the 88 sweep rows, the path the rule picks is no slower than the other path: its median is at most the other median, judged in twentieths of a microsecond, so a tie holds. This is the check the change is for.
+2. Kernel only, `A < N` on Balanced, Full batch float32 and Full batch float64, and `A ≈ N` on the ten other shapes where a kernel runs, as in the second run, because `A` launches the same paths there.
+
+The rows where the narrow rule and the width rule pick differently are one column at 64, 96 and 128 items, two columns at 64, 96 and 128, and four columns at 48 and 64. The rule picks the warp path on all eight, and I expect it to hold on all eight.
+
+Where I expect a miss to come from, if one comes. The rows nearest a tie by my reading of the earlier record are one column at 129, 160 and 192 items, two columns at 128, four columns at 64, eight columns at 33 and 40, sixteen columns at 17 and 20, and 32, 64 and 128 columns at 9 and 10. One timer step at any of them fails the first prediction, and the Results will say whether a step is all it was. If the warp path wins at 129 or 160 items with one column, the cap of 4 items is still too low there. If it loses at 128 items with two columns or at 64 with four, then the rule needs the width as well as the items, and that is a later item.
+
+### Limits of the narrow rule
+
+The sweep times float32 only, and the widths 1, 2, 4, 8, 16, 32, 64 and 128. Width 3 shares its switch with width 4 and is not timed, and neither is any other width between the ones listed. The rule rests on one card and, once measured, on one run, with the conditions the earlier runs state. It changes which path the new kernel takes for widths 1 to 4 and nothing else. The existing kernel stays the default for `pool`, and the backward kernels stay as they are. Compute Sanitizer has not passed on the new kernel yet, and no sanitizer run has covered this rule.
