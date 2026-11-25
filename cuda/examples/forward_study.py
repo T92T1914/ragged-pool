@@ -5,6 +5,10 @@ script existed. It measures one card in one machine with one driver, one toolkit
 and the bounded sizes of the companion, and it makes no general speed claim.
 Every candidate is checked against float64 math on the CPU before any timing,
 and so is the output of every timed block. A failed check stops the run.
+
+Its second version adds the candidate A, the switch that follows the width, and
+the sweep widths that switch needs. Their predictions sit in the section A switch
+that follows the width of the same note, written before the run that measures them.
 """
 import argparse
 import ctypes
@@ -69,9 +73,16 @@ BOUND_CASES = (
     ("skewed_full_batch", [1] * 127 + [3969], 128, "float32"),
     ("widest_singletons", [1] * 128, 128, "float32"),
 )
+SWEEP_LENGTHS = (8, 16, 32, 64, 128, 256)
 SWEEP_CASES = tuple(
     (f"sweep_l{length}_d{width}", [length] * min(128, 4096 // length), width, "float32")
-    for length in (8, 16, 32, 64, 128, 256) for width in (8, 128)
+    for length in SWEEP_LENGTHS for width in (8, 128)
+)
+# The widths the switch rule added. They are drawn after every case above, so the
+# cases above keep the values and logits the first record timed.
+WIDTH_SWEEP_CASES = tuple(
+    (f"sweep_l{length}_d{width}", [length] * min(128, 4096 // length), width, "float32")
+    for length in SWEEP_LENGTHS for width in (1, 16, 32, 64)
 )
 
 # The Predictions section of FORWARD_KERNEL.md at 95b00b8, written before any timing.
@@ -102,12 +113,45 @@ SWEEP_PREDICTIONS = {
     "sweep_l128_d8": "K < W", "sweep_l128_d128": "K < W",
     "sweep_l256_d8": "K < W", "sweep_l256_d128": "K < W",
 }
+# The section A switch that follows the width in FORWARD_KERNEL.md, written before
+# the run that measures it. The rule's own check on every sweep row is judged in
+# rule_check, not here.
+SWITCH_PREDICTIONS = {
+    "empty_batch": None,
+    "empty_groups": "A ~ N", "singletons": "A ~ N", "many_short": "A ~ N",
+    "balanced": "A < N", "skewed": "A ~ N", "one_long": "A ~ N", "wide": "A ~ N",
+    "full_batch_float32": "A < N", "full_batch_float64": "A < N", "one_full_group": "A ~ N",
+    "narrowest_full_batch": "A ~ N", "skewed_full_batch": "A ~ N", "widest_singletons": "A ~ N",
+}
 NATIVE = {
     "E": (EXISTING, DEFAULT_SWITCH),
     "N": (ADAPTIVE, DEFAULT_SWITCH),
     "W": (ADAPTIVE, WARP_EVERYWHERE),
     "K": (ADAPTIVE, BLOCK_EVERYWHERE),
 }
+
+
+def row_lanes(width):
+    lanes = 1
+    while lanes < 32 and lanes < width:
+        lanes *= 2
+    return lanes
+
+
+def switch_for_width(width):
+    """The switch pool uses with adaptive, written out the way pool.cu computes it.
+
+    A lone warp runs 32 / row_lanes(width) item slots side by side, so each lane
+    walks ceil(L * row_lanes(width) / 32) rows. The warp path keeps a group while
+    that is at most 8 rows and the group holds at most 32 items. The suite's
+    test_public_pool_takes_the_path_the_width_rule_names checks pool against it.
+    """
+    return min(32, 8 * (32 // row_lanes(width)))
+
+
+def launch_arguments(name, width):
+    """A is the adaptive kernel with the switch pool now uses for this width."""
+    return (ADAPTIVE, switch_for_width(width)) if name == "A" else NATIVE[name]
 
 
 def tensor_bytes(tensor):
@@ -164,9 +208,8 @@ def oracle(values, logits, offsets):
 
 
 def native(name):
-    kernel, switch_length = NATIVE[name]
-
     def call(values, logits, offsets):
+        kernel, switch_length = launch_arguments(name, values.shape[1])
         return torch.ops.ragged_pool_cuda._forward_study.default(values, logits, offsets, kernel, switch_length, 0)[0]
     return call
 
@@ -237,7 +280,7 @@ def check_case(case):
     """Compare every candidate with float64 math. Return the record and the reference outputs."""
     values, logits, offsets = case["cuda"]
     expected = oracle(*case["cpu"])
-    names = ("W", "K") if case["group"] == "sweep" else ("E", "N", "C")
+    names = ("W", "K") if case["group"] == "sweep" else ("E", "N", "A", "C")
     outputs, record = {}, {}
     for name in names:
         actual = (COMPLETE.get(name) or native(name))(values, logits, offsets)
@@ -254,6 +297,8 @@ def check_case(case):
         record["E_N_largest_difference"] = largest_difference(outputs["E"], outputs["N"])
         record["E_N_largest_ulps"] = ulp_distance(outputs["E"], outputs["N"])
         record["E_N_identical_bytes"] = same_bytes(outputs["E"], outputs["N"])
+        record["N_A_largest_difference"] = largest_difference(outputs["N"], outputs["A"])
+        record["N_A_identical_bytes"] = same_bytes(outputs["N"], outputs["A"])
     return record, outputs, expected
 
 
@@ -337,11 +382,11 @@ def time_kernel(case, names, plan, references, expected):
     identical = {name: True for name in names}
     with Quiet():
         for name in names:
-            kernel, switch_length = NATIVE[name]
+            kernel, switch_length = launch_arguments(name, values.shape[1])
             torch.ops.ragged_pool_cuda._forward_study.default(values, logits, offsets, kernel, switch_length, plan["warmup"])
         for round_index in range(plan["rounds"]):
             for name in rotated(list(names), round_index):
-                kernel, switch_length = NATIVE[name]
+                kernel, switch_length = launch_arguments(name, values.shape[1])
                 output, timing = torch.ops.ragged_pool_cuda._forward_study.default(
                     values, logits, offsets, kernel, switch_length, plan["samples"])
                 pairs = [item * 1000.0 for item in timing[:-1].tolist()]
@@ -388,6 +433,21 @@ def judge(chain, medians):
             relations.append({"relation": f"{left} {relation} {right}",
                               "ratio": a / b if b else None, "held": held})
     return {"predicted": chain, "relations": relations, "held": all(item["held"] for item in relations)}
+
+
+def rule_check(case, medians):
+    """The switch item's check on one sweep row: the path the width rule picks is no slower.
+
+    No slower means the chosen median is at most the other median, judged in whole
+    twentieths of a microsecond like judge, so a tie holds.
+    """
+    length, width = case["lengths"][0], case["width"]
+    switch = switch_for_width(width)
+    chosen, other = ("W", "K") if length <= switch else ("K", "W")
+    held = round(medians[chosen] * 20) <= round(medians[other] * 20)
+    return {"predicted": "the path the width rule picks is no slower than the other path",
+            "switch_length": switch, "chosen": chosen, "chosen_median_us": medians[chosen],
+            "other_median_us": medians[other], "held": held}
 
 
 def numeric_predictions(entries):
@@ -503,7 +563,7 @@ def run(arguments):
     if max(readings) > arguments.busy_limit:
         raise SystemExit(f"The card is busy: utilization readings {readings} reach above {arguments.busy_limit} percent")
     record = {
-        "schema": "ragged-pool-cuda forward kernel study 1",
+        "schema": "ragged-pool-cuda forward kernel study 2",
         "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "date_timezone": "UTC",
         "description": "Kernel only and complete call times of the existing and adaptive forward kernels and the "
@@ -536,14 +596,19 @@ def run(arguments):
             "kernel_only": "CUDA event pairs inside _forward_study behind a stream hold, one block per candidate and round",
             "while_timing": "torch.inference_mode, garbage collection off, one intraop and one interop thread",
             "candidates": {"E": "kernel 0, switch 32", "N": "kernel 1, switch 32", "C": "eager composition",
-                           "W": "kernel 1, switch 4096", "K": "kernel 1, switch 0"},
+                           "W": "kernel 1, switch 4096", "K": "kernel 1, switch 0",
+                           "A": "kernel 1, switch from the width rule pool uses with adaptive"},
+            "switch_rule": {"rule": "min(32, 8 * (32 / row_lanes(D))), so a lane of the lone warp walks at most "
+                                    "8 rows and at most one item in the maximum and the weights",
+                            "switch_by_width": {str(width): switch_for_width(width) for width in (1, 8, 9, 16, 17, 128)}},
             "relations": {"<": "left median more than 10 percent below the right",
                           "~": "medians within 10 percent of the smaller",
                           "chains": "every pair a chain implies is judged, see judge in the script"},
         },
         "cases": [],
     }
-    cases = make_cases((("cpu study", CPU_CASES), ("bound", BOUND_CASES), ("sweep", SWEEP_CASES)), device)
+    cases = make_cases((("cpu study", CPU_CASES), ("bound", BOUND_CASES), ("sweep", SWEEP_CASES),
+                        ("sweep", WIDTH_SWEEP_CASES)), device)
     for case in cases:
         if case["group"] == "cpu study" and case["data_sha256"] != CPU_STUDY_DATA_SHA256[case["name"]]:
             raise AssertionError(f"{case['name']} does not draw the CPU study's data")
@@ -561,19 +626,24 @@ def run(arguments):
         entry["device_before"] = nvidia_smi(DEVICE_STATE)
         if case["group"] == "sweep":
             kernel = time_kernel(case, ["W", "K"], plan, references, expected)
+            medians = {n: s["summary"]["median_us"] for n, s in kernel.items()}
             entry["kernel_only"] = kernel
-            entry["prediction"] = {"kernel_only": judge(SWEEP_PREDICTIONS[case["name"]],
-                                                       {n: s["summary"]["median_us"] for n, s in kernel.items()})}
+            # The widths the switch rule added have no prediction from 95b00b8.
+            chain = SWEEP_PREDICTIONS.get(case["name"])
+            entry["prediction"] = {"kernel_only": None if chain is None else judge(chain, medians)}
+            entry["switch_prediction"] = {"rule": rule_check(case, medians)}
         else:
-            kernel = time_kernel(case, ["E", "N"], plan, references, expected)
+            kernel = time_kernel(case, ["E", "N", "A"], plan, references, expected)
             complete = time_complete(case, ["E", "N", "C"], plan, references, expected)
             entry["kernel_only"], entry["complete_call"] = kernel, complete
+            medians = {n: s["summary"]["median_us"] for n, s in kernel.items()}
             kernel_chain, complete_chain = PREDICTIONS[case["name"]]
             entry["prediction"] = {
-                "kernel_only": None if kernel_chain is None else judge(
-                    kernel_chain, {n: s["summary"]["median_us"] for n, s in kernel.items()}),
+                "kernel_only": None if kernel_chain is None else judge(kernel_chain, medians),
                 "complete_call": judge(complete_chain, {n: s["summary"]["median_us"] for n, s in complete.items()}),
             }
+            switch_chain = SWITCH_PREDICTIONS[case["name"]]
+            entry["switch_prediction"] = {"kernel_only": None if switch_chain is None else judge(switch_chain, medians)}
         entry["device_after"] = nvidia_smi(DEVICE_STATE)
         # The card's copies of the inputs must still be the drawn data.
         entry["inputs_unchanged_after_timing"] = all(
@@ -586,6 +656,9 @@ def run(arguments):
     judged += record["numeric_predictions"]
     record["predictions_held"] = sum(p["held"] for p in judged)
     record["predictions_total"] = len(judged)
+    switched = [p for case in record["cases"] for p in case["switch_prediction"].values() if p is not None]
+    record["switch_predictions_held"] = sum(p["held"] for p in switched)
+    record["switch_predictions_total"] = len(switched)
     record["elapsed_seconds"] = round(time.perf_counter() - started, 3)
     return record
 
@@ -618,7 +691,9 @@ def main():
     with arguments.output.open("x", encoding="utf-8") as stream:
         stream.write(text)
     print(f"STUDY {'SMOKE ' if arguments.smoke else ''}PASSED, {len(record['cases'])} cases, "
-          f"{record['predictions_held']} of {record['predictions_total']} predictions held, wrote {arguments.output}")
+          f"{record['predictions_held']} of {record['predictions_total']} predictions held, "
+          f"{record['switch_predictions_held']} of {record['switch_predictions_total']} switch predictions held, "
+          f"wrote {arguments.output}")
 
 
 if __name__ == "__main__":

@@ -187,7 +187,6 @@ __global__ void pool_forward(const scalar_t* values, const scalar_t* logits,
 // below keeps one thread per group.
 constexpr int kAdaptiveThreads = 256;
 constexpr int kAdaptiveWarps = kAdaptiveThreads / 32;
-constexpr int64_t kDefaultSwitchLength = 32;
 constexpr int64_t kMaximumItems = 4096;
 constexpr unsigned kFullWarp = 0xffffffffu;
 
@@ -209,10 +208,22 @@ __device__ __forceinline__ double warp_total(double value) {
 }
 
 // Lanes that share one row: the smallest power of two covering min(D, 32).
-__device__ __forceinline__ int row_lanes(int64_t width) {
+__host__ __device__ __forceinline__ int row_lanes(int64_t width) {
   int lanes = 1;
   while (lanes < 32 && lanes < width) lanes <<= 1;
   return lanes;
+}
+
+// The longest group pool sends down the warp path for rows of this width.
+// A lone warp runs 32 / lanes item slots side by side, so each lane walks
+// ceil(L * lanes / 32) rows. The warp path keeps a group while that is at most
+// 8 rows, and never above 32 items, so its maximum and weights still give each
+// lane at most one item. That is 32 for D <= 8, 16 for D <= 16 and 8 above.
+// FORWARD_KERNEL.md gives the measurement behind the 8.
+int64_t switch_length_for_width(int64_t width) {
+  const int64_t rows_per_lane = 8;
+  const int64_t length = rows_per_lane * (32 / row_lanes(width));
+  return length < 32 ? length : 32;
 }
 
 // Each lane keeps up to four column sums over the items of its slot, then the
@@ -523,7 +534,8 @@ at::Tensor forward_cuda(const at::Tensor& values, const at::Tensor& logits,
   const auto stream = c10::cuda::getCurrentCUDAStream(values.get_device()).stream();
   admit_contents(values, logits, offsets, nullptr, stream);
   auto output = at::zeros({offsets.numel() - 1, values.size(1)}, values.options());
-  launch_forward(values, logits, offsets, output, kernel, kDefaultSwitchLength, stream);
+  launch_forward(values, logits, offsets, output, kernel,
+                 switch_length_for_width(values.size(1)), stream);
   return output;
 }
 
