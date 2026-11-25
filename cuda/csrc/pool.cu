@@ -216,14 +216,17 @@ __host__ __device__ __forceinline__ int row_lanes(int64_t width) {
 
 // The longest group pool sends down the warp path for rows of this width.
 // A lone warp runs 32 / lanes item slots side by side, so each lane walks
-// ceil(L * lanes / 32) rows. The warp path keeps a group while that is at most
-// 8 rows, and never above 32 items, so its maximum and weights still give each
-// lane at most one item. That is 32 for D <= 8, 16 for D <= 16 and 8 above.
-// FORWARD_KERNEL.md gives the measurement behind the 8.
+// ceil(L * lanes / 32) rows, and ceil(L / 32) items in the maximum and the
+// weights. The warp path keeps a group while a lane walks at most 8 rows and
+// at most 4 of those items. That is 128 for D <= 2, 64 for D <= 4, 32 for
+// D <= 8, 16 for D <= 16 and 8 above. FORWARD_KERNEL.md gives the measurements
+// behind the 8 and the 4.
 int64_t switch_length_for_width(int64_t width) {
   const int64_t rows_per_lane = 8;
-  const int64_t length = rows_per_lane * (32 / row_lanes(width));
-  return length < 32 ? length : 32;
+  const int64_t items_per_lane = 4;
+  const int64_t by_rows = rows_per_lane * (32 / row_lanes(width));
+  const int64_t by_items = items_per_lane * 32;
+  return by_rows < by_items ? by_rows : by_items;
 }
 
 // Each lane keeps up to four column sums over the items of its slot, then the

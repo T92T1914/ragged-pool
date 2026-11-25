@@ -214,8 +214,12 @@ def row_lanes(width):
 
 
 def switch_for_width(width):
-    """The switch pool uses with adaptive, written out the way pool.cu computes it."""
-    return min(32, 8 * (32 // row_lanes(width)))
+    """The switch pool uses with adaptive, written out the way pool.cu computes it.
+
+    A lane of the lone warp walks at most 8 rows and at most 4 items in the
+    maximum and the weights.
+    """
+    return min(4 * 32, 8 * (32 // row_lanes(width)))
 
 
 def test_public_pool_matches_the_kernel_this_process_selected():
@@ -261,8 +265,8 @@ def witness_length(width):
 def test_public_pool_takes_the_path_the_width_rule_names(width):
     # One item past the switch the block path must run. At the switch the warp
     # path must run, wherever the witness can tell the paths apart there. For
-    # D = 1 and D > 16 it cannot, because both paths add those items in the
-    # same order, so the choice cannot change the result.
+    # D > 16 it cannot, because both paths add those 8 items in the same order,
+    # so the choice cannot change the result.
     switch = switch_for_width(width)
     adaptive = os.environ.get("RAGGED_POOL_CUDA_FORWARD") == "adaptive"
     checked = 0
@@ -279,7 +283,7 @@ def test_public_pool_takes_the_path_the_width_rule_names(width):
             expected, _ = study(values, logits, offsets, EXISTING)
         assert same_bytes(ragged_pool(values, logits, offsets), expected)
         checked += 1
-    assert checked == (2 if 2 <= width <= 16 else 1)
+    assert checked == (2 if width <= 16 else 1)
 
 
 @pytest.mark.parametrize("kernel", (EXISTING, ADAPTIVE))

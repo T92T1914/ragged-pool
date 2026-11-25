@@ -9,6 +9,13 @@ and so is the output of every timed block. A failed check stops the run.
 Its second version adds the candidate A, the switch that follows the width, and
 the sweep widths that switch needs. Their predictions sit in the section A switch
 that follows the width of the same note, written before the run that measures them.
+
+Its third version lifts the switch for narrow rows, so a lane of the lone warp may
+walk up to 4 items in the maximum and the weights, and adds sweep rows at widths
+2 and 4 and at lengths between the powers of two around every switch. Their
+predictions sit in the section A switch for narrow rows, written before the run.
+Every reading of the card now carries the memory in use beside the utilization,
+and the record names whether the card was idle or shared with a working desktop.
 """
 import argparse
 import ctypes
@@ -84,6 +91,10 @@ WIDTH_SWEEP_CASES = tuple(
     (f"sweep_l{length}_d{width}", [length] * min(128, 4096 // length), width, "float32")
     for length in SWEEP_LENGTHS for width in (1, 16, 32, 64)
 )
+# The rows the narrow switch added, drawn after every case above for the same reason:
+# widths 2 and 4 at the six lengths, then for every sweep width the lengths between
+# the powers of two around its switch S, at 3S/4, S + 1, 5S/4, 3S/2 and 7S/4.
+NARROW_SWEEP_WIDTHS = (1, 2, 4, 8, 16, 32, 64, 128)
 
 # The Predictions section of FORWARD_KERNEL.md at 95b00b8, written before any timing.
 # "<" means the left median is more than 10 percent below the right one.
@@ -142,11 +153,32 @@ def switch_for_width(width):
     """The switch pool uses with adaptive, written out the way pool.cu computes it.
 
     A lone warp runs 32 / row_lanes(width) item slots side by side, so each lane
-    walks ceil(L * row_lanes(width) / 32) rows. The warp path keeps a group while
-    that is at most 8 rows and the group holds at most 32 items. The suite's
+    walks ceil(L * row_lanes(width) / 32) rows, and ceil(L / 32) items in the
+    maximum and the weights. The warp path keeps a group while that is at most
+    8 rows and at most 4 items. The suite's
     test_public_pool_takes_the_path_the_width_rule_names checks pool against it.
     """
+    return min(4 * 32, 8 * (32 // row_lanes(width)))
+
+
+def previous_switch_for_width(width):
+    """The switch of the second version, min(32, 8 * (32 / row_lanes(D))), kept to compare the two rules."""
     return min(32, 8 * (32 // row_lanes(width)))
+
+
+def between_lengths(width):
+    """The lengths the third version adds around the switch of this width."""
+    switch = switch_for_width(width)
+    return (3 * switch // 4, switch + 1, 5 * switch // 4, 3 * switch // 2, 7 * switch // 4)
+
+
+NARROW_SWEEP_CASES = tuple(
+    (f"sweep_l{length}_d{width}", [length] * min(128, 4096 // length), width, "float32")
+    for length in SWEEP_LENGTHS for width in (2, 4)
+) + tuple(
+    (f"sweep_l{length}_d{width}", [length] * min(128, 4096 // length), width, "float32")
+    for width in NARROW_SWEEP_WIDTHS for length in between_lengths(width)
+)
 
 
 def launch_arguments(name, width):
@@ -436,7 +468,7 @@ def judge(chain, medians):
 
 
 def rule_check(case, medians):
-    """The switch item's check on one sweep row: the path the width rule picks is no slower.
+    """The switch item's check on one sweep row: the path the switch rule picks is no slower.
 
     No slower means the chosen median is at most the other median, judged in whole
     twentieths of a microsecond like judge, so a tie holds.
@@ -445,9 +477,14 @@ def rule_check(case, medians):
     switch = switch_for_width(width)
     chosen, other = ("W", "K") if length <= switch else ("K", "W")
     held = round(medians[chosen] * 20) <= round(medians[other] * 20)
-    return {"predicted": "the path the width rule picks is no slower than the other path",
+    # The second version's rule on the same row, recorded beside it and not judged.
+    previous = previous_switch_for_width(width)
+    previous_chosen, previous_other = ("W", "K") if length <= previous else ("K", "W")
+    return {"predicted": "the path the switch rule picks is no slower than the other path",
             "switch_length": switch, "chosen": chosen, "chosen_median_us": medians[chosen],
-            "other_median_us": medians[other], "held": held}
+            "other_median_us": medians[other], "held": held,
+            "previous_switch_length": previous, "previous_chosen": previous_chosen,
+            "previous_would_hold": round(medians[previous_chosen] * 20) <= round(medians[previous_other] * 20)}
 
 
 def numeric_predictions(entries):
@@ -484,20 +521,31 @@ def nvidia_smi(fields):
     return lines[0]
 
 
-DEVICE_STATE = "clocks.sm,clocks.mem,utilization.gpu,temperature.gpu,power.draw,pstate"
+DEVICE_STATE = "clocks.sm,clocks.mem,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,pstate"
+IDLE_LIMIT = 30
 
 
 def utilization_readings():
-    """Read the card's utilization five times, one second apart, before any timing."""
-    readings = []
+    """Read the card's utilization and memory five times, one second apart, before any timing."""
+    readings, lines = [], []
     for _ in range(5):
-        text = nvidia_smi("utilization.gpu")
+        text = nvidia_smi("utilization.gpu,memory.used,memory.total")
         match = re.match(r"(\d+)", text)
         if match is None:
-            raise SystemExit(f"nvidia-smi gave no utilization, so the card cannot be shown idle: {text}")
+            raise SystemExit(f"nvidia-smi gave no utilization, so the card's load cannot be shown: {text}")
         readings.append(int(match.group(1)))
+        lines.append(text)
         time.sleep(1.0)
-    return readings
+    return readings, lines
+
+
+def conditions(busy_limit):
+    """Name the load the run allowed. Above the idle limit the card was shared on purpose."""
+    if busy_limit <= IDLE_LIMIT:
+        return f"idle card: every utilization reading before the start at most {busy_limit} percent"
+    return (f"working desktop: timed beside the ordinary work of a desktop in use, accepting up to {busy_limit} "
+            "percent utilization before the start, with utilization and memory recorded before the start and "
+            "before and after every case")
 
 
 def declared_environment(properties):
@@ -559,11 +607,11 @@ def run(arguments):
     torch.cuda.set_device(device)
     properties = torch.cuda.get_device_properties(device)
     declared_environment(properties)
-    readings = utilization_readings()
+    readings, reading_lines = utilization_readings()
     if max(readings) > arguments.busy_limit:
         raise SystemExit(f"The card is busy: utilization readings {readings} reach above {arguments.busy_limit} percent")
     record = {
-        "schema": "ragged-pool-cuda forward kernel study 2",
+        "schema": "ragged-pool-cuda forward kernel study 3",
         "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "date_timezone": "UTC",
         "description": "Kernel only and complete call times of the existing and adaptive forward kernels and the "
@@ -585,6 +633,8 @@ def run(arguments):
             "sm_count": properties.multi_processor_count, "total_memory_bytes": properties.total_memory,
             "driver": nvidia_smi("name,driver_version"),
             "utilization_before_start_percent": readings, "busy_limit_percent": arguments.busy_limit,
+            "device_before_start": reading_lines, "device_state_fields": DEVICE_STATE,
+            "conditions": conditions(arguments.busy_limit),
             "nsight_compute": ("available, but this script runs no profile" if shutil.which("ncu")
                                else "unavailable: ncu is not on PATH"),
         },
@@ -598,9 +648,11 @@ def run(arguments):
             "candidates": {"E": "kernel 0, switch 32", "N": "kernel 1, switch 32", "C": "eager composition",
                            "W": "kernel 1, switch 4096", "K": "kernel 1, switch 0",
                            "A": "kernel 1, switch from the width rule pool uses with adaptive"},
-            "switch_rule": {"rule": "min(32, 8 * (32 / row_lanes(D))), so a lane of the lone warp walks at most "
-                                    "8 rows and at most one item in the maximum and the weights",
-                            "switch_by_width": {str(width): switch_for_width(width) for width in (1, 8, 9, 16, 17, 128)}},
+            "switch_rule": {"rule": "min(128, 8 * (32 / row_lanes(D))), so a lane of the lone warp walks at most "
+                                    "8 rows and at most 4 items in the maximum and the weights",
+                            "switch_by_width": {str(width): switch_for_width(width)
+                                                for width in (1, 2, 3, 4, 5, 8, 9, 16, 17, 128)},
+                            "previous_rule": "min(32, 8 * (32 / row_lanes(D))), recorded on sweep rows and not judged"},
             "relations": {"<": "left median more than 10 percent below the right",
                           "~": "medians within 10 percent of the smaller",
                           "chains": "every pair a chain implies is judged, see judge in the script"},
@@ -608,7 +660,7 @@ def run(arguments):
         "cases": [],
     }
     cases = make_cases((("cpu study", CPU_CASES), ("bound", BOUND_CASES), ("sweep", SWEEP_CASES),
-                        ("sweep", WIDTH_SWEEP_CASES)), device)
+                        ("sweep", WIDTH_SWEEP_CASES), ("sweep", NARROW_SWEEP_CASES)), device)
     for case in cases:
         if case["group"] == "cpu study" and case["data_sha256"] != CPU_STUDY_DATA_SHA256[case["name"]]:
             raise AssertionError(f"{case['name']} does not draw the CPU study's data")
@@ -628,7 +680,7 @@ def run(arguments):
             kernel = time_kernel(case, ["W", "K"], plan, references, expected)
             medians = {n: s["summary"]["median_us"] for n, s in kernel.items()}
             entry["kernel_only"] = kernel
-            # The widths the switch rule added have no prediction from 95b00b8.
+            # The rows the second and third versions added have no prediction from 95b00b8.
             chain = SWEEP_PREDICTIONS.get(case["name"])
             entry["prediction"] = {"kernel_only": None if chain is None else judge(chain, medians)}
             entry["switch_prediction"] = {"rule": rule_check(case, medians)}
@@ -670,7 +722,7 @@ def main():
     parser.add_argument("--source-revision", required=True, help="Commit the wheel was built from")
     parser.add_argument("--wheel", type=Path, required=True, help="The installed wheel file, checked against the library")
     parser.add_argument("--smoke", action="store_true", help="Few samples, to check the script, not a study record")
-    parser.add_argument("--busy-limit", type=int, default=30,
+    parser.add_argument("--busy-limit", type=int, default=IDLE_LIMIT,
                         help="Refuse to time when any of five utilization readings exceeds this percent")
     arguments = parser.parse_args()
     if not re.fullmatch(r"[0-9a-f]{40}", arguments.source_revision):

@@ -426,3 +426,193 @@ The decision about the default waited on a Compute Sanitizer run of the new bina
 The test that failed under `racecheck` both times is `test_environment_switch_selects_the_public_kernel_for_the_whole_process`, which starts child Pythons with a 300 second limit each. A child ran past that limit, the third one in the first run and the first one in the second, so the stall is not tied to `adaptive`. After the second run a probe started the same children in two rounds under `racecheck`, with a mark after every step. Six of them exited. The seventh printed the right answer and reached its last mark at 54.3 seconds, then did not exit within 1800 seconds. Racecheck reported 0 hazards in the probe too. So in the one stalled child the probe could see inside, every launch had finished before the stall, and I count the stall as a limit of the harness and not a finding about the kernels. Its cause is not known. The same test passed under `memcheck` and `synccheck` in both runs.
 
 The records of both runs are local and not part of this repository: `run-sanitizer-20261122-192537.log` and `run-sanitizer-20261124-105947.log`, each with its `summary.json`, and the probe's `probe.json` beside the second. [Pull request 62](https://github.com/T92T1914/ragged-pool/pull/62) gives their numbers in full. The existing kernel is still the default for `pool`, and whether the new kernel replaces it is a later decision that nothing here makes.
+
+## A switch for narrow rows
+
+The width rule's own record put the warp path ahead at one column with 64 and 128 items, where its cap at 32 items sent those groups down the block path. This section lifts the cap for narrow rows, adds the sweep rows that measure the change and fixes the predictions. Everything in it above its own Results was written and committed before the run that measures it.
+
+### What the width rule's record showed
+
+With one column, a lane of the lone warp walks as many rows in the accumulation as items in the maximum and the weights, `ceil(L / 32)` of each. From the record of the width rule, kernel only, medians in microseconds:
+
+| L | Rows a lane | Items a lane | W | K |
+| --- | --- | --- | --- | --- |
+| 32 | 1 | 1 | 6.1 | 8.2 |
+| 64 | 2 | 2 | 6.1 | 7.3 |
+| 128 | 4 | 4 | 7.3 | 8.2 |
+| 256 | 8 | 8 | 10.2 | 9.2 |
+
+At 4 rows and one item a lane, 8 columns at 16 items and 16 columns at 8 items both took 6.1 on the warp path. At 8 rows and one item, each of the widths 8, 16, 32, 64 and 128 took 7.2. My reading is that at one column the items in the maximum and the weights cost the warp path about one timer step at 4 a lane and about three at 8. No profile ran, so that cause is not shown. The block path stayed between 7.3 and 9.2 microseconds at one column across all six lengths. The crossover for one column therefore sits somewhere between 128 and 256 items, and the cap at 32 put it four to eight times too low.
+
+### The narrow rule
+
+`pool` with `adaptive` now keeps a group on the warp path while a lane walks at most 8 rows in the accumulation and at most 4 items in the maximum and the weights:
+
+```text
+switch(D) = min(128, 8 * 32 / R)    with R = row_lanes(D)
+```
+
+That is 128 for `D <= 2`, 64 for `D = 3` and `D = 4`, and the width rule's 32, 16 and 8 above that. Only widths 1 to 4 change. At two columns a lane walks 8 rows and 4 items at 128 items, and at four columns it walks 8 rows and 2 items at 64. Neither width has been timed, so for them the rule rests on the one column rows and on the rows of the wider widths. No shape among the fourteen changes path. Narrowest full batch is the only one with fewer than five columns, and its groups of 32 take the warp path under both rules. `_forward_study` keeps its explicit `switch_length`, so the earlier switches can still be run.
+
+The path test now checks both the switch and one item past it for every width up to 16. With one column the witness tells the two paths apart at 128 and 129 items, where the width rule's switch at 32 sat below the shortest group that could show it.
+
+### How the third run measures it
+
+The same script and protocol as the two runs above: the same seed, warmups, rounds and samples and event pairs behind the stream hold. Five things change.
+
+1. The sweep gains widths 2 and 4 at the six lengths, and for each of the widths 1, 2, 4, 8, 16, 32, 64 and 128 the five lengths `3S/4`, `S + 1`, `5S/4`, `3S/2` and `7S/4` around its switch `S`. That is 52 new rows and 88 in all. They are drawn after every earlier case, so the 50 cases of the second run keep their values and logits.
+2. The candidate `A` uses the narrow rule. On the fourteen shapes it launches the same paths the width rule's `A` launched.
+3. Each sweep row also records the path the width rule would pick there and whether that pick would have held. That comparison is recorded and not judged.
+4. The record is a new file under `evidence` with schema 3. No existing evidence file changes. As in the second run, the predictions of 95b00b8 are judged again and counted apart.
+5. The card is shared. The two runs above refused to time when any of five utilization readings before the start exceeded 30 percent. On November 24 the card read 52 to 61 percent at every sample of a watch of almost two hours with nobody at the console, so that refusal would not let this run start. This run times beside the ordinary load of my working desktop instead. It takes the shared lock, starts only with no game on the card and refuses only above 90 percent. The script now records the memory in use beside the utilization in the five readings before the start and before and after every case, and the record names its conditions as a working desktop. The Results give every number with that load stated. This item was added after the predictions and before the run.
+
+### Predictions for the narrow rule
+
+1. On every one of the 88 sweep rows, the path the rule picks is no slower than the other path: its median is at most the other median, judged in twentieths of a microsecond, so a tie holds. This is the check the change is for.
+2. Kernel only, `A < N` on Balanced, Full batch float32 and Full batch float64, and `A ≈ N` on the ten other shapes where a kernel runs, as in the second run, because `A` launches the same paths there.
+
+The rows where the narrow rule and the width rule pick differently are one column at 64, 96 and 128 items, two columns at 64, 96 and 128, and four columns at 48 and 64. The rule picks the warp path on all eight, and I expect it to hold on all eight.
+
+Where I expect a miss to come from, if one comes. The rows nearest a tie by my reading of the earlier record are one column at 129, 160 and 192 items, two columns at 128, four columns at 64, eight columns at 33 and 40, sixteen columns at 17 and 20, and 32, 64 and 128 columns at 9 and 10. One timer step at any of them fails the first prediction, and the Results will say whether a step is all it was. If the warp path wins at 129 or 160 items with one column, the cap of 4 items is still too low there. If it loses at 128 items with two columns or at 64 with four, then the rule needs the width as well as the items, and that is a later item.
+
+### Limits of the narrow rule
+
+The sweep times float32 only, and the widths 1, 2, 4, 8, 16, 32, 64 and 128. Width 3 shares its switch with width 4 and is not timed, and neither is any other width between the ones listed. The rule rests on one card and, once measured, on one run beside a working desktop, as item 5 above says. It changes which path the new kernel takes for widths 1 to 4 and nothing else. The existing kernel stays the default for `pool`, and the backward kernels stay as they are. The two Compute Sanitizer runs above covered the new kernel's device code, which this rule leaves as it is, but no sanitizer run has covered this rule's choice of path.
+
+### Results of the narrow rule
+
+The run took place once, on November 25, 2026 at 14:17 UTC, from `examples/forward_study.py` at revision d19305f. That commit adds item 5 above and the memory readings to the script. The rule and the predictions are in a4e946c, an ancestor committed on November 24, so both are older than the run. The record is [evidence/forward-narrow-study-windows-sm89-20261125.json](evidence/forward-narrow-study-windows-sm89-20261125.json). The build and test log of the same run, which the record does not hold, shows the wheel built with NVCC 12.8.93 and the Visual Studio 2022 Build Tools, and the whole CUDA suite passed twice before the study started: 1103 passed and 4 skipped with no `RAGGED_POOL_CUDA_` variable, and the same with `RAGGED_POOL_CUDA_FORWARD=adaptive`. All 50 cases of the second record drew the same data here, by their `data_sha256`. The record's `candidates` field still describes `A` as the switch from the width rule. It means the switch `pool` uses with `adaptive`, which `switch_rule` in the same record gives as the narrow rule.
+
+The run was measured on a working desktop, as item 5 says, and the record's `conditions` field names it that way. The desktop ran its ordinary programs, and the card's process list, which I read just before the run, held no game. The five readings before the start were 14, 8, 4, 3 and 3 percent, with 6251 to 6266 MiB of the card's 24564 MiB in use, so the earlier limit of 30 percent would also have let this run start. Every case reads the card once before its timing and once after. Those 204 readings went from 18 to 100 percent with a median of 65.5, and from 6388 to 6441 MiB, but each one comes right after this run's own launches, so they cannot tell its load apart from the desktop's. The SM clock read 2865 MHz and the memory clock 10701 MHz at all 204, so no row ran at the lowered clock that one row of the second run read. The tails were much shorter than in the two runs before, though not rarer. Across the kernel only series with a median under 13 microseconds, the quartiles of the 95th percentile, by Python's `statistics.quantiles`, are 39.0, 44.0 and 49.9 microseconds here, against 206.0, 222.5 and 280.6 in the second run. The share of samples more than 2.5 microseconds above their series' median has quartiles of 26, 29 and 31 percent here, against 25, 26 and 28 percent there. So about one sample in four was slow in both runs, and only how slow changed. The record does not say why.
+
+100 of the 101 switch predictions held. All three `A < N` held, all ten controls held, and the rule's check held on 87 of the 88 sweep rows.
+
+Kernel only, microseconds, the median with the 5th and 95th percentiles in brackets.
+
+| Case | N | A | Predicted | Result |
+| --- | --- | --- | --- | --- |
+| Empty batch | 2.0 (1.0 to 20.0) | 2.0 (1.0 to 13.3) | no kernel runs | |
+| Empty groups | 4.1 (3.1 to 28.7) | 4.1 (3.1 to 30.7) | `A ≈ N` | held |
+| Singletons | 6.1 (5.1 to 34.3) | 6.1 (5.1 to 59.9) | `A ≈ N` | held |
+| Many short | 6.1 (5.1 to 38.0) | 6.1 (5.1 to 83.4) | `A ≈ N` | held |
+| Balanced | 11.3 (11.3 to 43.0) | 9.2 (8.2 to 42.3) | `A < N` | held |
+| Skewed | 89.1 (88.1 to 89.1) | 89.1 (88.1 to 89.1) | `A ≈ N` | held |
+| One long | 133.1 (132.1 to 134.1) | 133.1 (132.1 to 134.1) | `A ≈ N` | held |
+| Wide | 10.2 (9.2 to 57.1) | 10.2 (9.2 to 59.4) | `A ≈ N` | held |
+| Full batch float32 | 12.3 (11.3 to 229.8) | 9.2 (8.2 to 176.7) | `A < N` | held |
+| Full batch float64 | 11.3 (11.3 to 48.9) | 8.2 (8.2 to 51.2) | `A < N` | held |
+| One full group | 245.8 (244.7 to 245.8) | 245.8 (244.7 to 245.8) | `A ≈ N` | held |
+| Narrowest full batch | 6.1 (5.1 to 51.0) | 6.1 (5.1 to 34.8) | `A ≈ N` | held |
+| Skewed full batch | 338.9 (335.9 to 340.0) | 338.9 (336.9 to 340.5) | `A ≈ N` | held |
+| Widest singletons | 5.2 (5.1 to 35.8) | 5.1 (5.1 to 34.8) | `A ≈ N` | held |
+
+The sweep, kernel only, by width and then length. Rows a lane and Items a lane count what one lane of the lone warp walks on the warp path, in the accumulation and in the maximum and the weights. The rule picks the warp path `W` when `L` is at most the switch. The last two columns give the path the width rule would have picked and whether that pick would have held. The record keeps them and does not judge them.
+
+| D | L | Rows a lane | Items a lane | Switch | W | K | Rule picks | Result | Width rule picks | Width rule holds |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 8 | 1 | 1 | 128 | 6.1 (5.1 to 37.1) | 7.2 (7.2 to 41.0) | W | held | W | yes |
+| 1 | 16 | 1 | 1 | 128 | 6.1 (5.1 to 43.1) | 7.2 (7.2 to 41.0) | W | held | W | yes |
+| 1 | 32 | 1 | 1 | 128 | 6.1 (5.1 to 42.1) | 7.2 (7.2 to 38.9) | W | held | W | yes |
+| 1 | 64 | 2 | 2 | 128 | 6.1 (6.1 to 42.5) | 7.2 (7.2 to 44.3) | W | held | K | no |
+| 1 | 96 | 3 | 3 | 128 | 7.2 (7.2 to 40.2) | 7.2 (7.2 to 42.5) | W | held | K | yes |
+| 1 | 128 | 4 | 4 | 128 | 8.1 (7.2 to 47.0) | 8.2 (7.2 to 50.4) | W | held | K | no |
+| 1 | 129 | 5 | 5 | 128 | 8.2 (8.2 to 44.0) | 8.2 (7.2 to 36.5) | K | held | K | yes |
+| 1 | 160 | 5 | 5 | 128 | 8.2 (8.2 to 38.9) | 8.2 (7.2 to 76.2) | K | held | K | yes |
+| 1 | 192 | 6 | 6 | 128 | 9.2 (8.2 to 38.5) | 8.2 (7.2 to 39.4) | K | held | K | yes |
+| 1 | 224 | 7 | 7 | 128 | 10.2 (9.2 to 44.7) | 9.2 (8.2 to 40.1) | K | held | K | yes |
+| 1 | 256 | 8 | 8 | 128 | 10.2 (9.2 to 53.9) | 9.2 (8.2 to 54.5) | K | held | K | yes |
+| 2 | 8 | 1 | 1 | 128 | 6.1 (5.1 to 35.8) | 7.2 (7.2 to 38.0) | W | held | W | yes |
+| 2 | 16 | 1 | 1 | 128 | 6.1 (5.1 to 36.4) | 7.2 (6.3 to 44.0) | W | held | W | yes |
+| 2 | 32 | 2 | 1 | 128 | 6.1 (5.1 to 38.5) | 7.2 (6.2 to 36.8) | W | held | W | yes |
+| 2 | 64 | 4 | 2 | 128 | 7.2 (6.1 to 44.0) | 7.2 (6.9 to 42.0) | W | held | K | yes |
+| 2 | 96 | 6 | 3 | 128 | 8.2 (7.2 to 54.6) | 7.3 (7.2 to 43.2) | W | missed | K | yes |
+| 2 | 128 | 8 | 4 | 128 | 8.2 (7.2 to 83.9) | 8.2 (7.2 to 50.2) | W | held | K | yes |
+| 2 | 129 | 9 | 5 | 128 | 9.2 (8.2 to 44.0) | 8.2 (8.2 to 42.5) | K | held | K | yes |
+| 2 | 160 | 10 | 5 | 128 | 9.2 (8.2 to 44.3) | 8.2 (8.2 to 38.4) | K | held | K | yes |
+| 2 | 192 | 12 | 6 | 128 | 10.2 (9.2 to 47.8) | 9.2 (8.2 to 36.9) | K | held | K | yes |
+| 2 | 224 | 14 | 7 | 128 | 11.3 (10.2 to 50.4) | 9.2 (8.2 to 38.9) | K | held | K | yes |
+| 2 | 256 | 16 | 8 | 128 | 11.3 (10.2 to 49.8) | 9.2 (9.2 to 42.1) | K | held | K | yes |
+| 4 | 8 | 1 | 1 | 64 | 6.1 (5.1 to 47.6) | 7.2 (6.1 to 50.4) | W | held | W | yes |
+| 4 | 16 | 2 | 1 | 64 | 6.1 (5.1 to 42.7) | 7.2 (6.1 to 38.4) | W | held | W | yes |
+| 4 | 32 | 4 | 1 | 64 | 6.1 (6.1 to 47.1) | 7.2 (6.1 to 48.8) | W | held | W | yes |
+| 4 | 48 | 6 | 2 | 64 | 7.2 (7.2 to 45.3) | 7.2 (7.2 to 36.5) | W | held | K | yes |
+| 4 | 64 | 8 | 2 | 64 | 7.2 (7.2 to 41.5) | 7.2 (7.2 to 44.0) | W | held | K | yes |
+| 4 | 65 | 9 | 3 | 64 | 8.2 (7.3 to 40.1) | 8.2 (7.2 to 41.2) | K | held | K | yes |
+| 4 | 80 | 10 | 3 | 64 | 8.2 (8.2 to 39.4) | 8.2 (7.2 to 36.9) | K | held | K | yes |
+| 4 | 96 | 12 | 3 | 64 | 9.2 (8.2 to 45.6) | 8.2 (7.2 to 39.2) | K | held | K | yes |
+| 4 | 112 | 14 | 4 | 64 | 10.2 (10.2 to 50.3) | 8.2 (7.2 to 40.5) | K | held | K | yes |
+| 4 | 128 | 16 | 4 | 64 | 10.2 (9.2 to 41.5) | 8.2 (8.1 to 58.9) | K | held | K | yes |
+| 4 | 256 | 32 | 8 | 64 | 14.3 (13.3 to 49.9) | 10.2 (10.2 to 49.2) | K | held | K | yes |
+| 8 | 8 | 2 | 1 | 32 | 6.1 (5.1 to 42.0) | 7.2 (6.1 to 46.7) | W | held | W | yes |
+| 8 | 16 | 4 | 1 | 32 | 6.1 (5.1 to 46.8) | 7.2 (6.1 to 47.8) | W | held | W | yes |
+| 8 | 24 | 6 | 1 | 32 | 7.2 (6.1 to 46.2) | 7.2 (6.1 to 39.4) | W | held | W | yes |
+| 8 | 32 | 8 | 1 | 32 | 7.2 (6.1 to 47.1) | 7.2 (7.2 to 50.7) | W | held | W | yes |
+| 8 | 33 | 9 | 2 | 32 | 8.2 (7.2 to 39.0) | 8.2 (7.2 to 102.4) | K | held | K | yes |
+| 8 | 40 | 10 | 2 | 32 | 8.2 (7.2 to 44.7) | 8.2 (7.2 to 44.6) | K | held | K | yes |
+| 8 | 48 | 12 | 2 | 32 | 8.2 (8.2 to 39.4) | 8.2 (7.2 to 46.6) | K | held | K | yes |
+| 8 | 56 | 14 | 2 | 32 | 9.2 (8.2 to 37.4) | 8.2 (7.2 to 42.1) | K | held | K | yes |
+| 8 | 64 | 16 | 2 | 32 | 9.2 (8.2 to 48.3) | 8.2 (7.2 to 38.4) | K | held | K | yes |
+| 8 | 128 | 32 | 4 | 32 | 13.3 (12.3 to 45.7) | 9.2 (9.2 to 46.2) | K | held | K | yes |
+| 8 | 256 | 64 | 8 | 32 | 20.5 (19.5 to 21.5) | 13.3 (12.3 to 41.0) | K | held | K | yes |
+| 16 | 8 | 4 | 1 | 16 | 6.1 (5.1 to 43.3) | 7.2 (6.1 to 41.5) | W | held | W | yes |
+| 16 | 12 | 6 | 1 | 16 | 6.1 (6.1 to 38.4) | 7.2 (6.1 to 37.9) | W | held | W | yes |
+| 16 | 16 | 8 | 1 | 16 | 7.2 (6.1 to 40.5) | 7.2 (6.1 to 41.1) | W | held | W | yes |
+| 16 | 17 | 9 | 1 | 16 | 7.2 (6.1 to 89.6) | 7.2 (7.2 to 39.6) | K | held | K | yes |
+| 16 | 20 | 10 | 1 | 16 | 7.2 (6.2 to 44.6) | 7.2 (7.2 to 48.1) | K | held | K | yes |
+| 16 | 24 | 12 | 1 | 16 | 8.2 (7.2 to 112.4) | 7.2 (7.2 to 55.6) | K | held | K | yes |
+| 16 | 28 | 14 | 1 | 16 | 8.2 (7.2 to 37.0) | 8.2 (7.2 to 37.9) | K | held | K | yes |
+| 16 | 32 | 16 | 1 | 16 | 8.2 (8.2 to 33.2) | 8.2 (7.2 to 41.5) | K | held | K | yes |
+| 16 | 64 | 32 | 2 | 16 | 12.3 (11.3 to 48.3) | 9.2 (8.2 to 46.3) | K | held | K | yes |
+| 16 | 128 | 64 | 4 | 16 | 18.5 (18.4 to 19.5) | 12.2 (11.3 to 46.1) | K | held | K | yes |
+| 16 | 256 | 128 | 8 | 16 | 32.8 (32.8 to 33.8) | 17.4 (17.4 to 18.4) | K | held | K | yes |
+| 32 | 6 | 6 | 1 | 8 | 6.1 (6.1 to 43.8) | 7.2 (6.1 to 44.3) | W | held | W | yes |
+| 32 | 8 | 8 | 1 | 8 | 7.2 (6.1 to 45.6) | 7.2 (6.1 to 36.4) | W | held | W | yes |
+| 32 | 9 | 9 | 1 | 8 | 7.2 (6.1 to 44.0) | 7.2 (6.1 to 43.5) | K | held | K | yes |
+| 32 | 10 | 10 | 1 | 8 | 7.2 (6.2 to 44.6) | 7.2 (6.1 to 39.4) | K | held | K | yes |
+| 32 | 12 | 12 | 1 | 8 | 8.2 (7.2 to 54.0) | 7.2 (6.3 to 49.3) | K | held | K | yes |
+| 32 | 14 | 14 | 1 | 8 | 8.2 (7.2 to 169.1) | 7.2 (7.2 to 76.1) | K | held | K | yes |
+| 32 | 16 | 16 | 1 | 8 | 8.2 (8.2 to 37.9) | 8.2 (7.2 to 46.1) | K | held | K | yes |
+| 32 | 32 | 32 | 1 | 8 | 11.3 (11.3 to 48.9) | 9.2 (8.2 to 38.9) | K | held | K | yes |
+| 32 | 64 | 64 | 2 | 8 | 18.4 (17.4 to 31.2) | 11.3 (10.2 to 119.8) | K | held | K | yes |
+| 32 | 128 | 128 | 4 | 8 | 30.8 (30.7 to 31.7) | 16.4 (15.4 to 41.1) | K | held | K | yes |
+| 32 | 256 | 256 | 8 | 8 | 58.4 (57.3 to 58.4) | 26.6 (26.6 to 27.6) | K | held | K | yes |
+| 64 | 6 | 6 | 1 | 8 | 6.1 (6.1 to 161.9) | 7.2 (6.1 to 123.4) | W | held | W | yes |
+| 64 | 8 | 8 | 1 | 8 | 7.2 (6.1 to 47.6) | 7.2 (6.1 to 37.0) | W | held | W | yes |
+| 64 | 9 | 9 | 1 | 8 | 7.2 (6.1 to 88.3) | 7.2 (6.1 to 36.4) | K | held | K | yes |
+| 64 | 10 | 10 | 1 | 8 | 7.2 (7.2 to 48.2) | 7.2 (7.2 to 45.6) | K | held | K | yes |
+| 64 | 12 | 12 | 1 | 8 | 8.2 (7.2 to 44.0) | 7.2 (7.2 to 50.2) | K | held | K | yes |
+| 64 | 14 | 14 | 1 | 8 | 8.2 (7.2 to 35.5) | 8.2 (7.2 to 34.9) | K | held | K | yes |
+| 64 | 16 | 16 | 1 | 8 | 8.2 (8.2 to 42.1) | 8.2 (7.2 to 42.7) | K | held | K | yes |
+| 64 | 32 | 32 | 1 | 8 | 12.3 (11.3 to 56.1) | 9.2 (8.2 to 46.2) | K | held | K | yes |
+| 64 | 64 | 64 | 2 | 8 | 19.5 (18.4 to 187.4) | 11.3 (10.2 to 231.3) | K | held | K | yes |
+| 64 | 128 | 128 | 4 | 8 | 32.8 (32.8 to 33.8) | 16.4 (15.4 to 35.0) | K | held | K | yes |
+| 64 | 256 | 256 | 8 | 8 | 61.4 (60.4 to 61.4) | 26.6 (26.6 to 27.6) | K | held | K | yes |
+| 128 | 6 | 6 | 1 | 8 | 6.2 (6.1 to 83.5) | 7.2 (6.1 to 54.9) | W | held | W | yes |
+| 128 | 8 | 8 | 1 | 8 | 7.2 (6.1 to 48.7) | 7.2 (6.1 to 51.3) | W | held | W | yes |
+| 128 | 9 | 9 | 1 | 8 | 7.2 (6.1 to 73.5) | 7.2 (7.2 to 74.7) | K | held | K | yes |
+| 128 | 10 | 10 | 1 | 8 | 7.2 (7.2 to 174.6) | 7.2 (7.2 to 169.1) | K | held | K | yes |
+| 128 | 12 | 12 | 1 | 8 | 8.2 (7.2 to 38.9) | 8.2 (7.2 to 38.7) | K | held | K | yes |
+| 128 | 14 | 14 | 1 | 8 | 8.2 (7.2 to 47.6) | 8.2 (7.2 to 115.1) | K | held | K | yes |
+| 128 | 16 | 16 | 1 | 8 | 9.1 (8.2 to 42.1) | 8.2 (7.2 to 43.0) | K | held | K | yes |
+| 128 | 32 | 32 | 1 | 8 | 12.3 (11.3 to 124.2) | 9.2 (8.2 to 45.1) | K | held | K | yes |
+| 128 | 64 | 64 | 2 | 8 | 19.5 (18.4 to 20.5) | 11.3 (11.3 to 91.4) | K | held | K | yes |
+| 128 | 128 | 128 | 4 | 8 | 32.8 (32.8 to 33.8) | 16.4 (16.4 to 43.8) | K | held | K | yes |
+| 128 | 256 | 256 | 8 | 8 | 62.5 (61.4 to 62.5) | 27.6 (26.6 to 28.7) | K | held | K | yes |
+
+On the eight rows where the narrow rule and the width rule pick differently, the narrow rule held on seven and the width rule would have held on six. With one column the warp path that the narrow rule picks took 6.1 against 7.2 microseconds at 64 items, tied at 96 and took 8.1 against 8.2 at 128, and at 64 and 128 the width rule's block path would have lost. With two columns the paths tied at 64 and 128 items, and at 96 the narrow rule lost, the miss below. With four columns they tied at 48 and 64. Across all 88 rows the narrow rule picked the faster or tied path on 87, and the width rule would have on 86.
+
+Every row the predictions named as nearest a tie held: one column at 129, 160 and 192 items, two columns at 128, four columns at 64, eight columns at 33 and 40, sixteen columns at 17 and 20, and 32, 64 and 128 columns at 9 and 10. With one column the paths tied at 129 and 160 items, so nothing here says the cap of 4 items is too low. The warp path did not lose at 128 items with two columns or at 64 with four, where the paths tied.
+
+### The miss of the narrow rule and its reason
+
+1. Two columns at 96 items, the rule's check. The rule picks the warp path at 8.2 microseconds where the block path took 7.3, and the predictions did not name this row. The gap was steady. The warp path's median was 8.2 in each of the five rounds, and the block path's round medians ran from 7.25 to 8.2, four of them below 8.2. Counted by timer step, the warp path had 81 samples near 7.2 and 90 near 8.2, and the block path 127 and 51, so the real gap is a fraction of one step that the medians turn into a whole step. Only 171 of the warp path's 250 samples and 178 of the block path's sit near either step. The rest are slower, so each median falls near the 70th percentile of the samples near a step, and a small shift between the steps moves it by a whole step. At 128 items with two columns the medians tie at 8.2, but the same count gives 34 and 135 for the warp path against 52 and 116 for the block path, which leans the same way without crossing a step. At 64 items, where the medians tie at 7.2, the same count favors the warp path, with 88 samples near 6.1 against 12 for the block path. So with two columns the crossover lies between 64 and 96 items in this run, below the switch at 128. A lane walks 6 rows and 3 items at 96 items with two columns. Neither of those alone cost the warp path a step in this run: four columns at 48 items walk 6 rows and 2 items and tie, and one column at 96 items walks 3 rows and 3 items and ties. My reading is that the rows and the items add up, so a rule that bounds each one alone lets two columns stay on the warp path too long. That is close to the case the predictions named, a loss at 128 items with two columns, though it came at 96 and not at 128. No profile ran, so the cause is not shown. A rule that counts both together would be a later item with its own predictions and run.
+
+### The first predictions, judged again in the third run
+
+The same run judged the 42 predictions of 95b00b8 again on the same inputs. The record counts 34 as held, against 32 in both earlier runs. The six sweep misses of the earlier runs missed again, and so did the complete call predictions of Balanced and Narrowest full batch, both on `N < E`, where `N` took 5.8 and 4.3 percent less time than `E` and the band asks for more than 10. Empty groups and Widest singletons, which missed in both earlier runs, held here. The growth clause of the float64 prediction fails again with the same numbers as before, 5.6e-16 on Wide and on Full batch float64 against 1.3e-16 and 2.8e-16 on the two shapes with one group of 4096 items. By the rule that a prediction holds only when all of it holds, that makes 33 of 42.
+
+On every float32 shape `A` gave the same bytes as `N`. On Full batch float64 the two differ by at most 5.6e-16, as in the second run. Of the 36 sweep rows the second run timed, 23 repeated both medians to the tenth of a microsecond. The row at 128 items with 8 columns ran at 13.3 and 9.2 microseconds, the medians of the first record, and not at the 22.5 and 16.4 of the second.
+
+### What the narrow rule shows
+
+On this card, lifting the cap for narrow rows kept one column on the warp path up to 128 items. That took one timer step off at 64 items, 6.1 against 7.2 microseconds, and 0.15 microseconds at 128, where the medians are 8.05 and 8.2. On the fourteen shapes, where no path changed, `A` gave the same float32 bytes as `N`. The sweep checks each path against float64 math but does not compare the bytes of the two paths, so this run does not show whether moving a sweep row to the other path changed its output. Over the whole sweep the rule picked the faster or tied path on 87 of 88 rows, one more than the width rule would have. With two columns its switch at 128 is too high by this record. The block path was ahead by a fraction of a step at 96 items, where the medians show a whole step, and leaned the same way at 128. So the gain is one timer step on one row with one column and a fraction of a step on another, and the loss is a fraction of a step on one row with two columns, which its medians show as a whole step. This is one run on one card in one machine, measured on a working desktop with the load stated above and with unlocked clocks, and it times float32 only. Width 3 and the other widths between the ones listed are not timed. The existing kernel is still the default for `pool`, and no sanitizer run has covered this rule's choice of path.
