@@ -42,6 +42,8 @@ Start with the [v0.2.0 downloads and installed example](docs/install.md). The Wi
 
 Building the Windows extension requires an existing Visual Studio C++ toolchain and Windows SDK, using MSVC 19.44 and C++17. The [ordinary Linux source distribution route](docs/linux-cpu.md) uses Ubuntu 24.04 x86-64 and GCC 13 with the same Python, PyTorch and C++ standard. Each route records its own CI result. Neither promises ABI compatibility across versions or compatibility with other platforms. No CUDA toolchain is needed for the default CPU package.
 
+On Windows, Inductor in PyTorch 2.9.1 puts the paths of its generated C++ source and output into the MSVC command without quotes, so a space anywhere in its cache path breaks that build. Keep `TORCHINDUCTOR_CACHE_DIR` in a folder whose path holds no space. `examples/cpu_cost.py --compile` does this for its own probe. It keeps each cache beside its output when that path holds no space, uses a new temporary folder when it does, and takes `--cache-root` to name the folder instead. With the pinned 2.9.1 CPU package and MSVC 19.44, both of its compiled attempts then completed from an output folder with a space and matched eager within the float32 tolerance.
+
 From PowerShell at the checkout, create an isolated environment. Replace the example environment paths as needed. Install PyTorch from its official CPU wheel index before building. The explicit `--no-build-isolation` uses that pinned environment, and `--no-deps` prevents the package build from choosing another framework wheel.
 
 ```powershell
@@ -139,9 +141,12 @@ and limitations together. Use the route that matches the question:
 The separate [CUDA companion](docs/examples.md#cuda-companion) and
 [CPU/CUDA coinstallation route](docs/examples.md#cpu-and-cuda-in-one-environment)
 have their own dependency pins, qualified Windows RTX 4090 execution and
-sanitizer limits. The coinstallation and cross device resume guides retain the
-exact 0.1.0 wheel pair and link immutable historical source recipes. The 0.2.0
-CPU release does not qualify a replacement pair or expand the CPU wheel's contract.
+sanitizer limits. The companion's [forward kernel note](cuda/FORWARD_KERNEL.md)
+adds an opt in parallel forward kernel, with every prediction committed before
+it was timed on that card and no general speed claim. The coinstallation and
+cross device resume guides retain the exact 0.1.0 wheel pair and link immutable
+historical source recipes. The 0.2.0 CPU release does not qualify a replacement
+pair or expand the CPU wheel's contract.
 
 ## What the checks mean
 
