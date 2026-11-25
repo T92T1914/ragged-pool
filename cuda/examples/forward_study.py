@@ -14,6 +14,8 @@ Its third version lifts the switch for narrow rows, so a lane of the lone warp m
 walk up to 4 items in the maximum and the weights, and adds sweep rows at widths
 2 and 4 and at lengths between the powers of two around every switch. Their
 predictions sit in the section A switch for narrow rows, written before the run.
+Every reading of the card now carries the memory in use beside the utilization,
+and the record names whether the card was idle or shared with a working desktop.
 """
 import argparse
 import ctypes
@@ -519,20 +521,31 @@ def nvidia_smi(fields):
     return lines[0]
 
 
-DEVICE_STATE = "clocks.sm,clocks.mem,utilization.gpu,temperature.gpu,power.draw,pstate"
+DEVICE_STATE = "clocks.sm,clocks.mem,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,pstate"
+IDLE_LIMIT = 30
 
 
 def utilization_readings():
-    """Read the card's utilization five times, one second apart, before any timing."""
-    readings = []
+    """Read the card's utilization and memory five times, one second apart, before any timing."""
+    readings, lines = [], []
     for _ in range(5):
-        text = nvidia_smi("utilization.gpu")
+        text = nvidia_smi("utilization.gpu,memory.used,memory.total")
         match = re.match(r"(\d+)", text)
         if match is None:
-            raise SystemExit(f"nvidia-smi gave no utilization, so the card cannot be shown idle: {text}")
+            raise SystemExit(f"nvidia-smi gave no utilization, so the card's load cannot be shown: {text}")
         readings.append(int(match.group(1)))
+        lines.append(text)
         time.sleep(1.0)
-    return readings
+    return readings, lines
+
+
+def conditions(busy_limit):
+    """Name the load the run allowed. Above the idle limit the card was shared on purpose."""
+    if busy_limit <= IDLE_LIMIT:
+        return f"idle card: every utilization reading before the start at most {busy_limit} percent"
+    return (f"working desktop: timed beside the ordinary work of a desktop in use, accepting up to {busy_limit} "
+            "percent utilization before the start, with utilization and memory recorded before the start and "
+            "before and after every case")
 
 
 def declared_environment(properties):
@@ -594,7 +607,7 @@ def run(arguments):
     torch.cuda.set_device(device)
     properties = torch.cuda.get_device_properties(device)
     declared_environment(properties)
-    readings = utilization_readings()
+    readings, reading_lines = utilization_readings()
     if max(readings) > arguments.busy_limit:
         raise SystemExit(f"The card is busy: utilization readings {readings} reach above {arguments.busy_limit} percent")
     record = {
@@ -620,6 +633,8 @@ def run(arguments):
             "sm_count": properties.multi_processor_count, "total_memory_bytes": properties.total_memory,
             "driver": nvidia_smi("name,driver_version"),
             "utilization_before_start_percent": readings, "busy_limit_percent": arguments.busy_limit,
+            "device_before_start": reading_lines, "device_state_fields": DEVICE_STATE,
+            "conditions": conditions(arguments.busy_limit),
             "nsight_compute": ("available, but this script runs no profile" if shutil.which("ncu")
                                else "unavailable: ncu is not on PATH"),
         },
@@ -707,7 +722,7 @@ def main():
     parser.add_argument("--source-revision", required=True, help="Commit the wheel was built from")
     parser.add_argument("--wheel", type=Path, required=True, help="The installed wheel file, checked against the library")
     parser.add_argument("--smoke", action="store_true", help="Few samples, to check the script, not a study record")
-    parser.add_argument("--busy-limit", type=int, default=30,
+    parser.add_argument("--busy-limit", type=int, default=IDLE_LIMIT,
                         help="Refuse to time when any of five utilization readings exceeds this percent")
     arguments = parser.parse_args()
     if not re.fullmatch(r"[0-9a-f]{40}", arguments.source_revision):

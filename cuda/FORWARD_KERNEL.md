@@ -458,12 +458,13 @@ The path test now checks both the switch and one item past it for every width up
 
 ### How the third run measures it
 
-The same script and protocol as the two runs above: the same seed, warmups, rounds and samples, event pairs behind the stream hold, and the same refusal to time when any of five utilization readings before the start exceeds 30 percent. Four things change.
+The same script and protocol as the two runs above: the same seed, warmups, rounds and samples and event pairs behind the stream hold. Five things change.
 
 1. The sweep gains widths 2 and 4 at the six lengths, and for each of the widths 1, 2, 4, 8, 16, 32, 64 and 128 the five lengths `3S/4`, `S + 1`, `5S/4`, `3S/2` and `7S/4` around its switch `S`. That is 52 new rows and 88 in all. They are drawn after every earlier case, so the 50 cases of the second run keep their values and logits.
 2. The candidate `A` uses the narrow rule. On the fourteen shapes it launches the same paths the width rule's `A` launched.
 3. Each sweep row also records the path the width rule would pick there and whether that pick would have held. That comparison is recorded and not judged.
 4. The record is a new file under `evidence` with schema 3. No existing evidence file changes. As in the second run, the predictions of 95b00b8 are judged again and counted apart.
+5. The card is shared. The two runs above refused to time when any of five utilization readings before the start exceeded 30 percent. On November 24 the card read 52 to 61 percent at every sample of a watch of almost two hours with nobody at the console, so that refusal would not let this run start. This run times beside the ordinary load of my working desktop instead. It takes the shared lock, starts only with no game on the card and refuses only above 90 percent. The script now records the memory in use beside the utilization in the five readings before the start and before and after every case, and the record names its conditions as a working desktop. The Results give every number with that load stated. This item was added after the predictions and before the run.
 
 ### Predictions for the narrow rule
 
@@ -476,4 +477,4 @@ Where I expect a miss to come from, if one comes. The rows nearest a tie by my r
 
 ### Limits of the narrow rule
 
-The sweep times float32 only, and the widths 1, 2, 4, 8, 16, 32, 64 and 128. Width 3 shares its switch with width 4 and is not timed, and neither is any other width between the ones listed. The rule rests on one card and, once measured, on one run, with the conditions the earlier runs state. It changes which path the new kernel takes for widths 1 to 4 and nothing else. The existing kernel stays the default for `pool`, and the backward kernels stay as they are. The two Compute Sanitizer runs above covered the new kernel's device code, which this rule leaves as it is, but no sanitizer run has covered this rule's choice of path.
+The sweep times float32 only, and the widths 1, 2, 4, 8, 16, 32, 64 and 128. Width 3 shares its switch with width 4 and is not timed, and neither is any other width between the ones listed. The rule rests on one card and, once measured, on one run beside a working desktop, as item 5 above says. It changes which path the new kernel takes for widths 1 to 4 and nothing else. The existing kernel stays the default for `pool`, and the backward kernels stay as they are. The two Compute Sanitizer runs above covered the new kernel's device code, which this rule leaves as it is, but no sanitizer run has covered this rule's choice of path.
