@@ -1,6 +1,6 @@
 # A parallel forward kernel, designed before it is measured
 
-This note fixes the design of a second CUDA forward kernel for the companion and writes down what I expect it to do before any timing run. It holds no measurement. When the kernel is built and measured, the results go under [Results](#results) at the end, and the commit that adds them comes after the commit that adds this note. The existing kernel stays in the code and can still be selected, so every comparison here can be run again.
+This note fixes the design of a second CUDA forward kernel for the companion and writes down what I expect it to do before any timing run. The design and the predictions above [Results](#results) were written before any measurement. The results sit at the end, in a later commit than the predictions. The existing kernel stays in the code and can still be selected, so every comparison here can be run again.
 
 ## Why the existing kernel is slow by construction
 
@@ -180,4 +180,94 @@ Implementation and verification use AI coding assistance, consistent with [NOTIC
 
 ## Results
 
-Not measured yet.
+The study ran once, on November 22, 2026 at 15:44 UTC, from `examples/forward_study.py` at revision 0c64e74, whose `cuda` tree differs from the kernel's revision a6a38e9 only by that script. Its record is [evidence/forward-kernel-study-windows-sm89-20261122.json](evidence/forward-kernel-study-windows-sm89-20261122.json). The predictions above were committed in 95b00b8, before any timing run. The record names the device, the RTX 4090 with driver 621.24 and 128 SMs, and its clocks, which stayed at 2865 MHz for the SMs and 10701 MHz for memory, in P0, before and after every case. Nsight Compute was not on PATH, so no profile ran. The build and test log of the same run, which the record does not hold, shows the rest: the wheel was built with NVCC 12.8.93 and the MSVC 14.44 toolset and installed into a fresh acceptance environment, where the whole CUDA suite passed twice before the study started, 975 passed and 4 skipped with no `RAGGED_POOL_CUDA_` variable, and the same with `RAGGED_POOL_CUDA_FORWARD=adaptive`.
+
+The record counts 32 of the 42 predictions as held. Every kernel only prediction on the fourteen shapes held. Ten failed in the record's count: four complete call predictions and six in the sweep. The record judges only the bound of the float64 prediction about differences, and that prediction also said the difference grows with the length of the group, which did not happen. By the rule above that a prediction holds only when all of it holds, that makes 31 of 42. Each miss is named below.
+
+### What the measurement stood on
+
+One part of the protocol did not hold in full. Item 2 asks for a card with no other work on it. The script refuses to time above 30 percent, and its five readings before the start were 22, 10, 9, 12 and 10 percent, so other work was on the card when the run began. The record does not say what that work was or how long it lasted. The tails suggest it stayed. Most kernels with medians of 5 to 13 microseconds have 95th percentiles between 170 and 270 microseconds, while every kernel with a median above 19 microseconds keeps its 95th percentile within 20 percent of the median. That pattern fits short launches that sometimes wait behind the other work, though I have not shown that cause. I read the medians, which tails of that size move very little, and every number here was measured beside that background work.
+
+Kernel only times in the record fall mostly on steps of about 1.02 microseconds. Below about 10 microseconds two medians one step apart already differ by more than 10 percent, so the band in the predictions cannot judge kernels that short.
+
+### Kernel only
+
+Microseconds, the median with the 5th and 95th percentiles in brackets.
+
+| Case | E | N | Predicted | Result |
+| --- | --- | --- | --- | --- |
+| Empty batch | 2.0 (1.0 to 13.5) | 2.0 (1.0 to 11.5) | no kernel runs | |
+| Empty groups | 4.1 (3.1 to 202.3) | 4.1 (3.1 to 202.3) | `N ≈ E` | held |
+| Singletons | 6.1 (5.1 to 219.3) | 6.1 (5.1 to 221.3) | `N ≈ E` | held |
+| Many short | 11.3 (10.2 to 140.8) | 6.1 (5.1 to 205.9) | `N < E` | held |
+| Balanced | 80.9 (79.9 to 81.4) | 11.3 (11.3 to 228.4) | `N < E` | held |
+| Skewed | 2336.8 (2335.7 to 2776.3) | 89.1 (88.1 to 89.1) | `N < E` | held |
+| One long | 6196.2 (5983.2 to 7016.2) | 133.1 (132.1 to 134.1) | `N < E` | held |
+| Wide | 437.2 (436.2 to 437.2) | 10.2 (9.2 to 224.3) | `N < E` | held |
+| Full batch float32 | 242.7 (242.7 to 243.7) | 12.3 (11.3 to 227.3) | `N < E` | held |
+| Full batch float64 | 221.2 (221.2 to 222.7) | 11.3 (11.3 to 261.3) | `N < E` | held |
+| One full group | 28836.3 (27988.0 to 29860.7) | 245.8 (244.7 to 246.8) | `N < E` | held |
+| Narrowest full batch | 28.7 (27.6 to 28.7) | 6.1 (5.1 to 179.7) | `N < E` | held |
+| Skewed full batch | 29413.3 (28422.0 to 30354.3) | 340.0 (338.9 to 341.0) | `N < E` | held |
+| Widest singletons | 13.3 (13.3 to 202.3) | 5.1 (5.1 to 193.0) | `N < E` | held |
+
+The new kernel's median is lower on 11 of the 14 shapes. It ties on Empty batch, where no kernel runs, and on Empty groups and Singletons. The ratio runs from 1.9 on Many short to 117 on One full group, where one thread walked 4096 rows of 128 columns alone and 256 threads now share them.
+
+### Complete call
+
+| Case | E | N | C | Predicted | Result |
+| --- | --- | --- | --- | --- | --- |
+| Empty batch | 29.4 (28.2 to 148.6) | 28.9 (26.7 to 44.1) | 365.1 (334.2 to 696.6) | `E ≈ N < C` | held |
+| Empty groups | 39.2 (36.6 to 85.0) | 43.7 (35.5 to 117.9) | 468.1 (352.7 to 862.8) | `E ≈ N < C` | missed `E ≈ N` |
+| Singletons | 83.0 (78.8 to 284.3) | 82.8 (78.8 to 321.0) | 668.8 (589.9 to 1147.9) | `E ≈ N < C` | held |
+| Many short | 378.4 (354.4 to 698.6) | 363.0 (350.1 to 658.4) | 644.9 (587.2 to 1089.5) | `N ≈ E < C` | held |
+| Balanced | 1566.5 (1326.1 to 1863.5) | 1551.2 (1262.3 to 1757.7) | 701.5 (599.0 to 1169.3) | `C < N < E` | missed `N < E` |
+| Skewed | 4055.0 (3883.0 to 4452.7) | 1625.8 (1334.8 to 1814.1) | 707.9 (608.9 to 1089.1) | `C < N < E` | held |
+| One long | 9759.5 (9409.1 to 10276.6) | 3367.8 (3151.7 to 3717.4) | 870.5 (767.8 to 1389.9) | `C < N < E` | held |
+| Wide | 3533.1 (3393.8 to 3927.4) | 3116.5 (2856.8 to 3461.7) | 658.0 (585.8 to 1074.9) | `C < N < E` | held |
+| Full batch float32 | 20158.9 (19691.5 to 21026.2) | 19780.2 (19450.5 to 20571.6) | 747.8 (610.0 to 1311.1) | `C < N ≈ E` | held |
+| Full batch float64 | 22317.8 (21852.5 to 23156.1) | 22093.2 (21660.1 to 23180.5) | 786.9 (616.4 to 1327.6) | `C < N ≈ E` | held |
+| One full group | 51241.2 (50255.7 to 53637.4) | 22513.8 (21868.7 to 23635.6) | 960.0 (809.1 to 1510.2) | `C < N < E` | held |
+| Narrowest full batch | 367.2 (352.7 to 731.4) | 353.5 (332.5 to 709.2) | 697.2 (583.2 to 1146.4) | `N < E < C` | missed `N < E` |
+| Skewed full batch | 49231.6 (48566.9 to 50523.4) | 20329.4 (19882.6 to 21156.2) | 836.3 (708.5 to 1347.1) | `C < N < E` | held |
+| Widest singletons | 691.3 (636.7 to 1035.3) | 791.0 (632.5 to 1054.9) | 690.2 (596.3 to 1149.8) | `N ≈ E ≈ C` | missed `N ≈ E` and `N ≈ C` |
+
+The composition's complete call stays between about 0.4 and 1 millisecond on every shape, while the native call's time outside the kernel grows with the number of values, as assumption 5 expected of the single thread admission scan. The record does not time admission on its own, so that attribution rests on the assumption and on how the time scales. The two routes meet at Widest singletons, the 16384 value shape, where `E ≈ C` held. Above that the composition is faster on every shape. On Full batch float32 and Full batch float64 about 20 to 22 milliseconds of the native call go to everything but the kernel, against a new kernel of 11 to 12 microseconds.
+
+### Sweep, kernel only
+
+| L | D | W | K | Predicted | Result |
+| --- | --- | --- | --- | --- | --- |
+| 8 | 8 | 6.1 (5.1 to 173.1) | 7.2 (6.1 to 197.6) | `W ≈ K` | missed |
+| 8 | 128 | 7.2 (6.1 to 180.6) | 7.2 (6.1 to 176.8) | `W < K` | missed |
+| 16 | 8 | 6.1 (5.1 to 172.6) | 7.2 (6.1 to 174.1) | `W ≈ K` | missed |
+| 16 | 128 | 9.2 (8.2 to 179.3) | 8.2 (7.2 to 195.2) | `W ≈ K` | missed |
+| 32 | 8 | 7.2 (6.1 to 204.8) | 7.2 (7.2 to 221.7) | `W ≈ K` | held |
+| 32 | 128 | 12.3 (11.3 to 269.2) | 9.2 (8.2 to 253.0) | `W ≈ K` | missed |
+| 64 | 8 | 9.2 (8.2 to 209.9) | 8.2 (7.2 to 211.2) | `W ≈ K` | missed |
+| 64 | 128 | 19.5 (18.4 to 20.5) | 11.3 (11.3 to 228.4) | `K < W` | held |
+| 128 | 8 | 13.3 (12.3 to 219.5) | 9.2 (9.2 to 196.6) | `K < W` | held |
+| 128 | 128 | 33.8 (32.8 to 33.8) | 16.4 (16.4 to 227.3) | `K < W` | held |
+| 256 | 8 | 20.5 (19.5 to 21.5) | 13.3 (12.3 to 199.2) | `K < W` | held |
+| 256 | 128 | 62.5 (61.4 to 62.5) | 27.6 (26.6 to 28.3) | `K < W` | held |
+
+### The misses and their reasons
+
+1. Empty groups, `E ≈ N` in the complete call. The medians are 39.2 and 43.7 microseconds, 11 percent apart, while both kernels take 4.1 microseconds on their own. Two of the five rounds of `N` came in at 52 and 53 microseconds and the other three near 39, and one round of `E` came in near 50. The relation failed inside that scatter between rounds. What caused the slow rounds is not explained.
+2. Balanced, `N < E` in the complete call. The new kernel saves 70 microseconds, but the rest of the call, which assumption 5 puts mostly on admitting 32768 values, takes about 1.5 milliseconds, so the saving is under 5 percent of the call. I judged the existing kernel's share of the call as large enough to show, and it is not.
+3. Narrowest full batch, `N < E` in the complete call. The same reason at a smaller size: the kernel saves about 23 microseconds of a call near 360, which is under the 10 percent the relation needs.
+4. Widest singletons, `N ≈ E` and `N ≈ C` in the complete call. The median of `N` is 14 percent above `E`, although its own kernel is 8 microseconds faster and the two 5th percentiles are 632.5 and 636.7. The medians of single rounds run from 669 to 797 microseconds for `E` and from 661 to 815 for `N`, about 20 percent, twice the band. The relations failed inside that scatter, and its cause is not explained.
+5. The sweep at 8 and 16 items with 8 columns, and at 16 items with 128 columns and 64 items with 8 columns, each `W ≈ K`. In every one the medians are one timer step apart, and with kernels of 6 to 9 microseconds one step is more than 10 percent. A gap of one step fails the band at this size, so the verdict turns on whether both medians land on the same step, as they did at 32 items with 8 columns, where `W ≈ K` held.
+6. The sweep at 8 items with 128 columns, `W < K`. Both medians are 7.2 microseconds. I expected the block path's final step to cost it the shortest groups, and any such cost is smaller than one step of the clock.
+7. The sweep at 32 items with 128 columns, `W ≈ K`. The block path takes 9.2 microseconds against 12.3 for the warp path, three steps apart and 25 percent faster. With 128 columns the block path is already ahead at 32 items, and one step ahead at 16, so the switch at 32 is too high for wide rows on this card. This matches the failure the sweep paragraph named in advance. That paragraph gives two mechanisms that fit it: one warp may not reach all of an SM's FP64 throughput at that width, and eight warps hide memory latency that a lone warp cannot. No profile ran, so the record cannot tell them apart. The sweep's row at 32 items and 128 columns has the same shape as Full batch float32, so on that shape the block path would likely take about 9.2 microseconds where the switch at 32 gives the warp path 12.3. Moving the switch, or letting it depend on the width, is a design change for a later item.
+8. The float64 prediction about differences, its clause that the difference grows with the length of the group. The record scores only the bound, which held. The largest difference, 5.6e-16, is on Full batch float64 with groups of 32 and on Wide with groups of 64, not on the two shapes with 4096 items. I expected the existing thread's long serial sum to gather the most rounding error. The record holds only the largest difference for each shape, so why that did not happen is not explained.
+
+### The numbers themselves
+
+Two runs of `N` on the same inputs gave identical bytes on all 14 shapes. On every float32 shape among them the two kernels gave identical bytes, which is stronger than the one unit in the last place the prediction allowed. In float64 the largest difference between them is 5.6e-16, below the predicted 1e-13, and every candidate's float64 output stays within 6.7e-16 of the same computation in float64 on the CPU, far inside the documented absolute tolerance of 2e-12. Every output of the sweep was within the float32 tolerance of the float64 computation as well.
+
+Two expectations in [What carries over](#what-carries-over-and-what-changes) did not hold as written. Counted in units of the last place of each output, the float64 differences reach 12288 on Full batch float64, because some outputs are smaller than 1e-3, so a difference of 5.6e-16 is many units of a small number. Outputs that small are weighted sums of values of both signs that nearly cancel, which is my reading rather than something the record shows. The second expectation is the growth with the length of the group, the eighth miss above.
+
+### What this shows
+
+On this card the new kernel's own time is lower than the existing kernel's on 11 of the 14 shapes, from 1.9 times on Many short to 117 times on One full group, and it changes no float32 output. A complete call is now mostly time outside the kernel, which the limits above expected the single thread admission scan to take, and above about 16384 values the eager composition still finishes first. Nothing here is a general speed claim. It is one card in one machine, one driver, one toolkit, the bounded sizes above and other work on the card during the run. Whether the new kernel becomes the default for `pool` still waits on a Compute Sanitizer run of this binary.
