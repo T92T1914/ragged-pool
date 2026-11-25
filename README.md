@@ -141,9 +141,12 @@ and limitations together. Use the route that matches the question:
 The separate [CUDA companion](docs/examples.md#cuda-companion) and
 [CPU/CUDA coinstallation route](docs/examples.md#cpu-and-cuda-in-one-environment)
 have their own dependency pins, qualified Windows RTX 4090 execution and
-sanitizer limits. The coinstallation and cross device resume guides retain the
-exact 0.1.0 wheel pair and link immutable historical source recipes. The 0.2.0
-CPU release does not qualify a replacement pair or expand the CPU wheel's contract.
+sanitizer limits. The companion's [forward kernel note](cuda/FORWARD_KERNEL.md)
+adds an opt in parallel forward kernel, with every prediction committed before
+it was timed on that card and no general speed claim. The coinstallation and
+cross device resume guides retain the exact 0.1.0 wheel pair and link immutable
+historical source recipes. The 0.2.0 CPU release does not qualify a replacement
+pair or expand the CPU wheel's contract.
 
 ## What the checks mean
 
